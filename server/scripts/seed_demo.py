@@ -1,4 +1,4 @@
-"""Add two synthetic demo songs (generated tones, no Music.ai needed) for testing.
+"""Add ten synthetic demo songs (generated tones, no Music.ai needed) for testing.
 
 From server/:  python -m scripts.seed_demo
 """
@@ -17,9 +17,25 @@ from app.models import Song, Stem
 RATE = 22050
 SECONDS = 16
 
+MELODIES = [
+    [0, 4, 7, 12, 7, 4, 2, 5],
+    [0, 2, 3, 7, 3, 2, 0, -2],
+    [7, 5, 4, 0, 4, 5, 7, 9],
+    [0, 0, 7, 7, 9, 9, 7, 5],
+    [12, 11, 7, 4, 7, 11, 12, 14],
+]
+
 DEMOS = {
-    "Demo Tune Alpha": {"root": 220.0, "bpm": 100},
-    "Demo Tune Beta": {"root": 261.63, "bpm": 128},
+    "Demo Tune Alpha": {"root": 220.0, "bpm": 100, "melody": 0},
+    "Demo Tune Beta": {"root": 261.63, "bpm": 128, "melody": 0},
+    "Crimson Skyline": {"root": 196.0, "bpm": 92, "melody": 1},
+    "Neon Harbor": {"root": 246.94, "bpm": 118, "melody": 2},
+    "Velvet Thunder": {"root": 164.81, "bpm": 84, "melody": 3},
+    "Paper Planets": {"root": 293.66, "bpm": 140, "melody": 4},
+    "Midnight Arcade": {"root": 185.0, "bpm": 110, "melody": 2},
+    "Copper Rain": {"root": 233.08, "bpm": 96, "melody": 1},
+    "Glass Garden": {"root": 277.18, "bpm": 124, "melody": 3},
+    "Lunar Parade": {"root": 207.65, "bpm": 132, "melody": 4},
 }
 
 
@@ -31,11 +47,11 @@ def write_wav(path, samples):
         w.writeframes(b"".join(struct.pack("<h", int(max(-1, min(1, s)) * 32767)) for s in samples))
 
 
-def make_stems(root: float, bpm: int) -> dict[str, list[float]]:
+def make_stems(root: float, bpm: int, melody: int) -> dict[str, list[float]]:
     beat = 60 / bpm
     n = RATE * SECONDS
     drums, bass, keys, vocals = [], [], [], []
-    melody = [0, 4, 7, 12, 7, 4, 2, 5]
+    melody = MELODIES[melody]
     for i in range(n):
         t = i / RATE
         pos = t % beat

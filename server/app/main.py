@@ -12,6 +12,7 @@ from .game import GameManager
 from .models import Song
 
 logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 init_db()
 config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,7 +34,20 @@ def health() -> dict:
     return {"ok": True, "songs": songs}
 
 
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=config.CORS_ORIGINS)
+if (config.CLIENT_DIST_DIR / "index.html").exists():
+    api.mount("/", StaticFiles(directory=config.CLIENT_DIST_DIR, html=True), name="client")
+else:
+    log.warning("Web client not built: run `npm run build` in client/ to serve it from this server.")
+
+
+def _origin_allowed(origin: str | None, environ: dict) -> bool:
+    if origin in config.CORS_ORIGINS:
+        return True
+    host = environ.get("HTTP_HOST")
+    return bool(origin and host and origin.split("://", 1)[-1] == host)
+
+
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=_origin_allowed)
 games = GameManager(sio)
 
 
@@ -59,9 +73,20 @@ async def leave_room(sid, _data=None):
     return {"ok": True}
 
 
+@sio.on("update_settings")
+async def update_settings(sid, data=None):
+    data = data or {}
+    return await games.update_settings(sid, data.get("rounds"), data.get("maxPlayers"))
+
+
+@sio.on("library")
+async def library(_sid, _data=None):
+    return {"ok": True, "songs": await games.library_size()}
+
+
 @sio.on("start_game")
-async def start_game(sid, data=None):
-    return await games.start_game(sid, (data or {}).get("rounds"))
+async def start_game(sid, _data=None):
+    return await games.start_game(sid)
 
 
 @sio.on("guess")

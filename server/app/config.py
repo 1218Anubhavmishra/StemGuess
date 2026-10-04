@@ -22,8 +22,9 @@ def _csv(name: str, default: str) -> list[str]:
 DATABASE_URL = _database_url()
 MEDIA_DIR = Path(os.getenv("MEDIA_DIR") or BASE_DIR / "media")
 SONGS_INPUT_DIR = Path(os.getenv("SONGS_INPUT_DIR") or BASE_DIR / "songs_input")
-PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
-CORS_ORIGINS = _csv("CORS_ORIGINS", "http://localhost:5173")
+CLIENT_DIST_DIR = Path(os.getenv("CLIENT_DIST_DIR") or BASE_DIR.parent / "client" / "dist")
+# Extra origins besides the server's own (which is always allowed).
+CORS_ORIGINS = _csv("CORS_ORIGINS", "http://localhost:5173,https://localhost,capacitor-electron://-")
 
 MUSIC_AI_API_KEY = os.getenv("MUSIC_AI_API_KEY", "")
 MUSIC_AI_WORKFLOW = os.getenv("MUSIC_AI_WORKFLOW", "")

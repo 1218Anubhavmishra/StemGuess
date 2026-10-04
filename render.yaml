@@ -1,22 +1,20 @@
 services:
   - type: web
-    name: stem-guess-server
+    name: stem-guess
     runtime: python
-    rootDir: server
-    buildCommand: pip install -r requirements.txt
+    # Builds the React client, then serves it and the game from one Python server.
+    buildCommand: cd client && npm ci && npm run build && cd ../server && pip install -r requirements.txt
     # Game rooms live in memory: keep a single worker/instance.
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd server && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.7"
+      - key: NODE_VERSION
+        value: "22"
       - key: DATABASE_URL
         fromDatabase:
           name: stem-guess-db
           property: connectionString
-      - key: PUBLIC_BASE_URL
-        sync: false
-      - key: CORS_ORIGINS
-        sync: false
 
 databases:
   - name: stem-guess-db

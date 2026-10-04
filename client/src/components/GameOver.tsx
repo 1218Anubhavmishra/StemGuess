@@ -10,7 +10,7 @@ export default function GameOver({ room, ranking, isHost, onLeave }: Props) {
 
   async function playAgain() {
     setError('');
-    const ack = await request('start_game', { rounds: room.totalRounds });
+    const ack = await request('start_game');
     if (!ack.ok) setError(ack.error ?? 'Could not start');
   }
 

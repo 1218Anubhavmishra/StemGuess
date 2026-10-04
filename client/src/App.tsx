@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { stemPlayer } from './audio';
-import { request, socket } from './socket';
+import { bgMusic, stemPlayer } from './audio';
+import { request, serverUrl, socket } from './socket';
 import type { FeedItem, Phase, Player, RoomState, StemInfo } from './types';
 import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
 import GameOver from './components/GameOver';
+import MusicToggle from './components/MusicToggle';
 
 let feedId = 0;
 
@@ -39,7 +40,7 @@ export default function App() {
       setAnswer(null);
       setEndsAt(null);
       pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
-      stemPlayer.prepare(p.stems.map((s) => s.url));
+      stemPlayer.prepare(p.stems.map((s) => serverUrl(s.url)));
     };
     const onStart = (p: { duration: number }) => {
       setPhase('playing');
@@ -93,16 +94,39 @@ export default function App() {
     setFeed([]);
   };
 
-  if (!room) return <Home connected={connected} />;
+  const screen = !room
+    ? 'home'
+    : room.state === 'playing'
+      ? 'game'
+      : phase === 'gameOver'
+        ? 'gameOver'
+        : 'lobby';
+  const menuMusic = screen === 'home' || screen === 'lobby';
+
+  useEffect(() => bgMusic.setWanted(menuMusic), [menuMusic]);
+
+  if (!room) {
+    return (
+      <>
+        <MusicToggle />
+        <Home connected={connected} />
+      </>
+    );
+  }
 
   const meId = socket.id ?? '';
   const isHost = room.hostId === meId;
 
-  if (phase === 'gameOver' && room.state !== 'playing') {
+  if (screen === 'gameOver') {
     return <GameOver room={room} ranking={ranking} isHost={isHost} onLeave={leave} />;
   }
-  if (room.state !== 'playing') {
-    return <Lobby room={room} isHost={isHost} onLeave={leave} />;
+  if (screen === 'lobby') {
+    return (
+      <>
+        <MusicToggle />
+        <Lobby room={room} isHost={isHost} onLeave={leave} />
+      </>
+    );
   }
   return (
     <Game

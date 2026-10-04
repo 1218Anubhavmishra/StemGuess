@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { stemPlayer } from '../audio';
+import { unlockAudio } from '../audio';
 import { request } from '../socket';
 
 const NAME_KEY = 'stemguess:name';
@@ -11,8 +11,7 @@ export default function Home({ connected }: { connected: boolean }) {
   const [busy, setBusy] = useState(false);
 
   async function submit(event: 'create_room' | 'join_room') {
-    // Must run inside the click handler so mobile browsers allow audio later.
-    stemPlayer.unlock();
+    unlockAudio();
     setBusy(true);
     setError('');
     localStorage.setItem(NAME_KEY, name.trim());

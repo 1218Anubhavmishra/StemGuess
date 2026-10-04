@@ -1,17 +1,47 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { request, socket } from '../socket';
-import type { RoomState } from '../types';
+import { PLAYER_LIMITS, SONG_LIMITS, type RoomState } from '../types';
 import Scoreboard from './Scoreboard';
 
-const ROUND_OPTIONS = [3, 5, 10];
+type StepperProps = { label: string; value: number; min: number; max: number; onChange: (v: number) => void };
+
+function Stepper({ label, value, min, max, onChange }: StepperProps) {
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <div className="stepper">
+        <button aria-label={`Fewer ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)}>
+          −
+        </button>
+        <output>{value}</output>
+        <button aria-label={`More ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)}>
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHost: boolean; onLeave: () => void }) {
-  const [rounds, setRounds] = useState(5);
   const [error, setError] = useState('');
+  const [librarySize, setLibrarySize] = useState<number | null>(null);
+
+  useEffect(() => {
+    void request('library').then((ack) => ack.ok && setLibrarySize(ack.songs ?? 0));
+  }, []);
+
+  const maxSongs = Math.min(SONG_LIMITS.max, librarySize ?? SONG_LIMITS.max);
+  const notEnoughSongs = librarySize !== null && librarySize < SONG_LIMITS.min;
+
+  async function update(settings: { rounds?: number; maxPlayers?: number }) {
+    setError('');
+    const ack = await request('update_settings', settings);
+    if (!ack.ok) setError(ack.error ?? 'Could not update settings');
+  }
 
   async function start() {
     setError('');
-    const ack = await request('start_game', { rounds });
+    const ack = await request('start_game');
     if (!ack.ok) setError(ack.error ?? 'Could not start');
   }
 
@@ -22,27 +52,47 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
         <h1 className="room-code">{room.code}</h1>
         <p className="muted small">Share this code with your friends.</p>
 
-        <h3>Players ({room.players.length})</h3>
+        <h3>
+          Players ({room.players.length}/{room.maxPlayers})
+        </h3>
         <Scoreboard room={room} meId={socket.id ?? ''} />
 
         {isHost ? (
           <>
-            <div className="field">
-              <span>Rounds</span>
-              <div className="segmented">
-                {ROUND_OPTIONS.map((n) => (
-                  <button key={n} className={n === rounds ? 'active' : ''} onClick={() => setRounds(n)}>
-                    {n}
-                  </button>
-                ))}
-              </div>
+            <div className="settings">
+              <Stepper
+                label="Songs"
+                value={room.totalRounds}
+                min={SONG_LIMITS.min}
+                max={Math.max(SONG_LIMITS.min, maxSongs)}
+                onChange={(rounds) => void update({ rounds })}
+              />
+              <Stepper
+                label="Max players"
+                value={room.maxPlayers}
+                min={Math.max(PLAYER_LIMITS.min, room.players.length)}
+                max={PLAYER_LIMITS.max}
+                onChange={(maxPlayers) => void update({ maxPlayers })}
+              />
             </div>
-            <button className="primary" onClick={() => void start()}>
-              Start game
+            {librarySize !== null && (
+              <p className="muted small">
+                {notEnoughSongs
+                  ? `The library has ${librarySize} song${librarySize === 1 ? '' : 's'}. Add at least ${SONG_LIMITS.min} to play.`
+                  : `${librarySize} songs in the library.`}
+              </p>
+            )}
+            <button className="primary" disabled={notEnoughSongs} onClick={() => void start()}>
+              Start game ({room.totalRounds} songs)
             </button>
           </>
         ) : (
-          <p className="muted">Waiting for the host to start…</p>
+          <>
+            <p className="muted">
+              {room.totalRounds} songs · up to {room.maxPlayers} players
+            </p>
+            <p className="muted">Waiting for the host to start…</p>
+          </>
         )}
 
         {error && <p className="error">{error}</p>}

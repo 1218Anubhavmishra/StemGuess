@@ -14,9 +14,9 @@ from .models import GameResult, Song, Stem
 
 log = logging.getLogger(__name__)
 
-MAX_PLAYERS = 12
 MAX_NAME_LENGTH = 20
-MAX_ROUNDS = 20
+MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 5
+MIN_PLAYER_LIMIT, MAX_PLAYER_LIMIT, DEFAULT_PLAYER_LIMIT = 2, 10, 8
 
 # Hardest-to-recognise first, vocals last.
 STEM_ORDER = [
@@ -74,7 +74,8 @@ class Room:
     host_sid: str
     players: dict[str, Player] = field(default_factory=dict)
     state: str = "lobby"  # lobby | playing | finished
-    total_rounds: int = 5
+    total_rounds: int = DEFAULT_ROUNDS
+    max_players: int = DEFAULT_PLAYER_LIMIT
     round_number: int = 0
     playlist: list[int] = field(default_factory=list)
     current: Round | None = None
@@ -88,6 +89,7 @@ class Room:
             "state": self.state,
             "round": self.round_number,
             "totalRounds": self.total_rounds,
+            "maxPlayers": self.max_players,
             "players": [
                 {"id": p.sid, "name": p.name, "score": p.score, "guessed": p.guessed}
                 for p in self.players.values()
@@ -137,8 +139,8 @@ class GameManager:
             return _error("Room not found")
         if room.state == "playing":
             return _error("Game already in progress")
-        if len(room.players) >= MAX_PLAYERS:
-            return _error("Room is full")
+        if len(room.players) >= room.max_players:
+            return _error(f"Room is full (max {room.max_players} players)")
         if any(p.name.casefold() == name.casefold() for p in room.players.values() if p.sid != sid):
             return _error("That name is taken in this room")
         await self.leave(sid)
@@ -168,9 +170,36 @@ class GameManager:
         self._check_all_guessed(room)
         await self._broadcast_state(room)
 
+    async def update_settings(self, sid: str, rounds: object, max_players: object) -> dict:
+        room = self._room_of(sid)
+        if not room:
+            return _error("You are not in a room")
+        if room.host_sid != sid:
+            return _error("Only the host can change settings")
+        if room.state == "playing":
+            return _error("Can't change settings during a game")
+        try:
+            rounds = int(rounds) if rounds is not None else room.total_rounds
+            max_players = int(max_players) if max_players is not None else room.max_players
+        except (TypeError, ValueError):
+            return _error("Invalid settings")
+        if not MIN_ROUNDS <= rounds <= MAX_ROUNDS:
+            return _error(f"Songs per game must be {MIN_ROUNDS}-{MAX_ROUNDS}")
+        if not MIN_PLAYER_LIMIT <= max_players <= MAX_PLAYER_LIMIT:
+            return _error(f"Max players must be {MIN_PLAYER_LIMIT}-{MAX_PLAYER_LIMIT}")
+        if max_players < len(room.players):
+            return _error(f"{len(room.players)} players are already in the room")
+        room.total_rounds = rounds
+        room.max_players = max_players
+        await self._broadcast_state(room)
+        return {"ok": True}
+
     # ----- game flow -----
 
-    async def start_game(self, sid: str, rounds: object) -> dict:
+    async def library_size(self) -> int:
+        return len(await asyncio.to_thread(self._playable_song_ids))
+
+    async def start_game(self, sid: str) -> dict:
         room = self._room_of(sid)
         if not room:
             return _error("You are not in a room")
@@ -180,15 +209,12 @@ class GameManager:
             return _error("Game already running")
 
         song_ids = await asyncio.to_thread(self._playable_song_ids)
-        if not song_ids:
-            return _error("No songs processed yet. Run scripts/process_songs.py on the server.")
-        try:
-            requested = int(rounds)
-        except (TypeError, ValueError):
-            requested = 5
+        if len(song_ids) < MIN_ROUNDS:
+            return _error(f"The library needs at least {MIN_ROUNDS} songs (it has {len(song_ids)}).")
+        if len(song_ids) < room.total_rounds:
+            return _error(f"Only {len(song_ids)} songs in the library. Pick {len(song_ids)} or fewer.")
 
         random.shuffle(song_ids)
-        room.total_rounds = max(1, min(requested, len(song_ids), MAX_ROUNDS))
         room.playlist = song_ids[: room.total_rounds]
         room.round_number = 0
         for p in room.players.values():
@@ -214,10 +240,8 @@ class GameManager:
                 title=song.title,
                 artist=song.artist,
                 answers=[song.title, *(song.aliases or [])],
-                stems=[
-                    {"name": s.name, "url": f"{config.PUBLIC_BASE_URL}/media/{s.path}"}
-                    for s in stems
-                ],
+                # Relative to the server; clients resolve against their server URL.
+                stems=[{"name": s.name, "url": f"/media/{s.path}"} for s in stems],
             )
 
     async def _run_game(self, room: Room) -> None:

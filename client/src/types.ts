@@ -6,6 +6,7 @@ export type RoomState = {
   state: 'lobby' | 'playing' | 'finished';
   round: number;
   totalRounds: number;
+  maxPlayers: number;
   players: Player[];
 };
 
@@ -26,4 +27,8 @@ export type Ack = {
   code?: string;
   playerId?: string;
   result?: 'correct' | 'close' | 'wrong';
+  songs?: number;
 };
+
+export const SONG_LIMITS = { min: 3, max: 10 };
+export const PLAYER_LIMITS = { min: 2, max: 10 };
