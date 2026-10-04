@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+venv/
+.vercel/
+*.db
+
+# Raw audio and generated stems (copyrighted / large)
+server/media/
+server/songs_input/
+
+# Capacitor native projects (generated)
+client/android/
+client/electron/

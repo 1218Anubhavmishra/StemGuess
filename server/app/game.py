@@ -1,0 +1,327 @@
+import asyncio
+import logging
+import random
+import string
+from dataclasses import dataclass, field
+
+import socketio
+from sqlalchemy import select
+
+from . import config
+from .db import SessionLocal
+from .matching import CLOSE_THRESHOLD, CORRECT_THRESHOLD, similarity
+from .models import GameResult, Song, Stem
+
+log = logging.getLogger(__name__)
+
+MAX_PLAYERS = 12
+MAX_NAME_LENGTH = 20
+MAX_ROUNDS = 20
+
+# Hardest-to-recognise first, vocals last.
+STEM_ORDER = [
+    "drums", "percussion", "bass", "guitars", "guitar", "keys", "piano",
+    "strings", "wind", "other", "accompaniments", "accompaniment",
+    "backing_vocals", "vocals",
+]
+
+
+def _stem_rank(name: str) -> int:
+    name = name.lower()
+    if name in STEM_ORDER:
+        return STEM_ORDER.index(name)
+    if "vocal" in name:
+        return len(STEM_ORDER)
+    return STEM_ORDER.index("other")
+
+
+def _clean_name(name: object) -> str:
+    return " ".join(str(name or "").split())[:MAX_NAME_LENGTH]
+
+
+def _error(message: str) -> dict:
+    return {"ok": False, "error": message}
+
+
+async def _wait_event(event: asyncio.Event, timeout: float) -> bool:
+    try:
+        await asyncio.wait_for(event.wait(), timeout)
+        return True
+    except asyncio.TimeoutError:
+        return False
+
+
+@dataclass
+class Player:
+    sid: str
+    name: str
+    score: int = 0
+    guessed: bool = False
+
+
+@dataclass
+class Round:
+    title: str
+    artist: str
+    answers: list[str]
+    stems: list[dict]
+    revealed: int = 0
+
+
+@dataclass
+class Room:
+    code: str
+    host_sid: str
+    players: dict[str, Player] = field(default_factory=dict)
+    state: str = "lobby"  # lobby | playing | finished
+    total_rounds: int = 5
+    round_number: int = 0
+    playlist: list[int] = field(default_factory=list)
+    current: Round | None = None
+    task: asyncio.Task | None = None
+    all_guessed: asyncio.Event = field(default_factory=asyncio.Event)
+
+    def public(self) -> dict:
+        return {
+            "code": self.code,
+            "hostId": self.host_sid,
+            "state": self.state,
+            "round": self.round_number,
+            "totalRounds": self.total_rounds,
+            "players": [
+                {"id": p.sid, "name": p.name, "score": p.score, "guessed": p.guessed}
+                for p in self.players.values()
+            ],
+        }
+
+
+class GameManager:
+    """In-memory room state. Requires a single server process."""
+
+    def __init__(self, sio: socketio.AsyncServer):
+        self.sio = sio
+        self.rooms: dict[str, Room] = {}
+        self.sid_room: dict[str, str] = {}
+
+    def _room_of(self, sid: str) -> Room | None:
+        code = self.sid_room.get(sid)
+        return self.rooms.get(code) if code else None
+
+    def _new_code(self) -> str:
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+        while True:
+            code = "".join(random.choices(alphabet, k=4))
+            if code not in self.rooms:
+                return code
+
+    async def _broadcast_state(self, room: Room) -> None:
+        await self.sio.emit("room_state", room.public(), room=room.code)
+
+    # ----- lobby -----
+
+    async def create_room(self, sid: str, name: object) -> dict:
+        name = _clean_name(name)
+        if not name:
+            return _error("Enter a name")
+        await self.leave(sid)
+        room = Room(code=self._new_code(), host_sid=sid)
+        self.rooms[room.code] = room
+        return await self._add_player(room, sid, name)
+
+    async def join_room(self, sid: str, code: object, name: object) -> dict:
+        name = _clean_name(name)
+        if not name:
+            return _error("Enter a name")
+        room = self.rooms.get(str(code or "").strip().upper())
+        if not room:
+            return _error("Room not found")
+        if room.state == "playing":
+            return _error("Game already in progress")
+        if len(room.players) >= MAX_PLAYERS:
+            return _error("Room is full")
+        if any(p.name.casefold() == name.casefold() for p in room.players.values() if p.sid != sid):
+            return _error("That name is taken in this room")
+        await self.leave(sid)
+        return await self._add_player(room, sid, name)
+
+    async def _add_player(self, room: Room, sid: str, name: str) -> dict:
+        room.players[sid] = Player(sid=sid, name=name)
+        self.sid_room[sid] = room.code
+        await self.sio.enter_room(sid, room.code)
+        await self._broadcast_state(room)
+        return {"ok": True, "code": room.code, "playerId": sid}
+
+    async def leave(self, sid: str) -> None:
+        code = self.sid_room.pop(sid, None)
+        room = self.rooms.get(code) if code else None
+        if not room:
+            return
+        room.players.pop(sid, None)
+        await self.sio.leave_room(sid, room.code)
+        if not room.players:
+            if room.task:
+                room.task.cancel()
+            del self.rooms[room.code]
+            return
+        if room.host_sid == sid:
+            room.host_sid = next(iter(room.players))
+        self._check_all_guessed(room)
+        await self._broadcast_state(room)
+
+    # ----- game flow -----
+
+    async def start_game(self, sid: str, rounds: object) -> dict:
+        room = self._room_of(sid)
+        if not room:
+            return _error("You are not in a room")
+        if room.host_sid != sid:
+            return _error("Only the host can start the game")
+        if room.state == "playing":
+            return _error("Game already running")
+
+        song_ids = await asyncio.to_thread(self._playable_song_ids)
+        if not song_ids:
+            return _error("No songs processed yet. Run scripts/process_songs.py on the server.")
+        try:
+            requested = int(rounds)
+        except (TypeError, ValueError):
+            requested = 5
+
+        random.shuffle(song_ids)
+        room.total_rounds = max(1, min(requested, len(song_ids), MAX_ROUNDS))
+        room.playlist = song_ids[: room.total_rounds]
+        room.round_number = 0
+        for p in room.players.values():
+            p.score = 0
+            p.guessed = False
+        room.state = "playing"
+        room.task = asyncio.create_task(self._run_game(room))
+        return {"ok": True}
+
+    @staticmethod
+    def _playable_song_ids() -> list[int]:
+        with SessionLocal() as db:
+            return list(db.scalars(select(Song.id).join(Stem).distinct()))
+
+    @staticmethod
+    def _load_round(song_id: int) -> Round | None:
+        with SessionLocal() as db:
+            song = db.get(Song, song_id)
+            if not song or not song.stems:
+                return None
+            stems = sorted(song.stems, key=lambda s: _stem_rank(s.name))
+            return Round(
+                title=song.title,
+                artist=song.artist,
+                answers=[song.title, *(song.aliases or [])],
+                stems=[
+                    {"name": s.name, "url": f"{config.PUBLIC_BASE_URL}/media/{s.path}"}
+                    for s in stems
+                ],
+            )
+
+    async def _run_game(self, room: Room) -> None:
+        try:
+            for song_id in room.playlist:
+                if not room.players:
+                    return
+                rnd = await asyncio.to_thread(self._load_round, song_id)
+                if rnd:
+                    await self._play_round(room, rnd)
+            await self._finish(room)
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            log.exception("Game loop crashed in room %s", room.code)
+            room.state = "lobby"
+            room.current = None
+            await self._broadcast_state(room)
+
+    async def _play_round(self, room: Room, rnd: Round) -> None:
+        room.round_number += 1
+        room.all_guessed.clear()
+        for p in room.players.values():
+            p.guessed = False
+        await self._broadcast_state(room)
+
+        await self.sio.emit(
+            "round_prepare",
+            {"round": room.round_number, "totalRounds": room.total_rounds, "stems": rnd.stems},
+            room=room.code,
+        )
+        await asyncio.sleep(config.PREPARE_SECONDS)
+
+        room.current = rnd
+        duration = len(rnd.stems) * config.STEM_REVEAL_SECONDS + config.ROUND_EXTRA_SECONDS
+        await self.sio.emit("round_start", {"duration": duration}, room=room.code)
+        try:
+            await asyncio.wait_for(self._reveal_stems(room, rnd), timeout=duration)
+        except asyncio.TimeoutError:
+            pass
+
+        room.current = None
+        await self.sio.emit(
+            "round_end",
+            {"title": rnd.title, "artist": rnd.artist, "stems": rnd.stems},
+            room=room.code,
+        )
+        await asyncio.sleep(config.ROUND_END_PAUSE_SECONDS)
+
+    async def _reveal_stems(self, room: Room, rnd: Round) -> None:
+        for index, stem in enumerate(rnd.stems):
+            rnd.revealed = index + 1
+            await self.sio.emit("stem_reveal", {"index": index, "name": stem["name"]}, room=room.code)
+            if await _wait_event(room.all_guessed, config.STEM_REVEAL_SECONDS):
+                return
+        await room.all_guessed.wait()
+
+    async def _finish(self, room: Room) -> None:
+        room.state = "finished"
+        ranking = sorted(room.players.values(), key=lambda p: p.score, reverse=True)
+        try:
+            await asyncio.to_thread(self._save_results, room.code, ranking)
+        except Exception:
+            log.exception("Failed to save results for room %s", room.code)
+        await self.sio.emit(
+            "game_over",
+            {"ranking": [{"id": p.sid, "name": p.name, "score": p.score, "guessed": False} for p in ranking]},
+            room=room.code,
+        )
+        await self._broadcast_state(room)
+
+    @staticmethod
+    def _save_results(code: str, ranking: list[Player]) -> None:
+        with SessionLocal() as db:
+            db.add_all(GameResult(room_code=code, player_name=p.name, score=p.score) for p in ranking)
+            db.commit()
+
+    # ----- guessing -----
+
+    async def guess(self, sid: str, text: object) -> dict:
+        room = self._room_of(sid)
+        rnd = room.current if room else None
+        player = room.players.get(sid) if room else None
+        text = str(text or "").strip()[:100]
+        if not room or not rnd or not player or not text:
+            return _error("No round in progress")
+        if player.guessed:
+            return _error("You already got this one")
+
+        score = similarity(text, rnd.answers)
+        if score >= CORRECT_THRESHOLD:
+            player.guessed = True
+            player.score += 1
+            await self.sio.emit("feed", {"type": "correct", "name": player.name}, room=room.code)
+            await self._broadcast_state(room)
+            self._check_all_guessed(room)
+            return {"ok": True, "result": "correct"}
+
+        if score >= CLOSE_THRESHOLD:
+            return {"ok": True, "result": "close"}
+
+        await self.sio.emit("feed", {"type": "guess", "name": player.name, "text": text}, room=room.code)
+        return {"ok": True, "result": "wrong"}
+
+    def _check_all_guessed(self, room: Room) -> None:
+        if room.current and room.players and all(p.guessed for p in room.players.values()):
+            room.all_guessed.set()

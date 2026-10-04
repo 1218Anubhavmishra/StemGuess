@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: stem-guess-server
+    runtime: python
+    rootDir: server
+    buildCommand: pip install -r requirements.txt
+    # Game rooms live in memory: keep a single worker/instance.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stem-guess-db
+          property: connectionString
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+databases:
+  - name: stem-guess-db
+    plan: free
