@@ -7,11 +7,12 @@
   --accent: #7c5cff;
   --accent-2: #22d3a6;
   --danger: #ff5c7a;
+  --page: #f6f4ee;
+  --on-page: #3a3955;
   --radius: 14px;
-  color-scheme: dark;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
-  background: radial-gradient(circle at 20% 0%, #23205a 0%, var(--bg) 55%);
+  background: var(--page);
 }
 
 * { box-sizing: border-box; }
@@ -26,6 +27,7 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .center { display: grid; place-items: center; }
 
 .card {
+  box-shadow: 0 8px 24px rgba(30, 28, 60, 0.12);
   background: var(--panel);
   border: 1px solid #2e3060;
   border-radius: var(--radius);
@@ -82,6 +84,8 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
 .stepper button { width: 44px; padding: 10px 0; font-size: 1.2rem; }
 .stepper output { flex: 1; text-align: center; font-size: 1.3rem; font-weight: 700; color: var(--text); }
 
+button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
+
 .mute {
   position: fixed;
   top: max(12px, env(safe-area-inset-top));
@@ -126,13 +130,17 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
 .pill { background: var(--panel); border: 1px solid #2e3060; padding: 6px 12px; border-radius: 99px; font-size: 0.9rem; }
 .timer { font-variant-numeric: tabular-nums; min-width: 56px; text-align: center; }
 .timer.urgent { color: var(--danger); border-color: var(--danger); }
-.volume { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+.volume { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-left: auto; }
 .volume input { padding: 0; width: 90px; }
 
 .stage { justify-content: center; min-height: 360px; }
 .status { font-size: 1.2rem; text-align: center; margin: 0; }
 .answer { text-align: center; }
 .answer h2 { font-size: 2rem; color: var(--accent-2); margin: 0; }
+
+.progress { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.progress-track { flex: 1; height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 99px; }
 
 .stems { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 12px 0; }
 .stems li {

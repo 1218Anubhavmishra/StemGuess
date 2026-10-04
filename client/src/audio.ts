@@ -28,6 +28,8 @@ class StemPlayer {
   private revealed = new Set<number>();
   private generation = 0;
   private volume = 0.8;
+  private startedAt?: number;
+  private clipDuration = 0;
 
   private output(): GainNode {
     if (!this.master) {
@@ -60,6 +62,8 @@ class StemPlayer {
     const ctx = audioContext();
     void ctx.resume();
     const startAt = ctx.currentTime + 0.1;
+    this.startedAt = startAt;
+    this.clipDuration = Math.max(...buffers.map((b) => b.duration));
     this.tracks = buffers.map((buffer, index) => {
       const gain = ctx.createGain();
       gain.gain.value = this.revealed.has(index) ? 1 : 0;
@@ -92,8 +96,16 @@ class StemPlayer {
     return this.volume;
   }
 
+  /** Playback position within the (looping) clip, or null when nothing is playing. */
+  progress(): { position: number; duration: number } | null {
+    if (this.startedAt === undefined || !this.clipDuration) return null;
+    const elapsed = Math.max(0, audioContext().currentTime - this.startedAt);
+    return { position: elapsed % this.clipDuration, duration: this.clipDuration };
+  }
+
   stop() {
     this.generation++;
+    this.startedAt = undefined;
     for (const { source, gain } of this.tracks) {
       try {
         source.stop();

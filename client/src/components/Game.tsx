@@ -26,6 +26,33 @@ function useCountdown(endsAt: number | null) {
   return endsAt ? Math.max(0, Math.ceil((endsAt - now) / 1000)) : null;
 }
 
+const formatTime = (seconds?: number) =>
+  seconds === undefined ? '--:--' : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+
+function SongProgress() {
+  const [progress, setProgress] = useState(stemPlayer.progress());
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      setProgress(stemPlayer.progress());
+      frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const percent = progress ? (progress.position / progress.duration) * 100 : 0;
+  return (
+    <div className="progress" role="progressbar" aria-label="Song progress" aria-valuenow={Math.round(percent)}>
+      <span>{formatTime(progress?.position)}</span>
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${percent}%` }} />
+      </div>
+      <span>{formatTime(progress?.duration)}</span>
+    </div>
+  );
+}
+
 export default function Game({ room, meId, phase, stems, revealed, endsAt, answer, feed, onLeave }: Props) {
   const [guess, setGuess] = useState('');
   const [hint, setHint] = useState('');
@@ -94,6 +121,8 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
             {answer.artist && <p className="muted">{answer.artist}</p>}
           </div>
         )}
+
+        <SongProgress />
 
         <ul className="stems">
           {stems.map((s, i) => (
