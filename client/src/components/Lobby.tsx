@@ -48,9 +48,11 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
   return (
     <main className="screen center">
       <div className="card narrow">
-        <p className="muted small">Room code</p>
-        <h1 className="room-code">{room.code}</h1>
-        <p className="muted small">Share this code with your friends.</p>
+        <div className="room-code-row">
+          <span className="muted small">Room code</span>
+          <h1 className="room-code">{room.code}</h1>
+          <span className="muted small">Share this code with your friends.</span>
+        </div>
 
         <h3>
           Players ({room.players.length}/{room.maxPlayers})
