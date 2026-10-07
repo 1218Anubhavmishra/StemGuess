@@ -75,11 +75,9 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
                 onChange={(maxPlayers) => void update({ maxPlayers })}
               />
             </div>
-            {librarySize !== null && (
+            {notEnoughSongs && (
               <p className="muted small">
-                {notEnoughSongs
-                  ? `The library has ${librarySize} song${librarySize === 1 ? '' : 's'}. Add at least ${SONG_LIMITS.min} to play.`
-                  : `${librarySize} songs in the library.`}
+                The library has {librarySize} song{librarySize === 1 ? '' : 's'}. Add at least {SONG_LIMITS.min} to play.
               </p>
             )}
             <button className="primary" disabled={notEnoughSongs} onClick={() => void start()}>
