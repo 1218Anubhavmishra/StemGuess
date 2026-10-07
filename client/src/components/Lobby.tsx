@@ -57,7 +57,7 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
               </p>
             )}
             <button className="primary" disabled={notEnoughSongs} onClick={() => void start()}>
-              Start
+              Start game
             </button>
           </>
         ) : (

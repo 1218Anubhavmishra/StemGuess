@@ -53,7 +53,7 @@ export default function Home({ connected }: { connected: boolean }) {
         />
 
         <button className="primary" disabled={!connected || !nameOk || busy} onClick={() => void submit('create_room')}>
-          Create
+          Create Room
         </button>
 
         <div className="divider">or join one</div>
