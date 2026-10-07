@@ -87,9 +87,6 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
         <span className="pill">
           Round {room.round}/{room.totalRounds}
         </span>
-        <span className={`pill timer ${secondsLeft !== null && secondsLeft <= 5 ? 'urgent' : ''}`}>
-          {secondsLeft ?? '–'}s
-        </span>
         <label className="volume">
           Vol
           <input
@@ -112,6 +109,11 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
 
       <section className="stage card">
         {phase === 'prepare' && <p className="status">Get ready… loading stems</p>}
+        {phase === 'playing' && secondsLeft !== null && (
+          <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
+            {formatTime(secondsLeft)}
+          </p>
+        )}
         {phase === 'playing' && (
           <p className="status">
             {me?.guessed

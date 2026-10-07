@@ -10,6 +10,7 @@ from sqlalchemy import select
 from . import config
 from .db import SessionLocal
 from .matching import CLOSE_THRESHOLD, CORRECT_THRESHOLD, similarity
+from .media import audio_duration
 from .models import GameResult, Song, Stem
 
 log = logging.getLogger(__name__)
@@ -17,6 +18,9 @@ log = logging.getLogger(__name__)
 MAX_NAME_LENGTH = 20
 MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 5
 MIN_PLAYER_LIMIT, MAX_PLAYER_LIMIT, DEFAULT_PLAYER_LIMIT = 2, 10, 8
+MIN_ROUND_SECONDS = 10
+# Clients start audio ~0.1 s after round_start arrives, so the server waits slightly longer.
+AUDIO_START_GRACE = 0.3
 
 # Hardest-to-recognise first, vocals last.
 STEM_ORDER = [
@@ -66,6 +70,7 @@ class Round:
     artist: str
     answers: list[str]
     stems: list[dict]
+    duration: float | None = None
     revealed: int = 0
 
 
@@ -236,10 +241,16 @@ class GameManager:
             song = db.get(Song, song_id)
             if not song or not song.stems:
                 return None
+            if song.duration is None:
+                lengths = [d for s in song.stems if (d := audio_duration(config.MEDIA_DIR / s.path))]
+                if lengths:
+                    song.duration = max(lengths)
+                    db.commit()
             stems = sorted(song.stems, key=lambda s: _stem_rank(s.name))
             return Round(
                 title=song.title,
                 artist=song.artist,
+                duration=song.duration,
                 answers=[song.title, *(song.aliases or [])],
                 # Relative to the server; clients resolve against their server URL.
                 stems=[{"name": s.name, "url": f"/media/{s.path}"} for s in stems],
@@ -277,10 +288,16 @@ class GameManager:
         await asyncio.sleep(config.PREPARE_SECONDS)
 
         room.current = rnd
-        duration = len(rnd.stems) * config.STEM_REVEAL_SECONDS + config.ROUND_EXTRA_SECONDS
+        if rnd.duration:
+            # The round lasts exactly one play-through of the clip; stems are spread evenly across it.
+            duration = max(rnd.duration, MIN_ROUND_SECONDS)
+            interval = duration / len(rnd.stems)
+        else:
+            interval = config.STEM_REVEAL_SECONDS
+            duration = len(rnd.stems) * interval + config.ROUND_EXTRA_SECONDS
         await self.sio.emit("round_start", {"duration": duration}, room=room.code)
         try:
-            await asyncio.wait_for(self._reveal_stems(room, rnd), timeout=duration)
+            await asyncio.wait_for(self._reveal_stems(room, rnd, interval), timeout=duration + AUDIO_START_GRACE)
         except asyncio.TimeoutError:
             pass
 
@@ -292,11 +309,11 @@ class GameManager:
         )
         await asyncio.sleep(config.ROUND_END_PAUSE_SECONDS)
 
-    async def _reveal_stems(self, room: Room, rnd: Round) -> None:
+    async def _reveal_stems(self, room: Room, rnd: Round, interval: float) -> None:
         for index, stem in enumerate(rnd.stems):
             rnd.revealed = index + 1
             await self.sio.emit("stem_reveal", {"index": index, "name": stem["name"]}, room=room.code)
-            if await _wait_event(room.all_guessed, config.STEM_REVEAL_SECONDS):
+            if await _wait_event(room.all_guessed, interval):
                 return
         await room.all_guessed.wait()
 

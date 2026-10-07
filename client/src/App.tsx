@@ -39,6 +39,7 @@ export default function App() {
       setRevealed(0);
       setAnswer(null);
       setEndsAt(null);
+      if (p.round === 1) setFeed([]);
       pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
       stemPlayer.prepare(p.stems.map((s) => serverUrl(s.url)));
     };

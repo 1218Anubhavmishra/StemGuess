@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -18,6 +18,8 @@ class Song(Base):
     artist: Mapped[str] = mapped_column(String(300), default="")
     aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
     source_file: Mapped[str] = mapped_column(String(500), unique=True)
+    # Clip length in seconds; filled lazily from the stem files.
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     stems: Mapped[list["Stem"]] = relationship(

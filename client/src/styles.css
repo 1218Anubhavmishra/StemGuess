@@ -133,8 +133,8 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
 }
 .topbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .pill { background: var(--panel); border: 1px solid var(--border); padding: 6px 12px; border-radius: 99px; font-size: 0.9rem; }
-.timer { font-variant-numeric: tabular-nums; min-width: 56px; text-align: center; }
-.timer.urgent { color: var(--danger); border-color: var(--danger); }
+.countdown { margin: 0; text-align: center; font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+.countdown.urgent { color: var(--danger); }
 .volume { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-left: auto; }
 .volume input { padding: 0; width: 90px; }
 
