@@ -90,10 +90,6 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   return (
     <main className="screen game">
       <header className="topbar">
-        <span className="pill">Room {room.code}</span>
-        <span className="pill">
-          Round {room.round}/{room.totalRounds}
-        </span>
         <label className="volume">
           Vol
           <input
@@ -115,6 +111,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
       </header>
 
       <section className="stage card">
+        <h2 className="stage-room">Room {room.code}</h2>
         {phase === 'prepare' && <p className="status">Get ready… loading stems</p>}
         {phase === 'playing' && secondsLeft !== null && (
           <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">

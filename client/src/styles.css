@@ -131,18 +131,19 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
   display: grid;
   grid-template-columns: 1fr 300px;
   grid-template-rows: auto 1fr;
+  align-items: start;
   gap: 16px;
   max-width: 1100px;
   margin: 0 auto;
 }
 .topbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.pill { background: var(--panel); border: 1px solid var(--border); padding: 6px 12px; border-radius: 99px; font-size: 0.9rem; }
 .countdown { margin: 0; text-align: center; font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
 .countdown.urgent { color: var(--danger); }
 .volume { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-left: auto; }
 .volume input { padding: 0; width: 90px; }
 
-.stage { justify-content: center; min-height: 360px; }
+.stage { justify-content: center; }
+.stage-room { margin: 0; text-align: center; font-size: 2.2rem; letter-spacing: 0.08em; color: var(--accent-2); }
 .status { font-size: 1.2rem; text-align: center; margin: 0; }
 .answer { text-align: center; }
 .answer h2 { font-size: 2rem; color: var(--accent-2); margin: 0; }
