@@ -60,7 +60,8 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   const feedRef = useRef<HTMLUListElement>(null);
   const secondsLeft = useCountdown(endsAt);
   const me = room.players.find((p) => p.id === meId);
-  const canGuess = phase === 'playing' && revealed > 0 && !me?.guessed;
+  const roundWinners = room.players.filter((p) => p.guessed).map((p) => p.name);
+  const canGuess = phase === 'playing' && revealed > 0 && !me?.attempted;
 
   useEffect(() => setHint(''), [room.round]);
   useEffect(() => {
@@ -73,9 +74,9 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
     if (!text) return;
     setGuess('');
     const ack = await request('guess', { text });
-    if (ack.result === 'correct') setHint('Correct! +1 point');
-    else if (ack.result === 'close') setHint(`"${text}" is close!`);
-    else if (ack.result === 'wrong') setHint('');
+    if (ack.result === 'correct') setHint('Correct! You got it.');
+    else if (ack.result === 'close') setHint(`"${text}" was close, but not quite. That was your guess for this round.`);
+    else if (ack.result === 'wrong') setHint(`"${text}" isn't it. That was your guess for this round.`);
     else if (ack.error) setHint(ack.error);
   }
 
@@ -112,13 +113,22 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
       <section className="stage card">
         {phase === 'prepare' && <p className="status">Get ready… loading stems</p>}
         {phase === 'playing' && (
-          <p className="status">{me?.guessed ? 'You got it! Waiting for others…' : 'Listen and guess the song'}</p>
+          <p className="status">
+            {me?.guessed
+              ? 'You got it! Waiting for others…'
+              : me?.attempted
+                ? 'Guess used. Waiting for others…'
+                : 'Listen and guess the song: you get one guess'}
+          </p>
         )}
         {phase === 'roundEnd' && answer && (
           <div className="answer">
             <p className="muted small">The song was</p>
             <h2>{answer.title}</h2>
             {answer.artist && <p className="muted">{answer.artist}</p>}
+            <p className="round-winners">
+              {roundWinners.length ? `Got it: ${roundWinners.join(', ')}` : 'Nobody got this one'}
+            </p>
           </div>
         )}
 
@@ -141,7 +151,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
           <input
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
-            placeholder={canGuess ? 'Type the song title…' : ''}
+            placeholder={canGuess ? 'Type the song title (one guess)…' : ''}
             disabled={!canGuess}
             autoFocus
           />
@@ -154,7 +164,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
 
       <aside className="side">
         <div className="card">
-          <h3>Scores</h3>
+          <h3>Players</h3>
           <Scoreboard room={room} meId={meId} showGuessed />
         </div>
         <div className="card">

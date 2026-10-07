@@ -56,7 +56,8 @@ class Player:
     sid: str
     name: str
     score: int = 0
-    guessed: bool = False
+    guessed: bool = False  # guessed correctly this round
+    attempted: bool = False  # used their one guess this round
 
 
 @dataclass
@@ -91,7 +92,7 @@ class Room:
             "totalRounds": self.total_rounds,
             "maxPlayers": self.max_players,
             "players": [
-                {"id": p.sid, "name": p.name, "score": p.score, "guessed": p.guessed}
+                {"id": p.sid, "name": p.name, "score": p.score, "guessed": p.guessed, "attempted": p.attempted}
                 for p in self.players.values()
             ],
         }
@@ -219,7 +220,7 @@ class GameManager:
         room.round_number = 0
         for p in room.players.values():
             p.score = 0
-            p.guessed = False
+            p.guessed = p.attempted = False
         room.state = "playing"
         room.task = asyncio.create_task(self._run_game(room))
         return {"ok": True}
@@ -265,7 +266,7 @@ class GameManager:
         room.round_number += 1
         room.all_guessed.clear()
         for p in room.players.values():
-            p.guessed = False
+            p.guessed = p.attempted = False
         await self._broadcast_state(room)
 
         await self.sio.emit(
@@ -308,7 +309,7 @@ class GameManager:
             log.exception("Failed to save results for room %s", room.code)
         await self.sio.emit(
             "game_over",
-            {"ranking": [{"id": p.sid, "name": p.name, "score": p.score, "guessed": False} for p in ranking]},
+            {"ranking": [{"id": p.sid, "name": p.name, "score": p.score, "guessed": False, "attempted": False} for p in ranking]},
             room=room.code,
         )
         await self._broadcast_state(room)
@@ -328,24 +329,27 @@ class GameManager:
         text = str(text or "").strip()[:100]
         if not room or not rnd or not player or not text:
             return _error("No round in progress")
-        if player.guessed:
-            return _error("You already got this one")
+        if player.attempted:
+            return _error("You've already used your guess this round")
 
+        player.attempted = True
         score = similarity(text, rnd.answers)
         if score >= CORRECT_THRESHOLD:
             player.guessed = True
             player.score += 1
+            result = "correct"
             await self.sio.emit("feed", {"type": "correct", "name": player.name}, room=room.code)
-            await self._broadcast_state(room)
-            self._check_all_guessed(room)
-            return {"ok": True, "result": "correct"}
+        elif score >= CLOSE_THRESHOLD:
+            # Near-misses stay private so they don't hint the answer to others.
+            result = "close"
+        else:
+            result = "wrong"
+            await self.sio.emit("feed", {"type": "guess", "name": player.name, "text": text}, room=room.code)
 
-        if score >= CLOSE_THRESHOLD:
-            return {"ok": True, "result": "close"}
-
-        await self.sio.emit("feed", {"type": "guess", "name": player.name, "text": text}, room=room.code)
-        return {"ok": True, "result": "wrong"}
+        await self._broadcast_state(room)
+        self._check_all_guessed(room)
+        return {"ok": True, "result": result}
 
     def _check_all_guessed(self, room: Room) -> None:
-        if room.current and room.players and all(p.guessed for p in room.players.values()):
+        if room.current and room.players and all(p.attempted for p in room.players.values()):
             room.all_guessed.set()
