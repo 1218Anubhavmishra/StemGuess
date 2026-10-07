@@ -49,6 +49,9 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .hint { color: var(--accent-2); margin: 0; font-weight: 600; }
 
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; color: var(--muted); }
+.field.inline { flex-direction: row; align-items: center; gap: 10px; }
+.field.inline span { white-space: nowrap; }
+.field.inline input { flex: 1; min-width: 0; }
 .row { display: flex; gap: 8px; }
 .row input { flex: 1; min-width: 0; }
 

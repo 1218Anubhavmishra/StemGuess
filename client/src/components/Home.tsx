@@ -33,15 +33,15 @@ export default function Home({ connected }: { connected: boolean }) {
         <h1 className="logo">
           Stem<span>Guess</span>
         </h1>
-        <p className="muted">Guess the song from its instruments.</p>
+        <p className="muted">Guess Songs with their instruments.</p>
 
-        <label className="field">
+        <label className="field inline">
           <span>Your name</span>
           <input value={name} maxLength={20} onChange={(e) => setName(e.target.value)} placeholder="e.g. Anu" />
         </label>
 
         <button className="primary" disabled={!connected || !nameOk || busy} onClick={() => void submit('create_room')}>
-          Create room
+          Create
         </button>
 
         <div className="divider">or join one</div>
