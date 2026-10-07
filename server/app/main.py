@@ -58,7 +58,8 @@ async def disconnect(sid, *_args):
 
 @sio.on("create_room")
 async def create_room(sid, data=None):
-    return await games.create_room(sid, (data or {}).get("name"))
+    data = data or {}
+    return await games.create_room(sid, data.get("name"), data.get("maxPlayers"))
 
 
 @sio.on("join_room")

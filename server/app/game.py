@@ -129,12 +129,18 @@ class GameManager:
 
     # ----- lobby -----
 
-    async def create_room(self, sid: str, name: object) -> dict:
+    async def create_room(self, sid: str, name: object, max_players: object = None) -> dict:
         name = _clean_name(name)
         if not name:
             return _error("Enter a name")
+        try:
+            max_players = int(max_players) if max_players is not None else DEFAULT_PLAYER_LIMIT
+        except (TypeError, ValueError):
+            return _error("Invalid max players")
+        if not MIN_PLAYER_LIMIT <= max_players <= MAX_PLAYER_LIMIT:
+            return _error(f"Max players must be {MIN_PLAYER_LIMIT}-{MAX_PLAYER_LIMIT}")
         await self.leave(sid)
-        room = Room(code=self._new_code(), host_sid=sid)
+        room = Room(code=self._new_code(), host_sid=sid, max_players=max_players)
         self.rooms[room.code] = room
         return await self._add_player(room, sid, name)
 
@@ -152,7 +158,10 @@ class GameManager:
         if any(p.name.casefold() == name.casefold() for p in room.players.values() if p.sid != sid):
             return _error("That name is taken in this room")
         await self.leave(sid)
-        return await self._add_player(room, sid, name)
+        result = await self._add_player(room, sid, name)
+        if room.state == "lobby" and len(room.players) >= room.max_players:
+            await self.start_game(room.host_sid)
+        return result
 
     async def _add_player(self, room: Room, sid: str, name: str) -> dict:
         room.players[sid] = Player(sid=sid, name=name)

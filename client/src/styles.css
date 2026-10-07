@@ -51,7 +51,7 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; color: var(--muted); }
 .field.inline { flex-direction: row; align-items: center; gap: 10px; }
 .field.inline span { white-space: nowrap; }
-.field.inline input { flex: 1; min-width: 0; }
+.field.inline input, .field.inline .stepper { flex: 1; min-width: 0; }
 .row { display: flex; gap: 8px; }
 .row input { flex: 1; min-width: 0; }
 
@@ -85,7 +85,6 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
 
 .divider { text-align: center; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
-.settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stepper { display: flex; align-items: center; gap: 6px; }
 .stepper button { width: 44px; padding: 10px 0; font-size: 1.2rem; }
 .stepper output { flex: 1; text-align: center; font-size: 1.3rem; font-weight: 700; color: var(--text); }
