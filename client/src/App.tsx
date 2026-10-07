@@ -17,7 +17,7 @@ export default function App() {
   const [stems, setStems] = useState<StemInfo[]>([]);
   const [revealed, setRevealed] = useState(0);
   const [endsAt, setEndsAt] = useState<number | null>(null);
-  const [answer, setAnswer] = useState<{ title: string; artist: string } | null>(null);
+  const [answer, setAnswer] = useState<{ title: string; artist: string; isLast: boolean } | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
 
@@ -52,12 +52,12 @@ export default function App() {
       setRevealed(p.index + 1);
       stemPlayer.reveal(p.index);
     };
-    const onRoundEnd = (p: { title: string; artist: string; stems: StemInfo[] }) => {
+    const onRoundEnd = (p: { title: string; artist: string; stems: StemInfo[]; isLast: boolean }) => {
       setPhase('roundEnd');
-      setAnswer({ title: p.title, artist: p.artist });
+      setAnswer({ title: p.title, artist: p.artist, isLast: p.isLast });
       setEndsAt(null);
       setRevealed(p.stems.length);
-      stemPlayer.revealAll(p.stems.length);
+      stemPlayer.stop();
     };
     const onGameOver = (p: { ranking: Player[] }) => {
       setPhase('gameOver');
@@ -139,6 +139,7 @@ export default function App() {
       endsAt={endsAt}
       answer={answer}
       feed={feed}
+      isHost={isHost}
       onLeave={leave}
     />
   );

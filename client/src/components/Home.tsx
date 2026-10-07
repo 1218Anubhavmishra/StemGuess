@@ -33,7 +33,7 @@ export default function Home({ connected }: { connected: boolean }) {
         <h1 className="logo">
           Stem<span>Guess</span>
         </h1>
-        <p className="muted">Name the song from its instruments. One stem at a time.</p>
+        <p className="muted">Guess the song from its instruments.</p>
 
         <label className="field">
           <span>Your name</span>

@@ -89,6 +89,11 @@ async def start_game(sid, _data=None):
     return await games.start_game(sid)
 
 
+@sio.on("next_round")
+async def next_round(sid, _data=None):
+    return await games.next_round(sid)
+
+
 @sio.on("guess")
 async def guess(sid, data=None):
     return await games.guess(sid, (data or {}).get("text"))

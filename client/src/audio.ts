@@ -83,10 +83,6 @@ class StemPlayer {
     if (track) track.gain.gain.setTargetAtTime(1, audioContext().currentTime, 0.3);
   }
 
-  revealAll(count: number) {
-    for (let i = 0; i < count; i++) this.reveal(i);
-  }
-
   setVolume(value: number) {
     this.volume = value;
     if (this.master) this.master.gain.value = value;

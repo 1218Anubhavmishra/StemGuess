@@ -87,6 +87,8 @@ class Room:
     current: Round | None = None
     task: asyncio.Task | None = None
     all_guessed: asyncio.Event = field(default_factory=asyncio.Event)
+    advance: asyncio.Event = field(default_factory=asyncio.Event)
+    awaiting_next: bool = False
 
     def public(self) -> dict:
         return {
@@ -302,12 +304,29 @@ class GameManager:
             pass
 
         room.current = None
+        room.advance.clear()
+        room.awaiting_next = True
         await self.sio.emit(
             "round_end",
-            {"title": rnd.title, "artist": rnd.artist, "stems": rnd.stems},
+            {
+                "title": rnd.title,
+                "artist": rnd.artist,
+                "stems": rnd.stems,
+                "isLast": room.round_number >= room.total_rounds,
+            },
             room=room.code,
         )
-        await asyncio.sleep(config.ROUND_END_PAUSE_SECONDS)
+        await room.advance.wait()
+        room.awaiting_next = False
+
+    async def next_round(self, sid: str) -> dict:
+        room = self._room_of(sid)
+        if not room or not room.awaiting_next:
+            return _error("Nothing to advance")
+        if room.host_sid != sid:
+            return _error("Only the host can continue")
+        room.advance.set()
+        return {"ok": True}
 
     async def _reveal_stems(self, room: Room, rnd: Round, interval: float) -> None:
         for index, stem in enumerate(rnd.stems):

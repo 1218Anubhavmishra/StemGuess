@@ -88,6 +88,7 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
 .stepper output { flex: 1; text-align: center; font-size: 1.3rem; font-weight: 700; color: var(--text); }
 
 button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
+.topbar button.end-game { color: var(--danger); }
 
 .mute {
   position: fixed;

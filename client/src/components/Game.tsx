@@ -11,8 +11,9 @@ type Props = {
   stems: StemInfo[];
   revealed: number;
   endsAt: number | null;
-  answer: { title: string; artist: string } | null;
+  answer: { title: string; artist: string; isLast: boolean } | null;
   feed: FeedItem[];
+  isHost: boolean;
   onLeave: () => void;
 };
 
@@ -29,31 +30,37 @@ function useCountdown(endsAt: number | null) {
 const formatTime = (seconds?: number) =>
   seconds === undefined ? '--:--' : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
-function SongProgress() {
+function SongProgress({ complete }: { complete: boolean }) {
   const [progress, setProgress] = useState(stemPlayer.progress());
+  const lastDuration = useRef<number | undefined>(undefined);
   useEffect(() => {
+    if (complete) return;
     let frame = 0;
     const tick = () => {
-      setProgress(stemPlayer.progress());
+      const p = stemPlayer.progress();
+      if (p) lastDuration.current = p.duration;
+      setProgress(p);
       frame = requestAnimationFrame(tick);
     };
     tick();
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [complete]);
 
-  const percent = progress ? (progress.position / progress.duration) * 100 : 0;
+  const duration = complete ? lastDuration.current : progress?.duration;
+  const position = complete ? lastDuration.current : progress?.position;
+  const percent = complete ? 100 : progress ? (progress.position / progress.duration) * 100 : 0;
   return (
     <div className="progress" role="progressbar" aria-label="Song progress" aria-valuenow={Math.round(percent)}>
-      <span>{formatTime(progress?.position)}</span>
+      <span>{formatTime(position)}</span>
       <div className="progress-track">
         <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
-      <span>{formatTime(progress?.duration)}</span>
+      <span>{formatTime(duration)}</span>
     </div>
   );
 }
 
-export default function Game({ room, meId, phase, stems, revealed, endsAt, answer, feed, onLeave }: Props) {
+export default function Game({ room, meId, phase, stems, revealed, endsAt, answer, feed, isHost, onLeave }: Props) {
   const [guess, setGuess] = useState('');
   const [hint, setHint] = useState('');
   const [volume, setVolume] = useState(stemPlayer.getVolume());
@@ -102,8 +109,8 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
             }}
           />
         </label>
-        <button className="ghost small" onClick={onLeave}>
-          Leave
+        <button className="ghost small end-game" onClick={onLeave}>
+          End
         </button>
       </header>
 
@@ -134,7 +141,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
           </div>
         )}
 
-        <SongProgress />
+        <SongProgress complete={phase === 'roundEnd'} />
 
         <ul className="stems">
           {stems.map((s, i) => (
@@ -149,18 +156,28 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
           ))}
         </ul>
 
-        <form className="row guess" onSubmit={submit}>
-          <input
-            value={guess}
-            onChange={(e) => setGuess(e.target.value)}
-            placeholder={canGuess ? 'Type the song title (one guess)…' : ''}
-            disabled={!canGuess}
-            autoFocus
-          />
-          <button type="submit" className="primary" disabled={!canGuess || !guess.trim()}>
-            Guess
-          </button>
-        </form>
+        {phase === 'roundEnd' ? (
+          isHost ? (
+            <button className="primary" onClick={() => void request('next_round')}>
+              {answer?.isLast ? 'See results' : 'Next'}
+            </button>
+          ) : (
+            <p className="status muted">Waiting for the host to continue…</p>
+          )
+        ) : (
+          <form className="row guess" onSubmit={submit}>
+            <input
+              value={guess}
+              onChange={(e) => setGuess(e.target.value)}
+              placeholder={canGuess ? 'Type the song title (one guess)…' : ''}
+              disabled={!canGuess}
+              autoFocus
+            />
+            <button type="submit" className="primary" disabled={!canGuess || !guess.trim()}>
+              Guess
+            </button>
+          </form>
+        )}
         {hint && <p className="hint">{hint}</p>}
       </section>
 
