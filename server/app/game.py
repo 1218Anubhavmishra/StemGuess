@@ -16,8 +16,8 @@ from .models import GameResult, Song, Stem
 log = logging.getLogger(__name__)
 
 MAX_NAME_LENGTH = 20
-MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 5
-MIN_PLAYER_LIMIT, MAX_PLAYER_LIMIT, DEFAULT_PLAYER_LIMIT = 2, 10, 8
+MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 3
+MIN_PLAYER_LIMIT, MAX_PLAYER_LIMIT, DEFAULT_PLAYER_LIMIT = 2, 10, 2
 MIN_ROUND_SECONDS = 10
 # Clients start audio ~0.1 s after round_start arrives, so the server waits slightly longer.
 AUDIO_START_GRACE = 0.3
