@@ -90,28 +90,15 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   return (
     <main className="screen game">
       <header className="topbar">
-        <label className="volume">
-          Vol
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setVolume(v);
-              stemPlayer.setVolume(v);
-            }}
-          />
-        </label>
         <button className="ghost small end-game" onClick={onLeave}>
           End
         </button>
       </header>
 
       <section className="stage card">
-        <h2 className="stage-room">Room {room.code}</h2>
+        <h2 className="stage-room">
+          Room <span>{room.code}</span>
+        </h2>
         {phase === 'prepare' && <p className="status">Get ready… loading stems</p>}
         {phase === 'playing' && secondsLeft !== null && (
           <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
@@ -177,6 +164,22 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
         )}
         {hint && <p className="hint">{hint}</p>}
       </section>
+
+      <label className="volume">
+        Vol
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={volume}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setVolume(v);
+            stemPlayer.setVolume(v);
+          }}
+        />
+      </label>
 
       <aside className="side">
         <div className="card">
