@@ -63,6 +63,7 @@ function SongProgress({ complete }: { complete: boolean }) {
 export default function Game({ room, meId, phase, stems, revealed, endsAt, answer, feed, isHost, onLeave }: Props) {
   const [guess, setGuess] = useState('');
   const [hint, setHint] = useState('');
+  const [wrongGuess, setWrongGuess] = useState<string | null>(null);
   const [volume, setVolume] = useState(stemPlayer.getVolume());
   const feedRef = useRef<HTMLUListElement>(null);
   const secondsLeft = useCountdown(endsAt);
@@ -70,7 +71,10 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   const roundWinners = room.players.filter((p) => p.guessed).map((p) => p.name);
   const canGuess = phase === 'playing' && revealed > 0 && !me?.attempted;
 
-  useEffect(() => setHint(''), [room.round]);
+  useEffect(() => {
+    setHint('');
+    setWrongGuess(null);
+  }, [room.round]);
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
   }, [feed]);
@@ -83,7 +87,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
     const ack = await request('guess', { text });
     if (ack.result === 'correct') setHint('Correct! You got it.');
     else if (ack.result === 'close') setHint(`"${text}" was close, but not quite. That was your guess for this round.`);
-    else if (ack.result === 'wrong') setHint(`"${text}" isn't it.`);
+    else if (ack.result === 'wrong') setWrongGuess(text);
     else if (ack.error) setHint(ack.error);
   }
 
@@ -123,6 +127,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
             </h2>
             <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
               {roundWinners.length ? `Got it: ${roundWinners.join(', ')}` : 'Nobody got this one'}
+              {wrongGuess && <span className="wrong-guess"> · Your guess "{wrongGuess}" was wrong.</span>}
             </p>
           </div>
         )}
@@ -165,6 +170,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
           </form>
         )}
         {hint && <p className="hint">{hint}</p>}
+        {wrongGuess && phase !== 'roundEnd' && <p className="hint wrong-guess">Your guess "{wrongGuess}" was wrong.</p>}
       </section>
 
       <label className="volume">
