@@ -66,7 +66,12 @@ input {
 }
 input:focus { border-color: var(--accent); }
 input:disabled { opacity: 0.5; }
-.code-input { text-transform: uppercase; letter-spacing: 0.3em; text-align: center; font-weight: 700; }
+.create-row { align-items: center; }
+.create-row .field { flex: 1; min-width: 0; }
+.create-row > button { white-space: nowrap; }
+.join-row { align-items: center; }
+.code-boxes { display: flex; gap: 8px; flex: 1; }
+.code-box { width: 0; flex: 1; padding: 12px 0; text-align: center; text-transform: uppercase; font-size: 1.3rem; font-weight: 700; }
 
 button {
   background: var(--panel-2);
