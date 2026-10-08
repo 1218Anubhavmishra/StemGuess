@@ -6,8 +6,6 @@ import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
 import GameOver from './components/GameOver';
-import MusicToggle from './components/MusicToggle';
-
 let feedId = 0;
 
 export default function App() {
@@ -119,12 +117,7 @@ export default function App() {
     return <GameOver room={room} ranking={ranking} isHost={isHost} onLeave={leave} />;
   }
   if (screen === 'lobby') {
-    return (
-      <>
-        <MusicToggle floating />
-        <Lobby room={room} isHost={isHost} onLeave={leave} />
-      </>
-    );
+    return <Lobby room={room} isHost={isHost} onLeave={leave} />;
   }
   return (
     <Game

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { request, socket } from '../socket';
 import { SONG_LIMITS, type RoomState } from '../types';
+import MusicToggle from './MusicToggle';
 import Scoreboard from './Scoreboard';
 import Stepper from './Stepper';
 
@@ -36,9 +37,12 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
           <span className="muted small">Share this code with your friends.</span>
         </div>
 
-        <h3>
-          Players in the room : {room.players.length}/{room.maxPlayers}
-        </h3>
+        <div className="players-head">
+          <h3>
+            Players in the room : {room.players.length}/{room.maxPlayers}
+          </h3>
+          <MusicToggle />
+        </div>
         <Scoreboard room={room} meId={socket.id ?? ''} />
 
         {isHost ? (

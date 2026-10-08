@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { bgMusic } from '../audio';
 
-export default function MusicToggle({ floating }: { floating?: boolean }) {
+export default function MusicToggle() {
   const [muted, setMuted] = useState(bgMusic.isMuted());
   return (
     <button
-      className={`mute ghost${floating ? ' floating' : ''}`}
+      className="mute ghost"
       aria-label={muted ? 'Turn music on' : 'Turn music off'}
       title={muted ? 'Music off' : 'Music on'}
       aria-pressed={!muted}
