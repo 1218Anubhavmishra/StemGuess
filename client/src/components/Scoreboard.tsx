@@ -12,7 +12,6 @@ export default function Scoreboard({ room, meId, showGuessed, plain }: Props) {
             {p.name}
             {p.id === room.hostId && <span className="tag">host</span>}
           </span>
-          {showGuessed && p.guessed && <span className="got-it">Got it</span>}
           {showGuessed && p.attempted && !p.guessed && <span className="tag">guessed</span>}
         </li>
       ))}

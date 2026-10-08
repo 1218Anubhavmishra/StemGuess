@@ -50,7 +50,10 @@ export default function App() {
       setRevealed(p.index + 1);
       stemPlayer.reveal(p.index);
     };
-    const onRoundEnd = (p: { title: string; artist: string; stems: StemInfo[]; isLast: boolean }) => {
+    const onRoundEnd = (p: { title: string; artist: string; stems: StemInfo[]; isLast: boolean; winners: string[] }) => {
+      const song = p.artist ? `${p.title} - by ${p.artist}` : p.title;
+      if (p.winners.length) p.winners.forEach((name) => pushFeed({ type: 'correct', name, text: song }));
+      else pushFeed({ type: 'nobody' });
       setPhase('roundEnd');
       setAnswer({ title: p.title, artist: p.artist, isLast: p.isLast });
       setEndsAt(null);

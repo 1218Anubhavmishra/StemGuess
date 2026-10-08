@@ -124,7 +124,6 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
 button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .leave-room .arrow { font-size: 1.6rem; line-height: 1; }
 .scoreboard .score, .ranking .score { font-weight: 700; }
-.got-it { font-size: 0.75rem; font-weight: 700; color: var(--accent-2); }
 .round-winners { margin: 8px 0 0; font-weight: 600; color: var(--accent-2); }
 .round-winners.none, .wrong-guess { color: var(--danger); }
 .overlay {
@@ -187,6 +186,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .feed { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
 .feed li.system { color: var(--muted); font-style: italic; }
 .feed li.correct { color: var(--accent-2); font-weight: 600; }
+.feed li.nobody { color: var(--danger); font-weight: 600; }
 
 @media (max-width: 760px) {
   .game { grid-template-columns: 1fr; }

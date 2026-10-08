@@ -85,8 +85,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
     if (!text) return;
     setGuess('');
     const ack = await request('guess', { text });
-    if (ack.result === 'correct') setHint('Correct! You got it.');
-    else if (ack.result === 'close') setHint(`"${text}" was close, but not quite. That was your guess for this round.`);
+    if (ack.result === 'close') setHint(`"${text}" was close, but not quite. That was your guess for this round.`);
     else if (ack.result === 'wrong') setWrongGuess(text);
     else if (ack.error) setHint(ack.error);
   }
@@ -126,7 +125,11 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
               {answer.artist && ` - ${answer.artist}`}
             </h2>
             <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
-              {roundWinners.length ? `Got it: ${roundWinners.join(', ')}` : 'Nobody got this one'}
+              {me?.guessed
+                ? 'Correct! You guessed it.'
+                : roundWinners.length
+                  ? `Got it: ${roundWinners.join(', ')}`
+                  : 'Nobody got this one'}
               {wrongGuess && <span className="wrong-guess"> · Your guess "{wrongGuess}" was wrong.</span>}
             </p>
           </div>
@@ -200,7 +203,8 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
             {feed.map((item) => (
               <li key={item.id} className={item.type}>
                 {item.type === 'system' && item.text}
-                {item.type === 'correct' && `${item.name} guessed the song!`}
+                {item.type === 'correct' && `${item.name} correctly guessed the song "${item.text}"!`}
+                {item.type === 'nobody' && 'Nobody got this one'}
                 {item.type === 'guess' && (
                   <>
                     <b>{item.name}:</b> {item.text}

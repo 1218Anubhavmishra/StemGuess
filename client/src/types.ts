@@ -16,7 +16,7 @@ export type Phase = 'lobby' | 'prepare' | 'playing' | 'roundEnd' | 'gameOver';
 
 export type FeedItem = {
   id: number;
-  type: 'correct' | 'guess' | 'system';
+  type: 'correct' | 'nobody' | 'guess' | 'system';
   name?: string;
   text?: string;
 };

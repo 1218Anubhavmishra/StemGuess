@@ -322,6 +322,7 @@ class GameManager:
                 "artist": rnd.artist,
                 "stems": rnd.stems,
                 "isLast": room.round_number >= room.total_rounds,
+                "winners": [p.name for p in room.players.values() if p.guessed],
             },
             room=room.code,
         )
@@ -383,7 +384,6 @@ class GameManager:
             player.guessed = True
             player.score += 1
             result = "correct"
-            await self.sio.emit("feed", {"type": "correct", "name": player.name}, room=room.code)
         elif score >= CLOSE_THRESHOLD:
             # Near-misses stay private so they don't hint the answer to others.
             result = "close"
