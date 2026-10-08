@@ -108,10 +108,7 @@ export default function App() {
 
   if (!room) {
     return (
-      <>
-        <MusicToggle />
-        <Home connected={connected} />
-      </>
+      <Home connected={connected} />
     );
   }
 
@@ -124,7 +121,7 @@ export default function App() {
   if (screen === 'lobby') {
     return (
       <>
-        <MusicToggle />
+        <MusicToggle floating />
         <Lobby room={room} isHost={isHost} onLeave={leave} />
       </>
     );
