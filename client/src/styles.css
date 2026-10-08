@@ -6,9 +6,9 @@
   --text: #24233a;
   --muted: #6e6c86;
   --accent: #6a4bff;
+  --me: #1f6feb;
   --accent-2: #0e9a77;
   --danger: #d93a5a;
-  --success-bg: #dcf3ea;
   --winner-bg: #e8e1ff;
   --page: #f6f4ee;
   --on-page: #3a3955;
@@ -109,7 +109,7 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
 .room-code { font-size: 1.6rem; letter-spacing: 0.15em; color: var(--accent-2); margin: 0; }
 
 .scoreboard, .ranking, .feed, .stems { list-style: none; margin: 0; padding: 0; }
-.scoreboard li, .ranking li {
+.ranking li {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -118,9 +118,8 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
   background: var(--panel-2);
   margin-bottom: 6px;
 }
-.scoreboard li.me { outline: 1px solid var(--accent); }
-.scoreboard li.guessed { background: var(--success-bg); }
-.scoreboard.plain li { background: none; outline: none; padding: 2px 0; margin-bottom: 2px; font-size: 1.25rem; font-weight: 600; }
+.scoreboard li { padding: 2px 0; margin-bottom: 2px; font-size: 1.25rem; font-weight: 600; color: var(--text); }
+.scoreboard li.me { color: var(--me); }
 button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .leave-room .arrow { font-size: 1.6rem; line-height: 1; }
 .scoreboard .score, .ranking .score { font-weight: 700; }

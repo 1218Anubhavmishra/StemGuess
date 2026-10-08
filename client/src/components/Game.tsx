@@ -128,7 +128,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
               {me?.guessed
                 ? 'Correct! You guessed it.'
                 : roundWinners.length
-                  ? `Got it: ${roundWinners.join(', ')}`
+                  ? `${roundWinners.join(', ')} guessed it.`
                   : 'Nobody got this one'}
               {wrongGuess && <span className="wrong-guess"> · Your guess "{wrongGuess}" was wrong.</span>}
             </p>
@@ -195,7 +195,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
       <aside className="side">
         <div className="card">
           <h3>Players</h3>
-          <Scoreboard room={room} meId={meId} showGuessed />
+          <Scoreboard room={room} meId={meId} />
         </div>
         <div className="card">
           <h3>Guesses</h3>

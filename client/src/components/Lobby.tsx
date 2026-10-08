@@ -43,7 +43,7 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
           </h3>
           <MusicToggle />
         </div>
-        <Scoreboard room={room} meId={socket.id ?? ''} plain />
+        <Scoreboard room={room} meId={socket.id ?? ''} />
 
         {isHost ? (
           <>

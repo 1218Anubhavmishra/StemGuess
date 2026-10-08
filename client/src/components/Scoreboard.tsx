@@ -1,18 +1,15 @@
 import type { RoomState } from '../types';
 
-/** Player list. Scores stay hidden until the final results; during a round it marks who guessed. */
-type Props = { room: RoomState; meId: string; showGuessed?: boolean; plain?: boolean };
-
-export default function Scoreboard({ room, meId, showGuessed, plain }: Props) {
+/** Player list. Scores stay hidden until the final results. */
+export default function Scoreboard({ room, meId }: { room: RoomState; meId: string }) {
   return (
-    <ul className={plain ? 'scoreboard plain' : 'scoreboard'}>
+    <ul className="scoreboard">
       {room.players.map((p) => (
-        <li key={p.id} className={[p.id === meId && 'me', showGuessed && p.guessed && 'guessed'].filter(Boolean).join(' ')}>
+        <li key={p.id} className={p.id === meId ? 'me' : ''}>
           <span className="name">
             {p.name}
             {p.id === room.hostId && <span className="tag">host</span>}
           </span>
-          {showGuessed && p.attempted && !p.guessed && <span className="tag">guessed</span>}
         </li>
       ))}
     </ul>
