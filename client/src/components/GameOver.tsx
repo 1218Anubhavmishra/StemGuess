@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { request } from '../socket';
 import type { Player, RoomState } from '../types';
+import DisconnectedIcon from './DisconnectedIcon';
 
 type Props = { room: RoomState; ranking: Player[]; isHost: boolean; onLeave: () => void };
 
@@ -20,9 +21,12 @@ export default function GameOver({ room, ranking, isHost, onLeave }: Props) {
         <h1>Final scores</h1>
         <ol className="ranking">
           {ranking.map((p, i) => (
-            <li key={p.id} className={p.score === top && top > 0 ? 'winner' : ''}>
+            <li key={p.id} className={[p.score === top && top > 0 && 'winner', !p.connected && 'gone'].filter(Boolean).join(' ')}>
               <span className="place">{i + 1}</span>
-              <span className="name">{p.name}</span>
+              <span className="name">
+                {p.name}
+                {!p.connected && <DisconnectedIcon />}
+              </span>
               <span className="score">
                 {p.score} / {room.totalRounds}
               </span>

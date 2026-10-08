@@ -120,6 +120,8 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
 }
 .scoreboard li { padding: 2px 0; margin-bottom: 2px; font-size: 1.25rem; font-weight: 600; color: var(--text); }
 .scoreboard li.me { color: var(--me); }
+.scoreboard li.gone, .ranking li.gone { color: var(--muted); opacity: 0.7; }
+.disconnected { display: inline-flex; vertical-align: middle; margin-left: 6px; color: var(--muted); }
 button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .leave-room .arrow { font-size: 1.6rem; line-height: 1; }
 .scoreboard .score, .ranking .score { font-weight: 700; }

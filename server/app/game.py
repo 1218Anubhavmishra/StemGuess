@@ -62,6 +62,7 @@ class Player:
     score: int = 0
     guessed: bool = False  # guessed correctly this round
     attempted: bool = False  # used their one guess this round
+    connected: bool = True  # False once they drop out mid-game; removed when the game ends
 
 
 @dataclass
@@ -99,10 +100,23 @@ class Room:
             "totalRounds": self.total_rounds,
             "maxPlayers": self.max_players,
             "players": [
-                {"id": p.sid, "name": p.name, "score": p.score, "guessed": p.guessed, "attempted": p.attempted}
+                {
+                    "id": p.sid,
+                    "name": p.name,
+                    "score": p.score,
+                    "guessed": p.guessed,
+                    "attempted": p.attempted,
+                    "connected": p.connected,
+                }
                 for p in self.players.values()
             ],
         }
+
+    def active(self) -> list[Player]:
+        return [p for p in self.players.values() if p.connected]
+
+    def drop_disconnected(self) -> None:
+        self.players = {sid: p for sid, p in self.players.items() if p.connected}
 
 
 class GameManager:
@@ -175,15 +189,19 @@ class GameManager:
         room = self.rooms.get(code) if code else None
         if not room:
             return
-        room.players.pop(sid, None)
+        player = room.players.get(sid)
+        if room.state == "playing" and player:
+            player.connected = False
+        else:
+            room.players.pop(sid, None)
         await self.sio.leave_room(sid, room.code)
-        if not room.players:
+        if not room.active():
             if room.task:
                 room.task.cancel()
             del self.rooms[room.code]
             return
         if room.host_sid == sid:
-            room.host_sid = next(iter(room.players))
+            room.host_sid = room.active()[0].sid
         self._check_all_guessed(room)
         await self._broadcast_state(room)
 
@@ -270,7 +288,7 @@ class GameManager:
     async def _run_game(self, room: Room) -> None:
         try:
             for song_id in room.playlist:
-                if not room.players:
+                if not room.active():
                     return
                 rnd = await asyncio.to_thread(self._load_round, song_id)
                 if rnd:
@@ -282,6 +300,7 @@ class GameManager:
             log.exception("Game loop crashed in room %s", room.code)
             room.state = "lobby"
             room.current = None
+            room.drop_disconnected()
             await self._broadcast_state(room)
 
     async def _play_round(self, room: Room, rnd: Round) -> None:
@@ -355,9 +374,15 @@ class GameManager:
             log.exception("Failed to save results for room %s", room.code)
         await self.sio.emit(
             "game_over",
-            {"ranking": [{"id": p.sid, "name": p.name, "score": p.score, "guessed": False, "attempted": False} for p in ranking]},
+            {
+                "ranking": [
+                    {"id": p.sid, "name": p.name, "score": p.score, "guessed": False, "attempted": False, "connected": p.connected}
+                    for p in ranking
+                ]
+            },
             room=room.code,
         )
+        room.drop_disconnected()
         await self._broadcast_state(room)
 
     @staticmethod
@@ -396,5 +421,6 @@ class GameManager:
         return {"ok": True, "result": result}
 
     def _check_all_guessed(self, room: Room) -> None:
-        if room.current and room.players and all(p.attempted for p in room.players.values()):
+        active = room.active()
+        if room.current and active and all(p.attempted for p in active):
             room.all_guessed.set()

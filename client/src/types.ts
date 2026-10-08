@@ -1,4 +1,4 @@
-export type Player = { id: string; name: string; score: number; guessed: boolean; attempted: boolean };
+export type Player = { id: string; name: string; score: number; guessed: boolean; attempted: boolean; connected: boolean };
 
 export type RoomState = {
   code: string;
