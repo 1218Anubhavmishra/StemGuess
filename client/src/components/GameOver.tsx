@@ -15,7 +15,7 @@ export default function GameOver({ room, ranking, isHost, onLeave }: Props) {
   }
 
   return (
-    <main className="screen center">
+    <div className="overlay" role="dialog" aria-modal="true" aria-label="Final scores">
       <div className="card narrow">
         <h1>Final scores</h1>
         <ol className="ranking">
@@ -41,6 +41,6 @@ export default function GameOver({ room, ranking, isHost, onLeave }: Props) {
           Leave room
         </button>
       </div>
-    </main>
+    </div>
   );
 }

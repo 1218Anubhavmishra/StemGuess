@@ -113,24 +113,27 @@ export default function App() {
   const meId = socket.id ?? '';
   const isHost = room.hostId === meId;
 
-  if (screen === 'gameOver') {
-    return <GameOver room={room} ranking={ranking} isHost={isHost} onLeave={leave} />;
-  }
   if (screen === 'lobby') {
     return <Lobby room={room} isHost={isHost} onLeave={leave} />;
   }
+  const gameOver = screen === 'gameOver';
   return (
-    <Game
-      room={room}
-      meId={meId}
-      phase={phase}
-      stems={stems}
-      revealed={revealed}
-      endsAt={endsAt}
-      answer={answer}
-      feed={feed}
-      isHost={isHost}
-      onLeave={leave}
-    />
+    <>
+      <div inert={gameOver}>
+        <Game
+          room={room}
+          meId={meId}
+          phase={gameOver ? 'roundEnd' : phase}
+          stems={stems}
+          revealed={revealed}
+          endsAt={endsAt}
+          answer={answer}
+          feed={feed}
+          isHost={isHost}
+          onLeave={leave}
+        />
+      </div>
+      {gameOver && <GameOver room={room} ranking={ranking} isHost={isHost} onLeave={leave} />}
+    </>
   );
 }

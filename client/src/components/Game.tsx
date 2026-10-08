@@ -118,8 +118,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
           <div className="answer">
             <p className="muted small">The song was</p>
             <h2>{answer.title}</h2>
-            {answer.artist && <p className="muted">{answer.artist}</p>}
-            <p className="round-winners">
+            <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
               {roundWinners.length ? `Got it: ${roundWinners.join(', ')}` : 'Nobody got this one'}
             </p>
           </div>
@@ -140,7 +139,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
           ))}
         </ul>
 
-        {phase === 'roundEnd' ? (
+        {room.state === 'finished' ? null : phase === 'roundEnd' ? (
           isHost ? (
             <button className="primary" onClick={() => void request('next_round')}>
               {answer?.isLast ? 'See results' : 'Next'}
