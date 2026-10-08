@@ -83,7 +83,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
     const ack = await request('guess', { text });
     if (ack.result === 'correct') setHint('Correct! You got it.');
     else if (ack.result === 'close') setHint(`"${text}" was close, but not quite. That was your guess for this round.`);
-    else if (ack.result === 'wrong') setHint(`"${text}" isn't it. That was your guess for this round.`);
+    else if (ack.result === 'wrong') setHint(`"${text}" isn't it.`);
     else if (ack.error) setHint(ack.error);
   }
 
