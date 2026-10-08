@@ -75,7 +75,10 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
 
         {error && <p className="error">{error}</p>}
         <button className="ghost leave-room" onClick={onLeave}>
-          ← Leave room
+          <span className="arrow" aria-hidden>
+            ←
+          </span>
+          Leave room
         </button>
       </div>
     </main>

@@ -120,7 +120,9 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
 }
 .scoreboard li.me { outline: 1px solid var(--accent); }
 .scoreboard li.guessed { background: var(--success-bg); }
-.scoreboard.plain li { background: none; outline: none; padding: 2px 0; margin-bottom: 2px; }
+.scoreboard.plain li { background: none; outline: none; padding: 2px 0; margin-bottom: 2px; font-size: 1.25rem; font-weight: 600; }
+button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.leave-room .arrow { font-size: 1.6rem; line-height: 1; }
 .scoreboard .score, .ranking .score { font-weight: 700; }
 .got-it { font-size: 0.75rem; font-weight: 700; color: var(--accent-2); }
 .round-winners { margin: 8px 0 0; font-weight: 600; color: var(--accent-2); }
