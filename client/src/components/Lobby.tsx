@@ -43,26 +43,28 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
           </h3>
           <MusicToggle />
         </div>
-        <Scoreboard room={room} meId={socket.id ?? ''} />
+        <Scoreboard room={room} meId={socket.id ?? ''} plain />
 
         {isHost ? (
           <>
-            <Stepper
-              label="Songs"
-              inline
-              value={room.totalRounds}
-              min={SONG_LIMITS.min}
-              max={Math.max(SONG_LIMITS.min, maxSongs)}
-              onChange={(rounds) => void update({ rounds })}
-            />
+            <div className="row create-row">
+              <Stepper
+                label="Songs"
+                inline
+                value={room.totalRounds}
+                min={SONG_LIMITS.min}
+                max={Math.max(SONG_LIMITS.min, maxSongs)}
+                onChange={(rounds) => void update({ rounds })}
+              />
+              <button className="primary" disabled={notEnoughSongs} onClick={() => void start()}>
+                Start game
+              </button>
+            </div>
             {notEnoughSongs && (
               <p className="muted small">
                 The library has {librarySize} song{librarySize === 1 ? '' : 's'}. Add at least {SONG_LIMITS.min} to play.
               </p>
             )}
-            <button className="primary" disabled={notEnoughSongs} onClick={() => void start()}>
-              Start game
-            </button>
           </>
         ) : (
           <>
@@ -72,8 +74,8 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
         )}
 
         {error && <p className="error">{error}</p>}
-        <button className="ghost" onClick={onLeave}>
-          Leave room
+        <button className="ghost leave-room" onClick={onLeave}>
+          ← Leave room
         </button>
       </div>
     </main>
