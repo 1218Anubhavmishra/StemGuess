@@ -117,7 +117,10 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
         {phase === 'roundEnd' && answer && (
           <div className="answer">
             <p className="muted small">The song was</p>
-            <h2>{answer.title}</h2>
+            <h2>
+              {answer.title}
+              {answer.artist && ` - ${answer.artist}`}
+            </h2>
             <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
               {roundWinners.length ? `Got it: ${roundWinners.join(', ')}` : 'Nobody got this one'}
             </p>
