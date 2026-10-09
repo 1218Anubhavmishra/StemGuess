@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:android": "tsc --noEmit && vite build --mode android",
     "preview": "vite preview",
-    "cap:sync": "npm run build && cap sync"
+    "cap:sync": "npm run build:android && cap sync"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",

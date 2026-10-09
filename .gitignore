@@ -3,6 +3,7 @@ dist/
 .env
 .env.*
 !.env.example
+!client/.env.android
 __pycache__/
 *.pyc
 .venv/

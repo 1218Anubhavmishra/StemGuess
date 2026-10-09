@@ -89,15 +89,14 @@ Render's filesystem is ephemeral, so real song stems go to Cloudflare R2 (below)
 
 ## Native apps (Capacitor pipeline)
 
-Native builds load the UI from inside the app, so point them at your deployed server first:
-set `VITE_SERVER_URL=https://<your-render-url>` in `client/.env`, then:
+Native builds load the UI from inside the app and connect to the deployed server set in
+`client/.env.android` (`VITE_SERVER_URL`). Then:
 
 ```powershell
 cd client
-npm run build
 npm install @capacitor/android
 npx cap add android
-npx cap sync
+npm run cap:sync            # builds with .env.android and copies it into the Android project
 npx cap open android        # build/run in Android Studio
 ```
 
