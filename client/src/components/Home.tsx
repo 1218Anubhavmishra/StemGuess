@@ -49,12 +49,13 @@ export default function Home({ connected }: { connected: boolean }) {
 
           <label className="field inline">
             <span>Host name (you)</span>
-            <span className="name-input">
-              <input value={name} maxLength={NAME_LIMIT} onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))} placeholder="e.g. Anu" />
-              <span className={`char-count ${name.length >= NAME_LIMIT ? 'full' : ''}`} aria-hidden>
-                {name.length}/{NAME_LIMIT}
-              </span>
-            </span>
+            <input
+              className="name-input"
+              value={name}
+              maxLength={NAME_LIMIT}
+              spellCheck={false}
+              onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
+            />
           </label>
 
           <div className="row create-row">
