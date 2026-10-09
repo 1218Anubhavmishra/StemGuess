@@ -40,6 +40,10 @@ def _stem_rank(name: str) -> int:
     return STEM_ORDER.index("other")
 
 
+def _is_remote(path: str) -> bool:
+    return path.startswith(("http://", "https://"))
+
+
 def _clean_name(name: object) -> str:
     return " ".join(str(name or "").split())[:MAX_NAME_LENGTH]
 
@@ -313,7 +317,8 @@ class GameManager:
             if not song or not song.stems:
                 return None
             if song.duration is None:
-                lengths = [d for s in song.stems if (d := audio_duration(config.MEDIA_DIR / s.path))]
+                local = [s.path for s in song.stems if not _is_remote(s.path)]
+                lengths = [d for p in local if (d := audio_duration(config.MEDIA_DIR / p))]
                 if lengths:
                     song.duration = max(lengths)
                     db.commit()
@@ -323,8 +328,8 @@ class GameManager:
                 artist=song.artist,
                 duration=song.duration,
                 answers=[song.title, *(song.aliases or [])],
-                # Relative to the server; clients resolve against their server URL.
-                stems=[{"name": s.name, "url": f"/media/{s.path}"} for s in stems],
+                # Local paths are relative to the server; clients resolve against their server URL.
+                stems=[{"name": s.name, "url": s.path if _is_remote(s.path) else f"/media/{s.path}"} for s in stems],
             )
 
     async def _run_game(self, room: Room) -> None:

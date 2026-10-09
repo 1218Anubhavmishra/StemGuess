@@ -2,10 +2,13 @@ services:
   - type: web
     name: stem-guess
     runtime: python
-    # Builds the React client, then serves it and the game from one Python server.
-    buildCommand: cd client && npm ci && npm run build && cd ../server && pip install -r requirements.txt
+    plan: free
+    # Builds the React client, installs the server and generates the demo songs' audio.
+    buildCommand: cd client && npm ci && npm run build && cd ../server && pip install -r requirements.txt && python -m scripts.seed_demo --files-only
+    # Registers the demo songs, then serves the client and the game.
     # Game rooms live in memory: keep a single worker/instance.
-    startCommand: cd server && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd server && python -m scripts.seed_demo && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.7"

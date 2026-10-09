@@ -33,7 +33,8 @@ class Stem(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     song_id: Mapped[int] = mapped_column(ForeignKey("songs.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(50))
-    # Relative to MEDIA_DIR; file names never contain the song title.
+    # Relative to MEDIA_DIR, or an absolute URL once uploaded to object storage (R2).
+    # File names never contain the song title.
     path: Mapped[str] = mapped_column(String(500))
 
     song: Mapped[Song] = relationship(back_populates="stems")

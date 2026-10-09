@@ -1,12 +1,18 @@
 """Add ten synthetic demo songs (generated tones, no Music.ai needed) for testing.
 
-From server/:  python -m scripts.seed_demo
+From server/:  python -m scripts.seed_demo               (write missing files + add songs to the database)
+               python -m scripts.seed_demo --files-only  (just write missing files, e.g. during a deploy build)
+
+Safe to run repeatedly: existing files are kept and existing songs are updated in place.
 """
 
+import hashlib
 import math
 import random
 import struct
+import sys
 import wave
+from pathlib import Path
 
 from sqlalchemy import select
 
@@ -15,7 +21,8 @@ from app.db import SessionLocal, init_db
 from app.models import Song, Stem
 
 RATE = 22050
-SECONDS = 16
+SECONDS = 15
+STEM_NAMES = ("drums", "bass", "keys", "vocals")
 
 MELODIES = [
     [0, 4, 7, 12, 7, 4, 2, 5],
@@ -37,6 +44,11 @@ DEMOS = {
     "Glass Garden": {"root": 277.18, "bpm": 124, "melody": 3},
     "Lunar Parade": {"root": 207.65, "bpm": 132, "melody": 4},
 }
+
+
+def demo_dir(title: str) -> Path:
+    # Hashed so the stem URLs don't give the title away.
+    return config.MEDIA_DIR / "demo" / hashlib.sha1(title.encode()).hexdigest()[:12]
 
 
 def write_wav(path, samples):
@@ -64,26 +76,37 @@ def make_stems(root: float, bpm: int, melody: int) -> dict[str, list[float]]:
     return {"drums": drums, "bass": bass, "keys": keys, "vocals": vocals}
 
 
-def main() -> None:
+def write_files() -> None:
+    for title, params in DEMOS.items():
+        folder = demo_dir(title)
+        if all((folder / f"{name}.wav").exists() for name in STEM_NAMES):
+            continue
+        folder.mkdir(parents=True, exist_ok=True)
+        for name, samples in make_stems(**params).items():
+            write_wav(folder / f"{name}.wav", samples)
+        print(f"wrote: {title}")
+
+
+def register_songs() -> None:
     init_db()
     with SessionLocal() as db:
-        existing = set(db.scalars(select(Song.source_file)))
-        for title, params in DEMOS.items():
+        for title in DEMOS:
             source = f"demo:{title}"
-            if source in existing:
-                print(f"skip: {title}")
-                continue
-            song = Song(title=title, artist="Stem Guess", aliases=[], source_file=source)
-            db.add(song)
-            db.flush()
-            song_dir = config.MEDIA_DIR / "songs" / str(song.id)
-            song_dir.mkdir(parents=True, exist_ok=True)
-            for name, samples in make_stems(**params).items():
-                path = song_dir / f"{name}.wav"
-                write_wav(path, samples)
-                db.add(Stem(song_id=song.id, name=name, path=path.relative_to(config.MEDIA_DIR).as_posix()))
-            print(f"added: {title}")
+            song = db.scalar(select(Song).where(Song.source_file == source))
+            if song is None:
+                song = Song(title=title, artist="Stem Guess", aliases=[], source_file=source)
+                db.add(song)
+                print(f"added: {title}")
+            folder = demo_dir(title).relative_to(config.MEDIA_DIR).as_posix()
+            song.stems = [Stem(name=name, path=f"{folder}/{name}.wav") for name in STEM_NAMES]
+            song.duration = float(SECONDS)
         db.commit()
+
+
+def main() -> None:
+    write_files()
+    if "--files-only" not in sys.argv:
+        register_songs()
 
 
 if __name__ == "__main__":

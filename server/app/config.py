@@ -29,7 +29,15 @@ CORS_ORIGINS = _csv("CORS_ORIGINS", "http://localhost:5173,https://localhost,cap
 MUSIC_AI_API_KEY = os.getenv("MUSIC_AI_API_KEY", "")
 MUSIC_AI_WORKFLOW = os.getenv("MUSIC_AI_WORKFLOW", "")
 MUSIC_AI_BASE_URL = os.getenv("MUSIC_AI_BASE_URL", "https://api.music.ai/v1").rstrip("/")
-CLIP_SECONDS = int(os.getenv("CLIP_SECONDS", "45"))
+CLIP_SECONDS = int(os.getenv("CLIP_SECONDS", "15"))
+
+# Cloudflare R2 (only needed by scripts/upload_r2.py, never shipped to clients)
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET = os.getenv("R2_BUCKET", "")
+# Public bucket URL, e.g. https://pub-xxxx.r2.dev or https://stems.example.com
+R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
 
 STEM_REVEAL_SECONDS = float(os.getenv("STEM_REVEAL_SECONDS", "8"))
 ROUND_EXTRA_SECONDS = float(os.getenv("ROUND_EXTRA_SECONDS", "10"))

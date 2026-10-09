@@ -6,19 +6,23 @@
 3. From server/:  python -m scripts.process_songs
 
 Files already in the database are skipped, so each song is only paid for once.
-With ffmpeg on PATH, stems are clipped to CLIP_SECONDS, converted to MP3 and
-silent stems (e.g. "piano" in a song without piano) are dropped.
+With ffmpeg on PATH, stems are clipped to CLIP_SECONDS (default 15) taken from the
+song's most energetic stretch, converted to MP3, and silent stems (e.g. "piano" in a
+song without piano) are dropped. To host stems on Cloudflare R2, run
+scripts.upload_r2 afterwards.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import secrets
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+from array import array
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -32,6 +36,9 @@ from app.models import Song, Stem
 AUDIO_EXTS = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".aac"}
 POLL_SECONDS = 5
 SILENCE_DB = -45.0
+ENERGY_RATE = 4000
+# Fraction of the song at each end that is never picked as the clip (intros/outros).
+EDGE_SKIP = 0.1
 
 FFMPEG = shutil.which("ffmpeg")
 FFPROBE = shutil.which("ffprobe")
@@ -105,11 +112,33 @@ def duration_of(path: Path) -> float | None:
         return None
 
 
+def loudness_per_second(source: Path) -> list[float]:
+    """Mean energy of each second of the song (decoded to low-rate mono PCM)."""
+    out = subprocess.run(
+        [FFMPEG, "-v", "error", "-i", str(source), "-ac", "1", "-ar", str(ENERGY_RATE), "-f", "s16le", "-"],
+        capture_output=True,
+    )
+    samples = array("h", out.stdout[: len(out.stdout) // 2 * 2])
+    return [
+        sum(s * s for s in samples[i : i + ENERGY_RATE]) / ENERGY_RATE
+        for i in range(0, len(samples) - ENERGY_RATE + 1, ENERGY_RATE)
+    ]
+
+
 def clip_start(source: Path) -> float:
+    """Start of the most energetic CLIP_SECONDS window (usually a chorus), skipping the intro and outro."""
     duration = duration_of(source)
     if not duration or config.CLIP_SECONDS <= 0 or duration <= config.CLIP_SECONDS:
         return 0.0
-    return min(duration * 0.3, duration - config.CLIP_SECONDS)
+    fallback = min(duration * 0.3, duration - config.CLIP_SECONDS)
+    energy = loudness_per_second(source) if FFMPEG else []
+    window = config.CLIP_SECONDS
+    if len(energy) <= window:
+        return fallback
+    first = int(len(energy) * EDGE_SKIP)
+    last = max(first, int(len(energy) * (1 - EDGE_SKIP)) - window)
+    best = max(range(first, last + 1), key=lambda s: sum(energy[s : s + window]))
+    return float(best)
 
 
 def export_stem(src: Path, dest_base: Path, start: float) -> Path:
@@ -157,9 +186,10 @@ def process(client: MusicAi, path: Path) -> int:
     with SessionLocal() as db:
         song = Song(title=title, artist=artist, aliases=load_aliases(path), source_file=path.name)
         db.add(song)
-        db.flush()
-        song_dir = config.MEDIA_DIR / "songs" / str(song.id)
+        # Random folder: unique across databases (local and production) and doesn't hint at the title.
+        song_dir = config.MEDIA_DIR / "songs" / secrets.token_hex(8)
         song_dir.mkdir(parents=True, exist_ok=True)
+        lengths = []
 
         with tempfile.TemporaryDirectory() as tmp:
             for key, url in outputs.items():
@@ -171,11 +201,14 @@ def process(client: MusicAi, path: Path) -> int:
                     final.unlink()
                     print(f"  skipped silent stem: {name}")
                     continue
-                db.add(Stem(song_id=song.id, name=name, path=final.relative_to(config.MEDIA_DIR).as_posix()))
+                song.stems.append(Stem(name=name, path=final.relative_to(config.MEDIA_DIR).as_posix()))
+                if length := duration_of(final):
+                    lengths.append(length)
                 saved += 1
 
         if saved == 0:
             raise RuntimeError("All stems were silent")
+        song.duration = max(lengths) if lengths else None
         db.commit()
 
     client.delete_job(job["id"])

@@ -2,7 +2,7 @@
 
 Multiplayer "name that song" game: each round plays a song's instrument stems one at a time
 (drums, then bass, then other instruments, with vocals last). Players race to type the title,
-and every correct guess earns 1 point. The host picks how many songs a game has (3-10) and the
+and a correct guess earns more points the fewer stems were needed. The host picks how many songs a game has (3-10) and the
 room's max player count (2-10).
 
 | Part | Tech |
@@ -21,7 +21,7 @@ so a game never triggers a paid API call.
 ## Run locally
 
 Prerequisites: Node 20+, Python 3.11+, optionally [ffmpeg](https://ffmpeg.org/) on PATH
-(clips stems to 45 s MP3s and drops silent stems) and Docker (for local Postgres).
+(cuts stems to 15 s MP3s from the song's most energetic part and drops silent stems) and Docker (for local Postgres).
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File start.ps1
@@ -59,9 +59,28 @@ Regenerate it with `.\.venv\Scripts\python -m scripts.make_bg_audio` from `serve
 
 ## Deploy (Render)
 
-Create a Blueprint from `render.yaml`: one web service (builds the client, runs the server) plus a
-Postgres database. Render's filesystem is ephemeral, so for production either attach a Render Disk
-and set `MEDIA_DIR` to it, or move stems to object storage (S3 / Cloudflare R2).
+Create a Blueprint from `render.yaml` (Render dashboard > New > Blueprint > pick this repo): one free
+web service (builds the client, runs the server) plus a free Postgres database. The ten demo songs
+are generated during the build, so a fresh deploy is playable right away.
+
+Render's filesystem is ephemeral, so real song stems go to Cloudflare R2 (below).
+
+## Host stems on Cloudflare R2
+
+1. In the Cloudflare dashboard: R2 > Create bucket (e.g. `stem-guess`). In the bucket's Settings,
+   enable the public **r2.dev** URL (or connect a custom domain) and add this CORS policy so
+   browsers can load the audio:
+   `[{"AllowedOrigins": ["*"], "AllowedMethods": ["GET", "HEAD"], "AllowedHeaders": ["*"]}]`
+2. R2 > Manage API tokens > Create token with **Object Read & Write** on that bucket. Put the
+   values in `server/.env`: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+   `R2_BUCKET`, `R2_PUBLIC_URL` (e.g. `https://pub-xxxx.r2.dev`).
+3. Point `DATABASE_URL` in `server/.env` at the live database (Render Postgres > Connect >
+   External URL), then from `server/`:
+   ```powershell
+   .\.venv\Scripts\python -m scripts.process_songs   # Music.ai -> 15 s stems in server/media
+   .\.venv\Scripts\python -m scripts.upload_r2       # upload them, store their public URLs
+   ```
+   The live server picks the new songs up immediately (no redeploy).
 
 ## Native apps (Capacitor pipeline)
 
