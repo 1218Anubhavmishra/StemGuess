@@ -70,7 +70,9 @@ def probe(path: Path) -> tuple[float | None, dict[str, str]]:
 
 
 def clean(text: str) -> str:
-    text = text or ""
+    # Tags saved as Windows-1252 often arrive with its curly quotes as C1 control characters.
+    text = (text or "").translate({0x91: "'", 0x92: "'", 0x93: '"', 0x94: '"', 0x96: "-", 0x97: "-"})
+    text = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", text)
     for pattern in JUNK:
         text = re.sub(pattern, " ", text, flags=re.IGNORECASE)
     text = re.sub(TRACK_NUMBER, "", text)
@@ -138,6 +140,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="stop after this many new clips")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if not FFMPEG or not FFPROBE:
         sys.exit("ffmpeg/ffprobe not found on PATH.")
 
