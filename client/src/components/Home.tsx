@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
 import { unlockAudio } from '../audio';
 import { request } from '../socket';
 import { PLAYER_LIMITS } from '../types';
@@ -49,13 +49,16 @@ export default function Home({ connected }: { connected: boolean }) {
 
           <label className="field inline">
             <span>Host name (you)</span>
-            <input
-              className="name-input"
-              value={name}
-              maxLength={NAME_LIMIT}
-              spellCheck={false}
-              onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
-            />
+            <span className="slot-wrap">
+              <input
+                className="slots name-input"
+                style={{ '--n': NAME_LIMIT } as CSSProperties}
+                value={name}
+                maxLength={NAME_LIMIT}
+                spellCheck={false}
+                onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
+              />
+            </span>
           </label>
 
           <div className="row create-row">

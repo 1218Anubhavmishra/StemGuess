@@ -52,20 +52,30 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .field.inline { flex-direction: row; align-items: center; gap: 10px; }
 .field.inline span { white-space: nowrap; }
 .field.inline input, .field.inline .stepper { flex: 1; min-width: 0; }
-/* One dash per allowed character (20); a monospace font keeps each letter on its dash. */
-.field.inline input.name-input {
-  --cell: 1.2ch;
-  flex: none;
-  width: calc(20 * var(--cell) + 32px);
-  max-width: 100%;
-  padding: 10px 13px 12px;
+/* Dashed slots: --n monospace characters spread evenly across the field, one dash under each.
+   The gap before, between and after characters is equal, so the last one never scrolls. */
+.slot-wrap { display: flex; flex: 1; min-width: 0; container-type: inline-size; }
+.slot-wrap input.slots { flex: 1; width: 100%; }
+input.slots {
+  --pad: 8px;
+  --dash: color-mix(in srgb, var(--muted) 55%, transparent);
+  --dash-h: 2px;
+  --gap: calc((100cqw - 2px - 2 * var(--pad) - var(--n) * 1ch) / (var(--n) + 1));
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: 0.95rem;
-  letter-spacing: 0.2ch;
-  background-image: repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 55%, transparent) 0 1ch, transparent 1ch var(--cell));
-  background-size: calc(20 * var(--cell)) 2px;
+  letter-spacing: var(--gap);
+  padding-left: calc(var(--pad) + var(--gap));
+  padding-right: var(--pad);
+  background-image: repeating-linear-gradient(to right, var(--dash) 0 1ch, transparent 1ch calc(1ch + var(--gap)));
+  background-size: calc(var(--n) * (1ch + var(--gap))) var(--dash-h);
   background-repeat: no-repeat;
-  background-position: 13px calc(100% - 7px);
+  background-position: calc(var(--pad) + var(--gap)) calc(100% - 7px);
+}
+input.name-input { padding-top: 10px; padding-bottom: 12px; font-size: 0.95rem; }
+input.code-input {
+  --dash: var(--muted);
+  --dash-h: 3px;
+  padding-top: 10px; padding-bottom: 14px;
+  font-size: 1.4rem; font-weight: 700; text-transform: uppercase;
 }
 .row { display: flex; gap: 8px; }
 .row input { flex: 1; min-width: 0; }
@@ -85,9 +95,6 @@ input:disabled { opacity: 0.5; }
 .create-row .field { flex: 1; min-width: 0; }
 .create-row > button { white-space: nowrap; }
 .join-row { align-items: center; }
-.code-boxes { display: flex; gap: 8px; flex: 1; }
-.code-box { width: 0; flex: 1; padding: 12px 0; text-align: center; text-transform: uppercase; font-size: 1.3rem; font-weight: 700; }
-
 button {
   background: var(--panel-2);
   color: var(--text);
