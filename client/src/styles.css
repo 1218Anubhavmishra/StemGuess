@@ -117,7 +117,7 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
 .stepper button { width: 44px; padding: 10px 0; font-size: 1.2rem; }
 .stepper output { flex: 1; text-align: center; font-size: 1.3rem; font-weight: 700; color: var(--text); }
 
-button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
+button.mute, .topbar button.ghost { color: var(--on-page); }
 .topbar button.end-game, button.leave-room { color: var(--danger); }
 
 .mute { display: inline-flex; align-items: center; padding: 8px; }
@@ -174,15 +174,15 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
   max-width: 1100px;
   margin: 0 auto;
 }
-.topbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
-.topbar .brand { justify-content: flex-start; }
+.topbar { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; }
+.topbar-center { grid-column: 2; display: flex; flex-direction: column; align-items: center; }
+.topbar .end-game { grid-column: 3; justify-self: end; }
 .topbar .logo { font-size: 2rem; }
-.topbar .tagline { margin: 0; text-align: left; }
+.topbar .tagline { margin: 0; }
+.sound { display: flex; align-items: center; gap: 4px; color: var(--on-page); }
+.sound input { padding: 0; width: 160px; }
 .countdown { margin: 0; text-align: center; font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
 .countdown.urgent { color: var(--danger); }
-.volume { grid-column: 1; display: flex; align-items: center; justify-self: center; gap: 8px; font-size: 0.85rem; }
-.volume input { padding: 0; width: 160px; }
-
 .stage { justify-content: center; }
 .stage-room { margin: 0; text-align: center; font-size: 2.2rem; letter-spacing: 0.08em; color: var(--text); }
 .stage-room span { color: var(--accent-2); }

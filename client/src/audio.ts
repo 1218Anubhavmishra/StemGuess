@@ -27,7 +27,8 @@ class StemPlayer {
   private tracks: Track[] = [];
   private revealed = new Set<number>();
   private generation = 0;
-  private volume = 0.8;
+  private volume = 0.2;
+  private muted = false;
   private startedAt?: number;
   private clipDuration = 0;
 
@@ -35,7 +36,7 @@ class StemPlayer {
     if (!this.master) {
       const ctx = audioContext();
       this.master = ctx.createGain();
-      this.master.gain.value = this.volume;
+      this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(ctx.destination);
     }
     return this.master;
@@ -85,11 +86,20 @@ class StemPlayer {
 
   setVolume(value: number) {
     this.volume = value;
-    if (this.master) this.master.gain.value = value;
+    if (this.master && !this.muted) this.master.gain.value = value;
   }
 
   getVolume() {
     return this.volume;
+  }
+
+  setMuted(muted: boolean) {
+    this.muted = muted;
+    if (this.master) this.master.gain.value = muted ? 0 : this.volume;
+  }
+
+  isMuted() {
+    return this.muted;
   }
 
   /** Playback position within the (looping) clip, or null when nothing is playing. */

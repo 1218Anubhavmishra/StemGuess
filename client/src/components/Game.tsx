@@ -4,6 +4,7 @@ import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, StemInfo } from '../types';
 import Brand from './Brand';
 import Scoreboard from './Scoreboard';
+import SpeakerIcon from './SpeakerIcon';
 
 type Props = {
   room: RoomState;
@@ -66,6 +67,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   const [hint, setHint] = useState('');
   const [wrongGuess, setWrongGuess] = useState<string | null>(null);
   const [volume, setVolume] = useState(stemPlayer.getVolume());
+  const [muted, setMuted] = useState(stemPlayer.isMuted());
   const feedRef = useRef<HTMLUListElement>(null);
   const secondsLeft = useCountdown(endsAt);
   const me = room.players.find((p) => p.id === meId);
@@ -94,7 +96,40 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   return (
     <main className="screen game">
       <header className="topbar">
-        <Brand music={false} />
+        <div className="topbar-center">
+          <Brand music={false} />
+          <div className="sound">
+            <button
+              className="mute ghost"
+              aria-label={muted ? 'Unmute game audio' : 'Mute game audio'}
+              title={muted ? 'Unmute' : 'Mute'}
+              aria-pressed={muted}
+              onClick={() => {
+                stemPlayer.setMuted(!muted);
+                setMuted(!muted);
+              }}
+            >
+              <SpeakerIcon muted={muted} size={24} />
+            </button>
+            <input
+              type="range"
+              aria-label="Volume"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setVolume(v);
+                stemPlayer.setVolume(v);
+                if (muted) {
+                  stemPlayer.setMuted(false);
+                  setMuted(false);
+                }
+              }}
+            />
+          </div>
+        </div>
         <button className="ghost small end-game" onClick={onLeave}>
           End
         </button>
@@ -177,22 +212,6 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
         {hint && <p className="hint">{hint}</p>}
         {wrongGuess && phase !== 'roundEnd' && <p className="hint wrong-guess">Your guess "{wrongGuess}" was wrong.</p>}
       </section>
-
-      <label className="volume">
-        Vol
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={volume}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setVolume(v);
-            stemPlayer.setVolume(v);
-          }}
-        />
-      </label>
 
       <aside className="side">
         <div className="card">
