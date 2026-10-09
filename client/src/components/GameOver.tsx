@@ -28,7 +28,7 @@ export default function GameOver({ room, ranking, isHost, onLeave }: Props) {
                 {!p.connected && <DisconnectedIcon />}
               </span>
               <span className="score">
-                {p.score} / {room.totalRounds}
+                {p.score} {p.score === 1 ? 'pt' : 'pts'}
               </span>
             </li>
           ))}

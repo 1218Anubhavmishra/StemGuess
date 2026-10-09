@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import random
-import string
+import secrets
+import time
 from dataclasses import dataclass, field
 
 import socketio
@@ -62,7 +63,10 @@ class Player:
     score: int = 0
     guessed: bool = False  # guessed correctly this round
     attempted: bool = False  # used their one guess this round
+    round_points: int = 0
     connected: bool = True  # False once they drop out mid-game; removed when the game ends
+    # Secret handed only to this player's client so it can reclaim the seat after a reconnect.
+    token: str = field(default_factory=lambda: secrets.token_urlsafe(16))
 
 
 @dataclass
@@ -73,6 +77,7 @@ class Round:
     stems: list[dict]
     duration: float | None = None
     revealed: int = 0
+    ends_at: float = 0.0  # time.monotonic() when the round's timer runs out
 
 
 @dataclass
@@ -90,6 +95,9 @@ class Room:
     all_guessed: asyncio.Event = field(default_factory=asyncio.Event)
     advance: asyncio.Event = field(default_factory=asyncio.Event)
     awaiting_next: bool = False
+    # Last round_prepare / round_end payloads, replayed to players who rejoin mid-game.
+    prepare_payload: dict | None = None
+    end_payload: dict | None = None
 
     def public(self) -> dict:
         return {
@@ -178,11 +186,45 @@ class GameManager:
         return result
 
     async def _add_player(self, room: Room, sid: str, name: str) -> dict:
-        room.players[sid] = Player(sid=sid, name=name)
+        player = Player(sid=sid, name=name)
+        room.players[sid] = player
         self.sid_room[sid] = room.code
         await self.sio.enter_room(sid, room.code)
         await self._broadcast_state(room)
-        return {"ok": True, "code": room.code, "playerId": sid}
+        return {"ok": True, "code": room.code, "playerId": sid, "token": player.token}
+
+    async def rejoin(self, sid: str, code: object, token: object) -> dict:
+        room = self.rooms.get(str(code or "").strip().upper())
+        player = next((p for p in room.players.values() if p.token == token), None) if room and token else None
+        if not room or not player:
+            return _error("That game is no longer available")
+        if player.sid != sid:
+            old_sid = player.sid
+            self.sid_room.pop(old_sid, None)
+            await self.sio.leave_room(old_sid, room.code)
+            await self.leave(sid)
+            room.players = {(sid if k == old_sid else k): p for k, p in room.players.items()}
+            if room.host_sid == old_sid:
+                room.host_sid = sid
+            player.sid = sid
+        player.connected = True
+        self.sid_room[sid] = room.code
+        await self.sio.enter_room(sid, room.code)
+        await self._broadcast_state(room)
+        await self._send_round_snapshot(room, sid)
+        return {"ok": True, "code": room.code, "playerId": sid, "token": player.token}
+
+    async def _send_round_snapshot(self, room: Room, sid: str) -> None:
+        if room.state != "playing" or not room.prepare_payload:
+            return
+        await self.sio.emit("round_prepare", {**room.prepare_payload, "resume": True}, to=sid)
+        rnd = room.current
+        if rnd:
+            await self.sio.emit("round_start", {"duration": max(0.0, rnd.ends_at - time.monotonic())}, to=sid)
+            for index in range(rnd.revealed):
+                await self.sio.emit("stem_reveal", {"index": index, "name": rnd.stems[index]["name"]}, to=sid)
+        elif room.awaiting_next and room.end_payload:
+            await self.sio.emit("round_end", room.end_payload, to=sid)
 
     async def leave(self, sid: str) -> None:
         code = self.sid_room.pop(sid, None)
@@ -308,13 +350,12 @@ class GameManager:
         room.all_guessed.clear()
         for p in room.players.values():
             p.guessed = p.attempted = False
+            p.round_points = 0
         await self._broadcast_state(room)
 
-        await self.sio.emit(
-            "round_prepare",
-            {"round": room.round_number, "totalRounds": room.total_rounds, "stems": rnd.stems},
-            room=room.code,
-        )
+        room.end_payload = None
+        room.prepare_payload = {"round": room.round_number, "totalRounds": room.total_rounds, "stems": rnd.stems}
+        await self.sio.emit("round_prepare", room.prepare_payload, room=room.code)
         await asyncio.sleep(config.PREPARE_SECONDS)
 
         room.current = rnd
@@ -325,6 +366,7 @@ class GameManager:
         else:
             interval = config.STEM_REVEAL_SECONDS
             duration = len(rnd.stems) * interval + config.ROUND_EXTRA_SECONDS
+        rnd.ends_at = time.monotonic() + duration
         await self.sio.emit("round_start", {"duration": duration}, room=room.code)
         try:
             await asyncio.wait_for(self._reveal_stems(room, rnd, interval), timeout=duration + AUDIO_START_GRACE)
@@ -334,17 +376,16 @@ class GameManager:
         room.current = None
         room.advance.clear()
         room.awaiting_next = True
-        await self.sio.emit(
-            "round_end",
-            {
-                "title": rnd.title,
-                "artist": rnd.artist,
-                "stems": rnd.stems,
-                "isLast": room.round_number >= room.total_rounds,
-                "winners": [p.name for p in room.players.values() if p.guessed],
-            },
-            room=room.code,
-        )
+        winners = [p for p in room.players.values() if p.guessed]
+        room.end_payload = {
+            "title": rnd.title,
+            "artist": rnd.artist,
+            "stems": rnd.stems,
+            "isLast": room.round_number >= room.total_rounds,
+            "winners": [p.name for p in winners],
+            "points": {p.name: p.round_points for p in winners},
+        }
+        await self.sio.emit("round_end", room.end_payload, room=room.code)
         await room.advance.wait()
         room.awaiting_next = False
 
@@ -407,7 +448,9 @@ class GameManager:
         score = similarity(text, rnd.answers)
         if score >= CORRECT_THRESHOLD:
             player.guessed = True
-            player.score += 1
+            # Speed bonus: one point per stem still hidden, plus one.
+            player.round_points = len(rnd.stems) - rnd.revealed + 1
+            player.score += player.round_points
             result = "correct"
         elif score >= CLOSE_THRESHOLD:
             # Near-misses stay private so they don't hint the answer to others.

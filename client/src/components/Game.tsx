@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { stemPlayer } from '../audio';
 import { request } from '../socket';
-import type { FeedItem, Phase, RoomState, StemInfo } from '../types';
+import type { FeedItem, Phase, RoomState, RoundAnswer, StemInfo } from '../types';
 import Brand from './Brand';
 import Scoreboard from './Scoreboard';
 import SpeakerIcon from './SpeakerIcon';
@@ -13,7 +13,7 @@ type Props = {
   stems: StemInfo[];
   revealed: number;
   endsAt: number | null;
-  answer: { title: string; artist: string; isLast: boolean } | null;
+  answer: RoundAnswer | null;
   feed: FeedItem[];
   isHost: boolean;
   onLeave: () => void;
@@ -28,6 +28,8 @@ function useCountdown(endsAt: number | null) {
   }, [endsAt]);
   return endsAt ? Math.max(0, Math.ceil((endsAt - now) / 1000)) : null;
 }
+
+const pointsLabel = (n: number) => `${n} point${n === 1 ? '' : 's'}`;
 
 const formatTime = (seconds?: number) =>
   seconds === undefined ? '--:--' : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
@@ -71,7 +73,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   const feedRef = useRef<HTMLUListElement>(null);
   const secondsLeft = useCountdown(endsAt);
   const me = room.players.find((p) => p.id === meId);
-  const roundWinners = room.players.filter((p) => p.guessed).map((p) => p.name);
+  const roundWinners = Object.keys(answer?.points ?? {});
   const canGuess = phase === 'playing' && revealed > 0 && !me?.attempted;
 
   useEffect(() => {
@@ -162,10 +164,10 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
               {answer.artist && ` - ${answer.artist}`}
             </h2>
             <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
-              {me?.guessed
-                ? 'Correct! You guessed it.'
+              {me && answer.points[me.name]
+                ? `Correct! You guessed it. +${pointsLabel(answer.points[me.name])}`
                 : roundWinners.length
-                  ? `${roundWinners.join(', ')} guessed it.`
+                  ? `${roundWinners.map((name) => `${name} (+${answer.points[name]})`).join(', ')} guessed it.`
                   : 'Nobody got this one'}
               {wrongGuess && <span className="wrong-guess"> · Your guess "{wrongGuess}" was wrong.</span>}
             </p>
@@ -224,7 +226,8 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
             {feed.map((item) => (
               <li key={item.id} className={item.type}>
                 {item.type === 'system' && item.text}
-                {item.type === 'correct' && `${item.name} correctly guessed the song "${item.text}"!`}
+                {item.type === 'correct' &&
+                  `${item.name} correctly guessed the song "${item.text}"!${item.points ? ` +${pointsLabel(item.points)}` : ''}`}
                 {item.type === 'nobody' && 'Nobody got this one'}
                 {item.type === 'guess' && (
                   <>

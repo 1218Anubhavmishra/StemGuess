@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { unlockAudio } from '../audio';
-import { request } from '../socket';
+import { request, saveSession } from '../socket';
 import { PLAYER_LIMITS } from '../types';
 import CodeInput from './CodeInput';
 import Brand from './Brand';
@@ -23,7 +23,8 @@ export default function Home({ connected }: { connected: boolean }) {
     setError('');
     localStorage.setItem(NAME_KEY, name.trim());
     const ack = await request(event, { name, code: roomCode, maxPlayers });
-    if (!ack.ok) setError(ack.error ?? 'Something went wrong');
+    if (ack.ok) saveSession(ack);
+    else setError(ack.error ?? 'Something went wrong');
     setBusy(false);
   }
 

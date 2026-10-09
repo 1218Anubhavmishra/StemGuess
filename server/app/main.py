@@ -1,4 +1,5 @@
 import logging
+import socket
 
 import socketio
 from fastapi import FastAPI
@@ -34,6 +35,17 @@ def health() -> dict:
     return {"ok": True, "songs": songs}
 
 
+@api.get("/lan")
+def lan_address() -> dict:
+    """This machine's LAN IP, so invite links opened from localhost work for other devices."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        try:
+            s.connect(("10.255.255.255", 1))  # no packet is sent; just picks the outbound interface
+            return {"ip": s.getsockname()[0]}
+        except OSError:
+            return {"ip": None}
+
+
 if (config.CLIENT_DIST_DIR / "index.html").exists():
     api.mount("/", StaticFiles(directory=config.CLIENT_DIST_DIR, html=True), name="client")
 else:
@@ -66,6 +78,12 @@ async def create_room(sid, data=None):
 async def join_room(sid, data=None):
     data = data or {}
     return await games.join_room(sid, data.get("code"), data.get("name"))
+
+
+@sio.on("rejoin")
+async def rejoin(sid, data=None):
+    data = data or {}
+    return await games.rejoin(sid, data.get("code"), data.get("token"))
 
 
 @sio.on("leave_room")

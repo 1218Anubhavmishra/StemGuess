@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { bgMusic, stemPlayer } from './audio';
-import { request, serverUrl, socket } from './socket';
-import type { FeedItem, Phase, Player, RoomState, StemInfo } from './types';
+import { clearSession, loadSession, request, serverUrl, socket } from './socket';
+import type { FeedItem, Phase, Player, RoomState, RoundAnswer, StemInfo } from './types';
 import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
@@ -15,7 +15,7 @@ export default function App() {
   const [stems, setStems] = useState<StemInfo[]>([]);
   const [revealed, setRevealed] = useState(0);
   const [endsAt, setEndsAt] = useState<number | null>(null);
-  const [answer, setAnswer] = useState<{ title: string; artist: string; isLast: boolean } | null>(null);
+  const [answer, setAnswer] = useState<RoundAnswer | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   // Remounts the game view per game so in-game settings (volume, mute) start from their defaults.
@@ -25,22 +25,39 @@ export default function App() {
     const pushFeed = (item: Omit<FeedItem, 'id'>) =>
       setFeed((items) => [...items.slice(-49), { ...item, id: ++feedId }]);
 
-    const onConnect = () => setConnected(true);
-    const onDisconnect = () => {
-      setConnected(false);
+    const exitRoom = () => {
+      clearSession();
       setRoom(null);
       setPhase('lobby');
       stemPlayer.stop();
       stemPlayer.resetSettings();
     };
+    const tryRejoin = async () => {
+      const session = loadSession();
+      if (!session) return;
+      const ack = await request('rejoin', session);
+      if (!ack.ok) exitRoom();
+    };
+    const onConnect = () => {
+      setConnected(true);
+      void tryRejoin();
+    };
+    // Keep the room on screen while socket.io reconnects; rejoin restores the seat or exits.
+    const onDisconnect = () => {
+      setConnected(false);
+      stemPlayer.stop();
+      if (!loadSession()) exitRoom();
+    };
     const onRoomState = (state: RoomState) => setRoom(state);
-    const onPrepare = (p: { round: number; totalRounds: number; stems: StemInfo[] }) => {
+    const onPrepare = (p: { round: number; totalRounds: number; stems: StemInfo[]; resume?: boolean }) => {
       setPhase('prepare');
       setStems(p.stems);
       setRevealed(0);
       setAnswer(null);
       setEndsAt(null);
-      if (p.round === 1) {
+      if (p.resume) {
+        setFeed([]);
+      } else if (p.round === 1) {
         setFeed([]);
         setGameKey((k) => k + 1);
       }
@@ -56,12 +73,12 @@ export default function App() {
       setRevealed(p.index + 1);
       stemPlayer.reveal(p.index);
     };
-    const onRoundEnd = (p: { title: string; artist: string; stems: StemInfo[]; isLast: boolean; winners: string[] }) => {
+    const onRoundEnd = (p: RoundAnswer & { stems: StemInfo[]; winners: string[] }) => {
       const song = p.artist ? `${p.title} - by ${p.artist}` : p.title;
-      if (p.winners.length) p.winners.forEach((name) => pushFeed({ type: 'correct', name, text: song }));
+      if (p.winners.length) p.winners.forEach((name) => pushFeed({ type: 'correct', name, text: song, points: p.points[name] }));
       else pushFeed({ type: 'nobody' });
       setPhase('roundEnd');
-      setAnswer({ title: p.title, artist: p.artist, isLast: p.isLast });
+      setAnswer({ title: p.title, artist: p.artist, isLast: p.isLast, points: p.points });
       setEndsAt(null);
       setRevealed(p.stems.length);
       stemPlayer.stop();
@@ -82,6 +99,7 @@ export default function App() {
     socket.on('round_end', onRoundEnd);
     socket.on('game_over', onGameOver);
     socket.on('feed', pushFeed);
+    if (socket.connected) void tryRejoin();
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
@@ -98,6 +116,7 @@ export default function App() {
   const leave = async () => {
     stemPlayer.stop();
     stemPlayer.resetSettings();
+    clearSession();
     await request('leave_room');
     setRoom(null);
     setPhase('lobby');
@@ -123,13 +142,24 @@ export default function App() {
 
   const meId = socket.id ?? '';
   const isHost = room.hostId === meId;
+  const banner = !connected && (
+    <div className="reconnecting" role="status">
+      Connection lost. Reconnecting…
+    </div>
+  );
 
   if (screen === 'lobby') {
-    return <Lobby room={room} isHost={isHost} onLeave={leave} />;
+    return (
+      <>
+        {banner}
+        <Lobby room={room} isHost={isHost} onLeave={leave} />
+      </>
+    );
   }
   const gameOver = screen === 'gameOver';
   return (
     <>
+      {banner}
       <div inert={gameOver}>
         <Game
           key={gameKey}

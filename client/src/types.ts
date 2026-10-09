@@ -19,13 +19,17 @@ export type FeedItem = {
   type: 'correct' | 'nobody' | 'guess' | 'system';
   name?: string;
   text?: string;
+  points?: number;
 };
+
+export type RoundAnswer = { title: string; artist: string; isLast: boolean; points: Record<string, number> };
 
 export type Ack = {
   ok: boolean;
   error?: string;
   code?: string;
   playerId?: string;
+  token?: string;
   result?: 'correct' | 'close' | 'wrong';
   songs?: number;
 };

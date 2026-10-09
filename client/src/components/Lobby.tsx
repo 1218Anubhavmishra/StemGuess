@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { request, socket } from '../socket';
 import { SONG_LIMITS, type RoomState } from '../types';
 import Brand from './Brand';
+import Invite from './Invite';
 import Scoreboard from './Scoreboard';
 import Stepper from './Stepper';
 
@@ -39,6 +40,7 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
             <h1 className="room-code">{room.code}</h1>
             <span className="muted small">Share this code with your friends.</span>
           </div>
+          <Invite code={room.code} />
 
           <h3 className="players-head">
             Players in the room : {room.players.length}/{room.maxPlayers}
