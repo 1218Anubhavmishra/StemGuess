@@ -3,7 +3,7 @@ import { unlockAudio } from '../audio';
 import { request } from '../socket';
 import { PLAYER_LIMITS } from '../types';
 import CodeInput from './CodeInput';
-import MusicToggle from './MusicToggle';
+import Brand from './Brand';
 import Stepper from './Stepper';
 
 const NAME_KEY = 'stemguess:name';
@@ -37,13 +37,7 @@ export default function Home({ connected }: { connected: boolean }) {
   return (
     <main className="screen center">
       <div className="home-stack">
-        <header className="brand">
-          <h1 className="logo">
-            Stem<span>Guess</span>
-          </h1>
-          <MusicToggle />
-        </header>
-        <p className="tagline">Guess Songs with their instruments.</p>
+        <Brand />
 
         <div className="card narrow">
 

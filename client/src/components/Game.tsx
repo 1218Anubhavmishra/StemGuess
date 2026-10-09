@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, StemInfo } from '../types';
+import Brand from './Brand';
 import Scoreboard from './Scoreboard';
 
 type Props = {
@@ -93,6 +94,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
   return (
     <main className="screen game">
       <header className="topbar">
+        <Brand music={false} />
         <button className="ghost small end-game" onClick={onLeave}>
           End
         </button>
