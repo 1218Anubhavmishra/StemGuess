@@ -63,8 +63,10 @@ Regenerate it with `.\.venv\Scripts\python -m scripts.make_bg_audio` from `serve
 ## Deploy (Render)
 
 Create a Blueprint from `render.yaml` (Render dashboard > New > Blueprint > pick this repo): one free
-web service (builds the client, runs the server) plus a free Postgres database. The ten demo songs
-are generated during the build, so a fresh deploy is playable right away.
+web service that builds the client and runs the server. It asks for `DATABASE_URL`: paste a Postgres
+connection string, e.g. from a free [Neon](https://neon.tech) project (doesn't expire) or an existing
+Render Postgres (Render allows one free database per workspace). The ten demo songs are generated
+during the build, so a fresh deploy is playable right away.
 
 Render's filesystem is ephemeral, so real song stems go to Cloudflare R2 (below).
 
@@ -77,8 +79,8 @@ Render's filesystem is ephemeral, so real song stems go to Cloudflare R2 (below)
 2. R2 > Manage API tokens > Create token with **Object Read & Write** on that bucket. Put the
    values in `server/.env`: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
    `R2_BUCKET`, `R2_PUBLIC_URL` (e.g. `https://pub-xxxx.r2.dev`).
-3. Point `DATABASE_URL` in `server/.env` at the live database (Render Postgres > Connect >
-   External URL), then from `server/`:
+3. Point `DATABASE_URL` in `server/.env` at the live database (the same connection string the
+   Render service uses), then from `server/`:
    ```powershell
    .\.venv\Scripts\python -m scripts.process_songs   # Music.ai -> 15 s stems in server/media
    .\.venv\Scripts\python -m scripts.upload_r2       # upload them, store their public URLs
