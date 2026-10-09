@@ -46,7 +46,10 @@ Optional hot-reload while editing the UI: keep the server running and run `npm r
 1. In the [Music.ai dashboard](https://music.ai/), create an application (API key) and a
    stem-separation workflow (e.g. outputs `vocals`, `drums`, `bass`, `guitars`, `keys`, `other`).
    Put the key and the workflow slug in `server/.env` (`MUSIC_AI_API_KEY`, `MUSIC_AI_WORKFLOW`).
-2. Drop audio files into `server/songs_input/` named `Artist - Title.mp3`.
+2. Drop audio files into `server/songs_input/` named `Artist - Title.mp3`, or import a whole music
+   folder as 15 s clips (titles cleaned from tags/file names, listed in `songs_input/_library.csv`
+   with doubtful ones marked `check`):
+   `.\.venv\Scripts\python -m scripts.import_library "D:/music"` (add `--dry-run` to only list them).
    Optional `Artist - Title.json` with `{"aliases": ["Alt title"]}` for extra accepted answers.
 3. Run `.\.venv\Scripts\python -m scripts.process_songs` from `server/`. Already processed files are skipped.
 
