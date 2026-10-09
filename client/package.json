@@ -11,6 +11,7 @@
     "cap:sync": "npm run build:android && cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.9",
     "@capacitor/core": "^7.0.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
