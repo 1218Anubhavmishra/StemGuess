@@ -75,9 +75,8 @@ export default function Home({ connected }: { connected: boolean }) {
             </button>
           </div>
 
-          <div className="divider">or join one</div>
-
           <form className="row join-row" onSubmit={onJoin}>
+            <span className="divider">or join one</span>
             <CodeInput value={code} length={4} onChange={setCode} />
             <button type="submit" disabled={!connected || !nameOk || roomCode.length !== 4 || busy}>
               Join

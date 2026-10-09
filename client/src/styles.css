@@ -95,6 +95,7 @@ input:disabled { opacity: 0.5; }
 .create-row .field { flex: 1; min-width: 0; }
 .create-row > button { white-space: nowrap; }
 .join-row { align-items: center; }
+.join-row .divider { white-space: nowrap; margin-right: 2px; }
 button {
   background: var(--panel-2);
   color: var(--text);
