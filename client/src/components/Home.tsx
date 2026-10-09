@@ -43,9 +43,9 @@ export default function Home({ connected }: { connected: boolean }) {
           </h1>
           <MusicToggle />
         </header>
+        <p className="tagline">Guess Songs with their instruments.</p>
 
         <div className="card narrow">
-          <p className="muted">Guess Songs with their instruments.</p>
 
           <label className="field inline">
             <span>Host name (you)</span>

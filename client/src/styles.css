@@ -124,7 +124,8 @@ button.mute, .topbar button.ghost, .volume { color: var(--on-page); }
 .players-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .players-head h3 { margin: 0; }
 .players-head .mute { margin: -8px -8px -8px 0; }
-.brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; }
+.brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
+.tagline { margin: 0 0 16px; color: var(--on-page); text-align: center; }
 .brand .logo { margin: 0; }
 .home-stack { display: flex; flex-direction: column; align-items: center; width: min(420px, 100%); }
 
