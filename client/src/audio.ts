@@ -18,6 +18,8 @@ for (const event of ['pointerdown', 'keydown', 'touchstart']) {
   window.addEventListener(event, unlockAudio, { passive: true });
 }
 
+const DEFAULT_VOLUME = 0.2;
+
 /**
  * Plays all stems of a round in sync (looped) and fades each one in when revealed.
  */
@@ -27,7 +29,7 @@ class StemPlayer {
   private tracks: Track[] = [];
   private revealed = new Set<number>();
   private generation = 0;
-  private volume = 0.2;
+  private volume = DEFAULT_VOLUME;
   private muted = false;
   private startedAt?: number;
   private clipDuration = 0;
@@ -100,6 +102,11 @@ class StemPlayer {
 
   isMuted() {
     return this.muted;
+  }
+
+  resetSettings() {
+    this.volume = DEFAULT_VOLUME;
+    this.setMuted(false);
   }
 
   /** Playback position within the (looping) clip, or null when nothing is playing. */

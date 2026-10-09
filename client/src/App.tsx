@@ -18,6 +18,8 @@ export default function App() {
   const [answer, setAnswer] = useState<{ title: string; artist: string; isLast: boolean } | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  // Remounts the game view per game so in-game settings (volume, mute) start from their defaults.
+  const [gameKey, setGameKey] = useState(0);
 
   useEffect(() => {
     const pushFeed = (item: Omit<FeedItem, 'id'>) =>
@@ -29,6 +31,7 @@ export default function App() {
       setRoom(null);
       setPhase('lobby');
       stemPlayer.stop();
+      stemPlayer.resetSettings();
     };
     const onRoomState = (state: RoomState) => setRoom(state);
     const onPrepare = (p: { round: number; totalRounds: number; stems: StemInfo[] }) => {
@@ -37,7 +40,10 @@ export default function App() {
       setRevealed(0);
       setAnswer(null);
       setEndsAt(null);
-      if (p.round === 1) setFeed([]);
+      if (p.round === 1) {
+        setFeed([]);
+        setGameKey((k) => k + 1);
+      }
       pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
       stemPlayer.prepare(p.stems.map((s) => serverUrl(s.url)));
     };
@@ -64,6 +70,7 @@ export default function App() {
       setPhase('gameOver');
       setRanking(p.ranking);
       stemPlayer.stop();
+      stemPlayer.resetSettings();
     };
 
     socket.on('connect', onConnect);
@@ -90,6 +97,7 @@ export default function App() {
 
   const leave = async () => {
     stemPlayer.stop();
+    stemPlayer.resetSettings();
     await request('leave_room');
     setRoom(null);
     setPhase('lobby');
@@ -124,6 +132,7 @@ export default function App() {
     <>
       <div inert={gameOver}>
         <Game
+          key={gameKey}
           room={room}
           meId={meId}
           phase={gameOver ? 'roundEnd' : phase}
