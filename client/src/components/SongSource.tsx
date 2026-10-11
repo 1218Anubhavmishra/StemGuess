@@ -121,7 +121,8 @@ function LocalSongs({ rounds }: { rounds: number }) {
       </div>
       {!tracks.length && (
         <p className="muted small">
-          Any folder works. The game picks songs from it at random, so even you won't know what comes up.
+          In this mode, the game will randomly pick the chosen number of songs from that folder. So no player (even
+          us) will ever know the songs that will be picked for the game.
         </p>
       )}
       {empty && <p className="error small">{empty}</p>}
