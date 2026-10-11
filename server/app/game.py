@@ -23,6 +23,19 @@ MIN_ROUND_SECONDS = 10
 # Clients start audio ~0.1 s after round_start arrives, so the server waits slightly longer.
 AUDIO_START_GRACE = 0.3
 
+# Where a room's songs come from. Server libraries are told apart by their Song.source_file prefix;
+# songs without one (e.g. processed from a personal collection) are never served to games.
+SERVER_LIBRARIES = {"demo": "demo:", "cc": "cc:"}
+LIBRARIES = (*SERVER_LIBRARIES, "local")
+# Host-supplied songs: the host's device cuts LOCAL_CLIP_SECONDS clips and sends them straight to
+# the other players. The server only ever sees titles, never audio (apart from relaying chunks
+# between players whose network blocks a direct connection; nothing is stored).
+LOCAL_CLIP_SECONDS = 15
+MAX_LOCAL_TRACKS = 50
+LOCAL_TRANSFER_TIMEOUT = 90
+LOCAL_STAGES = ["Deep bass", "Low end", "Warmer", "Full song"]
+MAX_RELAY_CHUNK = 256 * 1024
+
 # Hardest-to-recognise first, vocals last.
 STEM_ORDER = [
     "drums", "percussion", "bass", "guitars", "guitar", "keys", "piano",
@@ -102,6 +115,13 @@ class Room:
     # Last round_prepare / round_end payloads, replayed to players who rejoin mid-game.
     prepare_payload: dict | None = None
     end_payload: dict | None = None
+    library: str = "demo"
+    # Host's own songs: titles only ({"title", "artist"}), indexed like the host's local clip list.
+    local_tracks: list[dict] = field(default_factory=list)
+    # Indices into local_tracks for this game; round N plays clip local_order[N - 1].
+    local_order: list[int] = field(default_factory=list)
+    local_ready: set[str] = field(default_factory=set)
+    transfer_done: asyncio.Event = field(default_factory=asyncio.Event)
 
     def public(self) -> dict:
         return {
@@ -111,6 +131,9 @@ class Room:
             "round": self.round_number,
             "totalRounds": self.total_rounds,
             "maxPlayers": self.max_players,
+            "library": self.library,
+            # A count only: titles would give the answers away.
+            "localTracks": len(self.local_tracks),
             "players": [
                 {
                     "id": p.sid,
@@ -219,7 +242,15 @@ class GameManager:
         return {"ok": True, "code": room.code, "playerId": sid, "token": player.token}
 
     async def _send_round_snapshot(self, room: Room, sid: str) -> None:
-        if room.state != "playing" or not room.prepare_payload:
+        if room.state != "playing":
+            return
+        if room.library == "local" and room.local_order:
+            # A reloaded page has lost its clips: ask the host's device to send them again.
+            await self.sio.emit("local_order", {"order": room.local_order, "host": room.host_sid}, to=sid)
+            if sid != room.host_sid:
+                room.local_ready.discard(sid)
+                await self.sio.emit("local_send", {"to": [sid]}, to=room.host_sid)
+        if not room.prepare_payload:
             return
         await self.sio.emit("round_prepare", {**room.prepare_payload, "resume": True}, to=sid)
         rnd = room.current
@@ -248,10 +279,19 @@ class GameManager:
             return
         if room.host_sid == sid:
             room.host_sid = room.active()[0].sid
+            if room.state != "playing":
+                # The songs were on the old host's device.
+                room.local_tracks = []
+                if room.library == "local":
+                    room.library = "demo"
+        room.local_ready.discard(sid)
+        self._check_transfer(room)
         self._check_all_guessed(room)
         await self._broadcast_state(room)
 
-    async def update_settings(self, sid: str, rounds: object, max_players: object) -> dict:
+    async def update_settings(
+        self, sid: str, rounds: object, max_players: object, library: object = None
+    ) -> dict:
         room = self._room_of(sid)
         if not room:
             return _error("You are not in a room")
@@ -270,15 +310,104 @@ class GameManager:
             return _error(f"Max players must be {MIN_PLAYER_LIMIT}-{MAX_PLAYER_LIMIT}")
         if max_players < len(room.players):
             return _error(f"{len(room.players)} players are already in the room")
+        if library is not None and library not in LIBRARIES:
+            return _error("Unknown song library")
         room.total_rounds = rounds
         room.max_players = max_players
+        if library is not None:
+            room.library = library
         await self._broadcast_state(room)
         return {"ok": True}
 
+    async def set_local_tracks(self, sid: str, tracks: object) -> dict:
+        room = self._room_of(sid)
+        if not room:
+            return _error("You are not in a room")
+        if room.host_sid != sid:
+            return _error("Only the host can choose songs")
+        if room.state == "playing":
+            return _error("Can't change songs during a game")
+        if not isinstance(tracks, list) or len(tracks) > MAX_LOCAL_TRACKS:
+            return _error(f"Pick up to {MAX_LOCAL_TRACKS} songs")
+        cleaned = []
+        for track in tracks:
+            track = track if isinstance(track, dict) else {}
+            title = " ".join(str(track.get("title") or "").split())[:150]
+            if not title:
+                return _error("Every song needs a title")
+            cleaned.append({"title": title, "artist": " ".join(str(track.get("artist") or "").split())[:150]})
+        room.local_tracks = cleaned
+        await self._broadcast_state(room)
+        return {"ok": True}
+
+    # ----- clip transfer between players (host's own songs) -----
+
+    def _same_room(self, sid: str, other: object) -> Room | None:
+        room = self._room_of(sid)
+        return room if room and isinstance(other, str) and other in room.players else None
+
+    async def rtc_signal(self, sid: str, to: object, data: object) -> dict:
+        """Relays WebRTC connection setup messages so two players can connect directly."""
+        if not self._same_room(sid, to):
+            return _error("Player not found")
+        await self.sio.emit("rtc_signal", {"from": sid, "data": data}, to=to)
+        return {"ok": True}
+
+    async def relay_clip(self, sid: str, data: dict) -> dict:
+        """Fallback when a direct connection fails: forwards one chunk, keeping nothing."""
+        to, chunk = data.get("to"), data.get("chunk")
+        room = self._same_room(sid, to)
+        if not room or room.host_sid != sid or room.library != "local":
+            return _error("Not allowed")
+        if not isinstance(chunk, (bytes, bytearray)) or len(chunk) > MAX_RELAY_CHUNK:
+            return _error("Bad chunk")
+        meta = {k: data.get(k) for k in ("pos", "seq", "total", "size")}
+        await self.sio.emit("clip_chunk", {**meta, "chunk": chunk}, to=to)
+        return {"ok": True}
+
+    async def local_ready(self, sid: str) -> dict:
+        room = self._room_of(sid)
+        if not room or room.library != "local":
+            return _error("Nothing to load")
+        room.local_ready.add(sid)
+        self._check_transfer(room)
+        await self._emit_transfer_status(room)
+        return {"ok": True}
+
+    def _waiting_for(self, room: Room) -> list[Player]:
+        return [p for p in room.active() if p.sid != room.host_sid and p.sid not in room.local_ready]
+
+    def _check_transfer(self, room: Room) -> None:
+        if room.library == "local" and not self._waiting_for(room):
+            room.transfer_done.set()
+
+    async def _emit_transfer_status(self, room: Room) -> None:
+        receivers = [p for p in room.active() if p.sid != room.host_sid]
+        ready = sum(p.sid in room.local_ready for p in receivers)
+        await self.sio.emit("local_status", {"ready": ready, "total": len(receivers)}, room=room.code)
+
+    async def _transfer_local_clips(self, room: Room) -> None:
+        room.local_ready.clear()
+        room.transfer_done.clear()
+        # Switch everyone to the game screen so they see the transfer progress.
+        await self._broadcast_state(room)
+        await self.sio.emit("local_order", {"order": room.local_order, "host": room.host_sid}, room=room.code)
+        receivers = [p.sid for p in room.active() if p.sid != room.host_sid]
+        if receivers:
+            await self.sio.emit("local_send", {"to": receivers}, to=room.host_sid)
+        self._check_transfer(room)
+        await self._emit_transfer_status(room)
+        # Players whose clips haven't arrived in time still play; they just may not hear the song.
+        await _wait_event(room.transfer_done, LOCAL_TRANSFER_TIMEOUT)
+
     # ----- game flow -----
 
-    async def library_size(self) -> int:
-        return len(await asyncio.to_thread(self._playable_song_ids))
+    async def library_sizes(self) -> dict[str, int]:
+        return await asyncio.to_thread(self._library_sizes)
+
+    @staticmethod
+    def _library_sizes() -> dict[str, int]:
+        return {name: len(GameManager._playable_song_ids(name)) for name in SERVER_LIBRARIES}
 
     async def start_game(self, sid: str) -> dict:
         room = self._room_of(sid)
@@ -289,14 +418,20 @@ class GameManager:
         if room.state == "playing":
             return _error("Game already running")
 
-        song_ids = await asyncio.to_thread(self._playable_song_ids)
-        if len(song_ids) < MIN_ROUNDS:
-            return _error(f"The library needs at least {MIN_ROUNDS} songs (it has {len(song_ids)}).")
+        if room.library == "local":
+            song_ids = list(range(len(room.local_tracks)))
+            if len(song_ids) < MIN_ROUNDS:
+                return _error(f"Add at least {MIN_ROUNDS} songs from your device ({len(song_ids)} so far).")
+        else:
+            song_ids = await asyncio.to_thread(self._playable_song_ids, room.library)
+            if len(song_ids) < MIN_ROUNDS:
+                return _error(f"This library needs at least {MIN_ROUNDS} songs (it has {len(song_ids)}).")
         if len(song_ids) < room.total_rounds:
-            return _error(f"Only {len(song_ids)} songs in the library. Pick {len(song_ids)} or fewer.")
+            return _error(f"Only {len(song_ids)} songs available. Pick {len(song_ids)} or fewer.")
 
         random.shuffle(song_ids)
         room.playlist = song_ids[: room.total_rounds]
+        room.local_order = room.playlist if room.library == "local" else []
         room.round_number = 0
         for p in room.players.values():
             p.score = 0
@@ -306,9 +441,21 @@ class GameManager:
         return {"ok": True}
 
     @staticmethod
-    def _playable_song_ids() -> list[int]:
+    def _playable_song_ids(library: str) -> list[int]:
+        prefix = SERVER_LIBRARIES[library]
         with SessionLocal() as db:
-            return list(db.scalars(select(Song.id).join(Stem).distinct()))
+            query = select(Song.id).join(Stem).where(Song.source_file.startswith(prefix)).distinct()
+            return list(db.scalars(query))
+
+    @staticmethod
+    def _local_round(track: dict) -> Round:
+        return Round(
+            title=track["title"],
+            artist=track["artist"],
+            answers=[track["title"]],
+            stems=[{"name": name, "url": ""} for name in LOCAL_STAGES],
+            duration=LOCAL_CLIP_SECONDS,
+        )
 
     @staticmethod
     def _load_round(song_id: int) -> Round | None:
@@ -334,9 +481,15 @@ class GameManager:
 
     async def _run_game(self, room: Room) -> None:
         try:
-            for song_id in room.playlist:
+            local = room.library == "local"
+            if local:
+                await self._transfer_local_clips(room)
+            for position, song_id in enumerate(room.playlist):
                 if not room.active():
                     return
+                if local:
+                    await self._play_round(room, self._local_round(room.local_tracks[song_id]), track=position)
+                    continue
                 rnd = await asyncio.to_thread(self._load_round, song_id)
                 if rnd:
                     await self._play_round(room, rnd)
@@ -350,7 +503,7 @@ class GameManager:
             room.drop_disconnected()
             await self._broadcast_state(room)
 
-    async def _play_round(self, room: Room, rnd: Round) -> None:
+    async def _play_round(self, room: Room, rnd: Round, track: int | None = None) -> None:
         room.round_number += 1
         room.all_guessed.clear()
         for p in room.players.values():
@@ -360,6 +513,9 @@ class GameManager:
 
         room.end_payload = None
         room.prepare_payload = {"round": room.round_number, "totalRounds": room.total_rounds, "stems": rnd.stems}
+        if track is not None:
+            # Position in local_order of the clip each player already holds.
+            room.prepare_payload["track"] = track
         await self.sio.emit("round_prepare", room.prepare_payload, room=room.code)
         await asyncio.sleep(config.PREPARE_SECONDS)
 

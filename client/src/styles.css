@@ -229,3 +229,21 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
   .game { grid-template-columns: 1fr; }
   .side { grid-column: 1; grid-row: auto; }
 }
+
+/* Song library picker (lobby) */
+.song-source { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px 12px; margin: 4px 0 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.song-source legend { padding: 0 6px; font-size: 0.85rem; color: var(--muted); }
+.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--panel-2); border-radius: 10px; padding: 4px; }
+.segmented button { border: 1px solid transparent; background: transparent; padding: 8px 6px; font-size: 0.85rem; line-height: 1.2; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.segmented button.on { background: var(--panel); border-color: var(--border-strong); color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 6%); }
+.segmented small { font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+.notice { margin: 0; color: var(--on-page); background: var(--panel-2); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 10px; line-height: 1.4; }
+.source-chip { margin: 0; display: inline-block; align-self: center; font-size: 0.8rem; font-weight: 600; color: var(--accent); background: var(--winner-bg); border-radius: 999px; padding: 3px 10px; }
+.local-songs { display: flex; flex-direction: column; gap: 8px; }
+.local-songs > button { align-self: flex-start; color: var(--accent); }
+.consent { display: flex; gap: 8px; align-items: flex-start; font-size: 0.85rem; line-height: 1.35; cursor: pointer; }
+.consent input { margin-top: 2px; accent-color: var(--accent); }
+.local-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.local-list li { display: grid; grid-template-columns: 3fr 2fr auto; gap: 6px; align-items: center; }
+.local-list input { min-width: 0; padding: 6px 8px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); }
+.error.small { font-size: 0.8rem; }

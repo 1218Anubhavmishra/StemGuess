@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { bgMusic, stemPlayer } from './audio';
+import { getClip } from './clipTransfer';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
 import type { FeedItem, Phase, Player, RoomState, RoundAnswer, StemInfo } from './types';
 import Home from './components/Home';
@@ -18,6 +19,8 @@ export default function App() {
   const [answer, setAnswer] = useState<RoundAnswer | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  // Host's own songs: how many players have received the clips, shown before the first round.
+  const [transfer, setTransfer] = useState<{ ready: number; total: number } | null>(null);
   // Remounts the game view per game so in-game settings (volume, mute) start from their defaults.
   const [gameKey, setGameKey] = useState(0);
 
@@ -49,7 +52,14 @@ export default function App() {
       if (!loadSession()) exitRoom();
     };
     const onRoomState = (state: RoomState) => setRoom(state);
-    const onPrepare = (p: { round: number; totalRounds: number; stems: StemInfo[]; resume?: boolean }) => {
+    const onLocalOrder = () => {
+      setPhase('prepare');
+      setStems([]);
+      setAnswer(null);
+    };
+    const onLocalStatus = (p: { ready: number; total: number }) => setTransfer(p);
+    const onPrepare = (p: { round: number; totalRounds: number; stems: StemInfo[]; resume?: boolean; track?: number }) => {
+      setTransfer(null);
       setPhase('prepare');
       setStems(p.stems);
       setRevealed(0);
@@ -62,7 +72,8 @@ export default function App() {
         setGameKey((k) => k + 1);
       }
       pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
-      stemPlayer.prepare(p.stems.map((s) => serverUrl(s.url)));
+      if (p.track !== undefined) stemPlayer.prepareClip(getClip(p.track));
+      else stemPlayer.prepare(p.stems.map((s) => serverUrl(s.url)));
     };
     const onStart = (p: { duration: number }) => {
       setPhase('playing');
@@ -99,6 +110,8 @@ export default function App() {
     socket.on('round_end', onRoundEnd);
     socket.on('game_over', onGameOver);
     socket.on('feed', pushFeed);
+    socket.on('local_order', onLocalOrder);
+    socket.on('local_status', onLocalStatus);
     if (socket.connected) void tryRejoin();
     return () => {
       socket.off('connect', onConnect);
@@ -110,6 +123,8 @@ export default function App() {
       socket.off('round_end', onRoundEnd);
       socket.off('game_over', onGameOver);
       socket.off('feed', pushFeed);
+      socket.off('local_order', onLocalOrder);
+      socket.off('local_status', onLocalStatus);
     };
   }, []);
 
@@ -171,6 +186,7 @@ export default function App() {
           endsAt={endsAt}
           answer={answer}
           feed={feed}
+          transfer={transfer}
           isHost={isHost}
           onLeave={leave}
         />

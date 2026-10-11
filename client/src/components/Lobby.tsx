@@ -1,23 +1,25 @@
 import { useEffect, useState } from 'react';
 import { request, socket } from '../socket';
-import { SONG_LIMITS, type RoomState } from '../types';
+import { SONG_LIMITS, type Library, type RoomState } from '../types';
 import Brand from './Brand';
 import Invite from './Invite';
 import Scoreboard from './Scoreboard';
+import SongSource, { GUEST_NOTICES, LIBRARY_LABELS } from './SongSource';
 import Stepper from './Stepper';
 
 export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHost: boolean; onLeave: () => void }) {
   const [error, setError] = useState('');
-  const [librarySize, setLibrarySize] = useState<number | null>(null);
+  const [libraries, setLibraries] = useState<Record<'demo' | 'cc', number> | null>(null);
 
   useEffect(() => {
-    void request('library').then((ack) => ack.ok && setLibrarySize(ack.songs ?? 0));
+    void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
   }, []);
 
+  const librarySize = room.library === 'local' ? room.localTracks : (libraries?.[room.library] ?? null);
   const maxSongs = Math.min(SONG_LIMITS.max, librarySize ?? SONG_LIMITS.max);
   const notEnoughSongs = librarySize !== null && librarySize < SONG_LIMITS.min;
 
-  async function update(settings: { rounds?: number }) {
+  async function update(settings: { rounds?: number; library?: Library }) {
     setError('');
     const ack = await request('update_settings', settings);
     if (!ack.ok) setError(ack.error ?? 'Could not update settings');
@@ -49,6 +51,12 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
 
           {isHost ? (
             <>
+              <SongSource
+                room={room}
+                libraries={libraries}
+                minSongs={SONG_LIMITS.min}
+                onChange={(library) => void update({ library })}
+              />
               <div className="row create-row">
                 <Stepper
                   label="Songs"
@@ -62,14 +70,16 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
                   Start game
                 </button>
               </div>
-              {notEnoughSongs && (
+              {notEnoughSongs && room.library !== 'local' && (
                 <p className="muted small">
-                  The library has {librarySize} song{librarySize === 1 ? '' : 's'}. Add at least {SONG_LIMITS.min} to play.
+                  This library has {librarySize} song{librarySize === 1 ? '' : 's'}. It needs at least {SONG_LIMITS.min} to play.
                 </p>
               )}
             </>
           ) : (
             <>
+              <p className="source-chip">{LIBRARY_LABELS[room.library]}</p>
+              <p className="notice small">{GUEST_NOTICES[room.library]}</p>
               <p className="muted">{room.totalRounds} songs</p>
               <p className="muted">Waiting for the host to start…</p>
             </>

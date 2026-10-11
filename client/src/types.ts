@@ -7,8 +7,12 @@ export type RoomState = {
   round: number;
   totalRounds: number;
   maxPlayers: number;
+  library: Library;
+  localTracks: number;
   players: Player[];
 };
+
+export type Library = 'demo' | 'cc' | 'local';
 
 export type StemInfo = { name: string; url: string };
 
@@ -31,7 +35,7 @@ export type Ack = {
   playerId?: string;
   token?: string;
   result?: 'correct' | 'close' | 'wrong';
-  songs?: number;
+  libraries?: Record<'demo' | 'cc', number>;
 };
 
 export const SONG_LIMITS = { min: 3, max: 10 };

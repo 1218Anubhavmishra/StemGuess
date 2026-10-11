@@ -15,6 +15,7 @@ type Props = {
   endsAt: number | null;
   answer: RoundAnswer | null;
   feed: FeedItem[];
+  transfer: { ready: number; total: number } | null;
   isHost: boolean;
   onLeave: () => void;
 };
@@ -64,7 +65,7 @@ function SongProgress({ complete }: { complete: boolean }) {
   );
 }
 
-export default function Game({ room, meId, phase, stems, revealed, endsAt, answer, feed, isHost, onLeave }: Props) {
+export default function Game({ room, meId, phase, stems, revealed, endsAt, answer, feed, transfer, isHost, onLeave }: Props) {
   const [guess, setGuess] = useState('');
   const [hint, setHint] = useState('');
   const [wrongGuess, setWrongGuess] = useState<string | null>(null);
@@ -141,7 +142,16 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
         <h2 className="stage-room">
           Room <span>{room.code}</span>
         </h2>
-        {phase === 'prepare' && <p className="status">Get ready… loading stems</p>}
+        {room.library === 'local' && <p className="source-chip">🎵 Host's music</p>}
+        {phase === 'prepare' && (
+          <p className="status">
+            {transfer
+              ? `Sending songs from the host's device… ${transfer.ready}/${transfer.total} players ready`
+              : room.library === 'local'
+                ? 'Get ready…'
+                : 'Get ready… loading stems'}
+          </p>
+        )}
         {phase === 'playing' && secondsLeft !== null && (
           <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
             {formatTime(secondsLeft)}
@@ -178,7 +188,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
 
         <ul className="stems">
           {stems.map((s, i) => (
-            <li key={s.url} className={i < revealed ? 'on' : ''}>
+            <li key={`${i}-${s.name}`} className={i < revealed ? 'on' : ''}>
               <span className="bars" aria-hidden>
                 <i />
                 <i />

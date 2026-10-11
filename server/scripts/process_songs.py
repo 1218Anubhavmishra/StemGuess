@@ -3,7 +3,10 @@
 1. Put audio files in server/songs_input/ named "Artist - Title.mp3".
    Optional sidecar "Artist - Title.json": {"aliases": ["Alternate title"]}
 2. Set MUSIC_AI_API_KEY and MUSIC_AI_WORKFLOW in server/.env.
-3. From server/:  python -m scripts.process_songs
+3. From server/:  python -m scripts.process_songs --cc
+
+Games only play songs from a named library: --cc adds them to the Creative Commons library
+(use it only for CC BY / BY-SA / BY-NC tracks; NoDerivatives licences don't allow stems).
 
 Files already in the database are skipped, so each song is only paid for once.
 With ffmpeg on PATH, stems are clipped to CLIP_SECONDS (default 15) taken from the
@@ -169,6 +172,11 @@ def is_silent(path: Path) -> bool:
     return match.group(1) == "-inf" or float(match.group(1)) < SILENCE_DB
 
 
+def source_name(path: Path) -> str:
+    # Games only play songs from a named library; --cc marks songs licensed under Creative Commons.
+    return f"cc:{path.name}" if "--cc" in sys.argv else path.name
+
+
 def process(client: MusicAi, path: Path) -> int:
     artist, title = parse_name(path)
     input_url = client.upload(path)
@@ -184,7 +192,7 @@ def process(client: MusicAi, path: Path) -> int:
     start = clip_start(path)
     saved = 0
     with SessionLocal() as db:
-        song = Song(title=title, artist=artist, aliases=load_aliases(path), source_file=path.name)
+        song = Song(title=title, artist=artist, aliases=load_aliases(path), source_file=source_name(path))
         db.add(song)
         # Random folder: unique across databases (local and production) and doesn't hint at the title.
         song_dir = config.MEDIA_DIR / "songs" / secrets.token_hex(8)
@@ -233,7 +241,7 @@ def main() -> None:
 
     client = MusicAi(config.MUSIC_AI_API_KEY, config.MUSIC_AI_BASE_URL)
     for path in files:
-        if path.name in done:
+        if source_name(path) in done:
             print(f"skip (already processed): {path.name}")
             continue
         print(f"processing: {path.name}")

@@ -52,6 +52,24 @@ Optional hot-reload while editing the UI: keep the server running and run `npm r
    `.\.venv\Scripts\python -m scripts.import_library "D:/music"` (add `--dry-run` to only list them).
    Optional `Artist - Title.json` with `{"aliases": ["Alt title"]}` for extra accepted answers.
 3. Run `.\.venv\Scripts\python -m scripts.process_songs` from `server/`. Already processed files are skipped.
+   Add `--cc` for Creative Commons tracks so they land in the lobby's Creative Commons library
+   (only use `--cc` for songs whose licence allows it, and fill in the artist for the credit).
+
+## Song libraries
+
+The host picks the song source in the lobby:
+
+| Option | Where the audio comes from |
+| --- | --- |
+| StemGuess originals | Demo songs on the server (`seed_demo`) |
+| Creative Commons | Server songs processed with `--cc`; shown as "Coming soon" until there are enough |
+| My own music | Audio files picked on the host's device |
+
+With **My own music**, the host's browser cuts a 15 s clip from each picked file. The server only
+receives the titles. Clips go from the host to each player over a direct WebRTC connection, or
+through the server (forwarded, never stored) when a direct connection can't be made within 7 s.
+Rounds play the clip through a low-pass filter that opens up in four steps instead of stems.
+Songs on the server that are neither demo (`demo:`) nor Creative Commons (`cc:`) are never used in games.
 
 Cost is about $0.07 per minute of audio for standard stems (see [pricing](https://music.ai/pricing/)).
 
@@ -110,3 +128,6 @@ The server must be **https** for native builds; plain-http LAN servers get block
 Music.ai's terms make you responsible for having the rights to every track you upload and to how
 you use the output. Removing vocals does not change that. Commercial songs are fine for a private
 game with friends. A public release needs licensed or royalty-free music.
+
+With "My own music", the host chooses what plays from their own files and must confirm they are
+responsible for it. StemGuess doesn't store or distribute those clips.
