@@ -30,7 +30,7 @@ LIBRARIES = (*SERVER_LIBRARIES, "local")
 # Host-supplied songs: the host's device cuts clips and sends them straight to the other players.
 # The server only ever sees titles, never audio (apart from relaying chunks between players whose
 # network blocks a direct connection; nothing is stored).
-MAX_LOCAL_TRACKS = 200
+MAX_LOCAL_TRACKS = 1000
 # The game draws its songs at random from a pool at least this many times its length, so the host
 # can't know which of their songs will come up.
 LOCAL_POOL_FACTOR = 2

@@ -32,7 +32,7 @@ This builds the client, sets up the Python environment on first run and serves t
 http://localhost:8000. Open it in two browser windows to play against yourself. Phones on the same
 Wi-Fi can join via `http://<your-PC-IP>:8000` (allow Python through the Windows firewall).
 
-For quick testing without Music.ai, add ten synthetic demo songs (from `server/`):
+For quick testing without Music.ai, add 25 synthetic demo songs (from `server/`):
 `.\.venv\Scripts\python -m scripts.seed_demo`
 
 Without `DATABASE_URL` the server uses `server/stemguess.db` (SQLite). For Postgres:
@@ -83,7 +83,7 @@ Regenerate it with `.\.venv\Scripts\python -m scripts.make_bg_audio` from `serve
 Create a Blueprint from `render.yaml` (Render dashboard > New > Blueprint > pick this repo): one free
 web service that builds the client and runs the server. It asks for `DATABASE_URL`: paste a Postgres
 connection string, e.g. from a free [Neon](https://neon.tech) project (doesn't expire) or an existing
-Render Postgres (Render allows one free database per workspace). The ten demo songs are generated
+Render Postgres (Render allows one free database per workspace). The 25 demo songs are generated
 during the build, so a fresh deploy is playable right away.
 
 Render's filesystem is ephemeral, so real song stems go to Cloudflare R2 (below).

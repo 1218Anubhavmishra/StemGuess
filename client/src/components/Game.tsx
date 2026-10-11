@@ -131,13 +131,14 @@ export default function Game({
         </h2>
         {room.library === 'local' && <p className="source-chip">🎵 Host's music</p>}
         {phase === 'prepare' && (
-          <p className="status">
-            {transfer
-              ? `Sending songs from the host's device… ${transfer.ready}/${transfer.total} players ready`
-              : room.library === 'local'
-                ? 'Get ready…'
-                : 'Get ready… loading the song'}
-          </p>
+          <>
+            <p className="status">Get ready…</p>
+            {transfer && (
+              <p className="muted small prepare-detail">
+                Loading songs: {transfer.ready}/{transfer.total} players ready
+              </p>
+            )}
+          </>
         )}
         {phase === 'playing' && secondsLeft !== null && (
           <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">

@@ -4,7 +4,9 @@ import { request } from '../socket';
 import { LOCAL_POOL_FACTOR, type Library, type RoomState } from '../types';
 
 const CONSENT_KEY = 'stemguess:localMusicConsent';
-const MAX_TRACKS = 200;
+// Bigger folders are sampled down to this many songs (titles only go to the server).
+const MAX_TRACKS = 1000;
+const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|webm|wma|aiff?)$/i;
 
 const OPTIONS: { id: Library; label: string; notice: string }[] = [
   {
@@ -45,11 +47,27 @@ function useLocalTracks(): LocalTrack[] {
   return tracks;
 }
 
+function shuffled<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 function LocalSongs({ rounds }: { rounds: number }) {
   const tracks = useLocalTracks();
   const [consent, setConsent] = useState(() => sessionStorage.getItem(CONSENT_KEY) === '1');
+  const [source, setSource] = useState('');
+  const folderInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const needed = rounds * LOCAL_POOL_FACTOR;
+
+  useEffect(() => {
+    // Not in React's input typings. Browsers without folder picking (iOS) fall back to a file picker.
+    folderInput.current?.setAttribute('webkitdirectory', '');
+  }, []);
 
   // Titles only (never audio) go to the server, which shows them as answer options.
   useEffect(() => {
@@ -59,14 +77,15 @@ function LocalSongs({ rounds }: { rounds: number }) {
     return () => clearTimeout(id);
   }, [tracks]);
 
-  function addFiles(files: FileList | null) {
-    if (!files?.length) return;
-    setTracks([...getTracks(), ...[...files].map(makeTrack)].slice(0, MAX_TRACKS));
-    if (fileInput.current) fileInput.current.value = '';
+  /** The whole selection becomes the pool; the game draws from it, so the host never picks songs. */
+  function takePool(input: HTMLInputElement | null) {
+    const files = [...(input?.files ?? [])].filter((f) => f.type.startsWith('audio/') || AUDIO_EXTENSIONS.test(f.name));
+    if (input) input.value = '';
+    if (!files.length) return;
+    const folder = files[0].webkitRelativePath.split('/')[0];
+    setSource(folder ? `"${folder}"` : 'your selection');
+    setTracks(shuffled(files).slice(0, MAX_TRACKS).map(makeTrack));
   }
-
-  const update = (id: number, patch: Partial<LocalTrack>) =>
-    setTracks(getTracks().map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
   return (
     <div className="local-songs">
@@ -82,57 +101,24 @@ function LocalSongs({ rounds }: { rounds: number }) {
         I understand and will only use music I have the right to share.
       </label>
 
-      <input
-        ref={fileInput}
-        type="file"
-        accept="audio/*"
-        multiple
-        hidden
-        onChange={(e) => void addFiles(e.target.files)}
-      />
-      <button className="ghost" disabled={!consent || tracks.length >= MAX_TRACKS} onClick={() => fileInput.current?.click()}>
-        + Add songs from this device
-      </button>
-      <p className="muted small">
-        {tracks.length < needed
-          ? `Add at least ${needed} songs for a ${rounds}-song game (${tracks.length} so far). `
-          : `The game will pick ${rounds} of your ${tracks.length} songs at random. `}
+      <input ref={folderInput} type="file" hidden onChange={(e) => takePool(e.target)} />
+      <input ref={fileInput} type="file" accept="audio/*" multiple hidden onChange={(e) => takePool(e.target)} />
+      <div className="row local-pick">
+        <button className="ghost" disabled={!consent} onClick={() => folderInput.current?.click()}>
+          {tracks.length ? 'Choose a different music folder' : 'Choose your music folder'}
+        </button>
+        <button className="link small" disabled={!consent} onClick={() => fileInput.current?.click()}>
+          or select all your songs
+        </button>
+      </div>
+      <p className="muted small" role="status">
+        {!tracks.length
+          ? 'The game picks songs from it at random, so even you won\'t know what comes up.'
+          : tracks.length < needed
+            ? `Found ${tracks.length} songs in ${source || 'your music'}. A ${rounds}-song game needs at least ${needed}.`
+            : `Found ${tracks.length} songs in ${source || 'your music'}. The game will pick ${rounds} at random.`}{' '}
         Only the loudest 15 seconds of a picked song are played.
       </p>
-
-      {tracks.length > 0 && (
-        <details className="local-titles">
-          <summary>Review titles ({tracks.length})</summary>
-          <p className="muted small">Titles are shown as answer options, so fix any that look wrong.</p>
-          <ul className="local-list">
-            {tracks.map((t) => (
-              <li key={t.id}>
-                <input
-                  aria-label="Song title"
-                  placeholder="Title"
-                  value={t.title}
-                  maxLength={150}
-                  onChange={(e) => update(t.id, { title: e.target.value })}
-                />
-                <input
-                  aria-label="Artist"
-                  placeholder="Artist"
-                  value={t.artist}
-                  maxLength={150}
-                  onChange={(e) => update(t.id, { artist: e.target.value })}
-                />
-                <button
-                  className="ghost small"
-                  aria-label={`Remove ${t.title}`}
-                  onClick={() => setTracks(getTracks().filter((x) => x.id !== t.id))}
-                >
-                  ✕
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
     </div>
   );
 }

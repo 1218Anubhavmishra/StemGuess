@@ -1,4 +1,4 @@
-"""Add ten synthetic demo songs (generated tones, no Music.ai needed) for testing.
+"""Add 25 synthetic demo songs (generated tones, no Music.ai needed) for testing.
 
 From server/:  python -m scripts.seed_demo               (write missing files + add songs to the database)
                python -m scripts.seed_demo --files-only  (just write missing files, e.g. during a deploy build)
@@ -32,6 +32,11 @@ MELODIES = [
     [7, 5, 4, 0, 4, 5, 7, 9],
     [0, 0, 7, 7, 9, 9, 7, 5],
     [12, 11, 7, 4, 7, 11, 12, 14],
+    [0, 3, 5, 7, 10, 7, 5, 3],
+    [4, 2, 0, 2, 4, 4, 4, 7],
+    [0, 7, 5, 3, 2, 3, 5, 7],
+    [9, 7, 4, 2, 0, 2, 4, 9],
+    [0, 5, 9, 12, 9, 5, 4, 2],
 ]
 
 DEMOS = {
@@ -45,6 +50,21 @@ DEMOS = {
     "Copper Rain": {"root": 233.08, "bpm": 96, "melody": 1},
     "Glass Garden": {"root": 277.18, "bpm": 124, "melody": 3},
     "Lunar Parade": {"root": 207.65, "bpm": 132, "melody": 4},
+    "Saffron Static": {"root": 220.0, "bpm": 104, "melody": 5},
+    "Ocean Telephone": {"root": 174.61, "bpm": 88, "melody": 6},
+    "Firefly Circuit": {"root": 261.63, "bpm": 136, "melody": 7},
+    "Hollow Mountain": {"root": 146.83, "bpm": 78, "melody": 8},
+    "Electric Monsoon": {"root": 233.08, "bpm": 126, "melody": 9},
+    "Lantern Festival": {"root": 196.0, "bpm": 98, "melody": 6},
+    "Silver Compass": {"root": 246.94, "bpm": 112, "melody": 5},
+    "Cobalt Sunrise": {"root": 293.66, "bpm": 120, "melody": 9},
+    "Desert Radio": {"root": 164.81, "bpm": 94, "melody": 7},
+    "Marble Hearts": {"root": 277.18, "bpm": 116, "melody": 8},
+    "Static Bloom": {"root": 185.0, "bpm": 130, "melody": 0},
+    "Northern Echo": {"root": 207.65, "bpm": 86, "melody": 1},
+    "Tangerine Drive": {"root": 311.13, "bpm": 138, "melody": 2},
+    "Quiet Volcano": {"root": 155.56, "bpm": 82, "melody": 3},
+    "Satellite Waltz": {"root": 233.08, "bpm": 108, "melody": 4},
 }
 
 
