@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { getTracks, makeTrack, setTracks, subscribe, type LocalTrack } from '../localLibrary';
 import { request } from '../socket';
-import type { Library, RoomState } from '../types';
+import { LOCAL_POOL_FACTOR, type Library, type RoomState } from '../types';
 
 const CONSENT_KEY = 'stemguess:localMusicConsent';
+const MAX_TRACKS = 200;
 
 const OPTIONS: { id: Library; label: string; notice: string }[] = [
   {
     id: 'demo',
     label: 'StemGuess demos',
-    notice: 'Original tracks made for StemGuess. Free to play, no copyright concerns.',
+    notice: 'Original & free to play demo tracks by StemGuess.',
   },
   {
     id: 'cc',
@@ -33,7 +34,7 @@ export const LIBRARY_LABELS: Record<Library, string> = {
 };
 
 export const GUEST_NOTICES: Record<Library, string> = {
-  demo: 'Original tracks made for StemGuess.',
+  demo: 'Original & free to play demo tracks by StemGuess.',
   cc: 'Songs shared by their artists under Creative Commons licences.',
   local: "Songs come from the host's device and are shared only with this room. StemGuess doesn't store them.",
 };
@@ -44,14 +45,13 @@ function useLocalTracks(): LocalTrack[] {
   return tracks;
 }
 
-function LocalSongs({ minSongs }: { minSongs: number }) {
+function LocalSongs({ rounds }: { rounds: number }) {
   const tracks = useLocalTracks();
   const [consent, setConsent] = useState(() => sessionStorage.getItem(CONSENT_KEY) === '1');
-  const [busy, setBusy] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
+  const needed = rounds * LOCAL_POOL_FACTOR;
 
-  // Titles only (never audio) go to the server, which needs them to check guesses.
+  // Titles only (never audio) go to the server, which shows them as answer options.
   useEffect(() => {
     const id = setTimeout(() => {
       void request('set_local_tracks', { tracks: tracks.map(({ title, artist }) => ({ title, artist })) });
@@ -59,21 +59,9 @@ function LocalSongs({ minSongs }: { minSongs: number }) {
     return () => clearTimeout(id);
   }, [tracks]);
 
-  async function addFiles(files: FileList | null) {
+  function addFiles(files: FileList | null) {
     if (!files?.length) return;
-    const list = [...files];
-    const errors: string[] = [];
-    for (const [i, file] of list.entries()) {
-      setBusy(`Preparing ${i + 1} of ${list.length}: ${file.name}`);
-      try {
-        const track = await makeTrack(file);
-        setTracks([...getTracks(), track]);
-      } catch {
-        errors.push(file.name);
-      }
-    }
-    setBusy(null);
-    setFailed(errors);
+    setTracks([...getTracks(), ...[...files].map(makeTrack)].slice(0, MAX_TRACKS));
     if (fileInput.current) fileInput.current.value = '';
   }
 
@@ -102,17 +90,20 @@ function LocalSongs({ minSongs }: { minSongs: number }) {
         hidden
         onChange={(e) => void addFiles(e.target.files)}
       />
-      <button className="ghost" disabled={!consent || !!busy} onClick={() => fileInput.current?.click()}>
+      <button className="ghost" disabled={!consent || tracks.length >= MAX_TRACKS} onClick={() => fileInput.current?.click()}>
         + Add songs from this device
       </button>
-      {busy && <p className="muted small" role="status">{busy}</p>}
-      {failed.length > 0 && <p className="error small">Couldn't read: {failed.join(', ')}</p>}
+      <p className="muted small">
+        {tracks.length < needed
+          ? `Add at least ${needed} songs for a ${rounds}-song game (${tracks.length} so far). `
+          : `The game will pick ${rounds} of your ${tracks.length} songs at random. `}
+        Only the loudest 15 seconds of a picked song are played.
+      </p>
 
       {tracks.length > 0 && (
-        <>
-          <p className="muted small">
-            Check each title: players must type it to score. Only the loudest 15 seconds of each song are used.
-          </p>
+        <details className="local-titles">
+          <summary>Review titles ({tracks.length})</summary>
+          <p className="muted small">Titles are shown as answer options, so fix any that look wrong.</p>
           <ul className="local-list">
             {tracks.map((t) => (
               <li key={t.id}>
@@ -140,12 +131,7 @@ function LocalSongs({ minSongs }: { minSongs: number }) {
               </li>
             ))}
           </ul>
-        </>
-      )}
-      {tracks.length < minSongs && (
-        <p className="muted small">
-          Add at least {minSongs} songs ({tracks.length} so far).
-        </p>
+        </details>
       )}
     </div>
   );
@@ -155,11 +141,13 @@ export default function SongSource({
   room,
   libraries,
   minSongs,
+  rounds,
   onChange,
 }: {
   room: RoomState;
   libraries: Record<'demo' | 'cc', number> | null;
   minSongs: number;
+  rounds: number;
   onChange: (library: Library) => void;
 }) {
   const selected = OPTIONS.find((o) => o.id === room.library) ?? OPTIONS[0];
@@ -188,7 +176,7 @@ export default function SongSource({
         })}
       </div>
       <p className="notice small">{selected.notice}</p>
-      {room.library === 'local' && <LocalSongs minSongs={minSongs} />}
+      {room.library === 'local' && <LocalSongs rounds={rounds} />}
     </fieldset>
   );
 }

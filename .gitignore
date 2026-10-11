@@ -14,6 +14,7 @@ venv/
 # Raw audio and generated stems (copyrighted / large)
 server/media/
 server/songs_input/
+server/demo_index.json
 
 # Capacitor native projects (generated)
 client/android/

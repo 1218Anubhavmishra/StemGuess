@@ -30,7 +30,10 @@ LIBRARIES = (*SERVER_LIBRARIES, "local")
 # Host-supplied songs: the host's device cuts clips and sends them straight to the other players.
 # The server only ever sees titles, never audio (apart from relaying chunks between players whose
 # network blocks a direct connection; nothing is stored).
-MAX_LOCAL_TRACKS = 50
+MAX_LOCAL_TRACKS = 200
+# The game draws its songs at random from a pool at least this many times its length, so the host
+# can't know which of their songs will come up.
+LOCAL_POOL_FACTOR = 2
 LOCAL_TRANSFER_TIMEOUT = 90
 MAX_RELAY_CHUNK = 256 * 1024
 
@@ -84,6 +87,8 @@ class Round:
 class Room:
     code: str
     host_sid: str
+    # Seat token of the game's real host, so they get the role back after dropping out mid-game.
+    host_token: str = ""
     players: dict[str, Player] = field(default_factory=dict)
     state: str = "lobby"  # lobby | playing | finished
     total_rounds: int = DEFAULT_ROUNDS
@@ -136,6 +141,9 @@ class Room:
 
     def drop_disconnected(self) -> None:
         self.players = {sid: p for sid, p in self.players.items() if p.connected}
+        if self.host_sid in self.players:
+            # If the real host never came back, their stand-in keeps the role.
+            self.host_token = self.players[self.host_sid].token
 
 
 class GameManager:
@@ -175,7 +183,9 @@ class GameManager:
         await self.leave(sid)
         room = Room(code=self._new_code(), host_sid=sid, max_players=max_players)
         self.rooms[room.code] = room
-        return await self._add_player(room, sid, name)
+        result = await self._add_player(room, sid, name)
+        room.host_token = room.players[sid].token
+        return result
 
     async def join_room(self, sid: str, code: object, name: object) -> dict:
         name = _clean_name(name)
@@ -218,6 +228,9 @@ class GameManager:
             if room.host_sid == old_sid:
                 room.host_sid = sid
             player.sid = sid
+        if player.token == room.host_token:
+            # The game's host dropped out mid-game and someone stood in: hand the role back.
+            room.host_sid = sid
         player.connected = True
         self.sid_room[sid] = room.code
         await self.sio.enter_room(sid, room.code)
@@ -265,6 +278,8 @@ class GameManager:
         if room.host_sid == sid:
             room.host_sid = room.active()[0].sid
             if room.state != "playing":
+                # The old host left for good (not a mid-game drop they can rejoin from).
+                room.host_token = room.players[room.host_sid].token
                 # The songs were on the old host's device.
                 room.local_tracks = []
                 if room.library == "local":
@@ -420,8 +435,12 @@ class GameManager:
 
         if room.library == "local":
             song_ids = list(range(len(room.local_tracks)))
-            if len(song_ids) < MIN_ROUNDS:
-                return _error(f"Add at least {MIN_ROUNDS} songs from your device ({len(song_ids)} so far).")
+            needed = room.total_rounds * LOCAL_POOL_FACTOR
+            if len(song_ids) < needed:
+                return _error(
+                    f"Add at least {needed} songs for a {room.total_rounds}-song game ({len(song_ids)} so far), "
+                    "so the game can pick them at random."
+                )
             room.title_pool = [t["title"] for t in room.local_tracks]
         else:
             song_ids = await asyncio.to_thread(self._playable_song_ids, room.library)

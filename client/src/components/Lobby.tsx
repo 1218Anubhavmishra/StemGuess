@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { request, socket } from '../socket';
-import { SONG_LIMITS, type Library, type RoomState } from '../types';
+import { LOCAL_POOL_FACTOR, SONG_LIMITS, type Library, type RoomState } from '../types';
 import Brand from './Brand';
 import Invite from './Invite';
 import Scoreboard from './Scoreboard';
@@ -15,9 +15,15 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
     void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
   }, []);
 
-  const librarySize = room.library === 'local' ? room.localTracks : (libraries?.[room.library] ?? null);
+  const local = room.library === 'local';
+  // Songs per game the library can supply (the host's own songs are drawn from a bigger pool).
+  const librarySize = local
+    ? Math.floor(room.localTracks / LOCAL_POOL_FACTOR)
+    : (libraries?.[room.library as 'demo' | 'cc'] ?? null);
   const maxSongs = Math.min(SONG_LIMITS.max, librarySize ?? SONG_LIMITS.max);
-  const notEnoughSongs = librarySize !== null && librarySize < SONG_LIMITS.min;
+  const notEnoughSongs = local
+    ? room.localTracks < room.totalRounds * LOCAL_POOL_FACTOR
+    : librarySize !== null && librarySize < SONG_LIMITS.min;
 
   async function update(settings: { rounds?: number; library?: Library }) {
     setError('');
@@ -55,6 +61,7 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
                 room={room}
                 libraries={libraries}
                 minSongs={SONG_LIMITS.min}
+                rounds={room.totalRounds}
                 onChange={(library) => void update({ library })}
               />
               <div className="row create-row">
@@ -70,7 +77,7 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
                   Start game
                 </button>
               </div>
-              {notEnoughSongs && room.library !== 'local' && (
+              {notEnoughSongs && !local && (
                 <p className="muted small">
                   This library has {librarySize} song{librarySize === 1 ? '' : 's'}. It needs at least {SONG_LIMITS.min} to play.
                 </p>

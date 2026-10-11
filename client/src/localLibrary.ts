@@ -1,7 +1,7 @@
 import { audioContext } from './audio';
 
-/** Songs the host picked from their own device. Kept in memory only; never uploaded to the server. */
-export type LocalTrack = { id: number; title: string; artist: string; clip: ArrayBuffer };
+/** Songs the host added from their own device. Kept in memory only; never uploaded to the server. */
+export type LocalTrack = { id: number; title: string; artist: string; file: File };
 
 export const CLIP_SECONDS = 15;
 // Mono 22.05 kHz 16-bit WAV: ~660 KB per clip, small enough to send to every player quickly.
@@ -87,8 +87,12 @@ function encodeWav(samples: Float32Array, rate: number): ArrayBuffer {
   return out.buffer;
 }
 
+export function makeTrack(file: File): LocalTrack {
+  return { id: nextId++, ...guessName(file.name), file };
+}
+
 /** Decodes an audio file on this device and cuts its loudest 15 s into a small WAV clip. */
-export async function makeTrack(file: File): Promise<LocalTrack> {
+async function cutClip(file: File): Promise<ArrayBuffer> {
   const decoded = await audioContext().decodeAudioData(await file.arrayBuffer());
   const start = loudestWindow(decoded);
   const length = Math.min(CLIP_SECONDS, decoded.duration - start);
@@ -98,5 +102,23 @@ export async function makeTrack(file: File): Promise<LocalTrack> {
   source.connect(offline.destination);
   source.start(0, start, length);
   const rendered = await offline.startRendering();
-  return { id: nextId++, ...guessName(file.name), clip: encodeWav(rendered.getChannelData(0), CLIP_RATE) };
+  return encodeWav(rendered.getChannelData(0), CLIP_RATE);
+}
+
+const clipCache = new WeakMap<File, Promise<ArrayBuffer>>();
+
+/**
+ * The track's clip, cut the first time the game draws it. A file the browser can't decode gives a
+ * second of silence, so the other players' devices still get a clip for every round.
+ */
+export function clipOf(track: LocalTrack): Promise<ArrayBuffer> {
+  let clip = clipCache.get(track.file);
+  if (!clip) {
+    clip = cutClip(track.file).catch((err) => {
+      console.warn(`Couldn't read ${track.file.name}`, err);
+      return encodeWav(new Float32Array(CLIP_RATE), CLIP_RATE);
+    });
+    clipCache.set(track.file, clip);
+  }
+  return clip;
 }

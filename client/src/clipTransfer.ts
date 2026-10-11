@@ -1,4 +1,4 @@
-import { getTracks } from './localLibrary';
+import { clipOf, getTracks } from './localLibrary';
 import { request, socket } from './socket';
 
 /**
@@ -140,7 +140,7 @@ socket.on('local_order', (p: { order: number[]; host: string }) => {
   }
   if (socket.id === hostId) {
     const tracks = getTracks();
-    order.forEach((index, position) => tracks[index] && store(position, tracks[index].clip));
+    order.forEach((index, position) => tracks[index] && void clipOf(tracks[index]).then((clip) => store(position, clip)));
   }
   reportIfReady();
 });
@@ -196,9 +196,11 @@ async function sendRelayed(to: string, items: [number, ArrayBuffer][]) {
 
 async function sendClips(to: string) {
   const tracks = getTracks();
-  const items = order
-    .map((index, position) => [position, tracks[index]?.clip] as [number, ArrayBuffer | undefined])
-    .filter((item): item is [number, ArrayBuffer] => !!item[1]);
+  const items = await Promise.all(
+    order.flatMap((index, position) =>
+      tracks[index] ? [clipOf(tracks[index]).then((clip) => [position, clip] as [number, ArrayBuffer])] : [],
+    ),
+  );
   if (!items.length) return;
   try {
     await sendDirect(to, items);

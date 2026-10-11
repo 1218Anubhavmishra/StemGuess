@@ -44,3 +44,5 @@ export type Ack = {
 
 export const SONG_LIMITS = { min: 3, max: 10 };
 export const PLAYER_LIMITS = { min: 2, max: 10 };
+/** The host's own songs: the game draws at random from at least this many times its length. */
+export const LOCAL_POOL_FACTOR = 2;

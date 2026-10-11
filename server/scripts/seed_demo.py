@@ -6,9 +6,11 @@ From server/:  python -m scripts.seed_demo               (write missing files + 
 Safe to run repeatedly: existing files are kept and existing songs are updated in place.
 """
 
-import hashlib
+import json
 import math
 import random
+import secrets
+import shutil
 import struct
 import sys
 import wave
@@ -46,9 +48,22 @@ DEMOS = {
 }
 
 
-def demo_dir(title: str) -> Path:
-    # Hashed so the stem URLs don't give the title away.
-    return config.MEDIA_DIR / "demo" / hashlib.sha1(title.encode()).hexdigest()[:12]
+DEMO_ROOT = config.MEDIA_DIR / "demo"
+# Which random folder holds which song. Kept outside MEDIA_DIR because it maps folders to titles,
+# so it must never be served.
+INDEX_FILE = config.BASE_DIR / "demo_index.json"
+
+
+def demo_dirs() -> dict[str, Path]:
+    """Random folder per song (like processed songs), so stem URLs don't give the title away."""
+    try:
+        index = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        index = {}
+    if set(index) != set(DEMOS):
+        index = {title: index.get(title) or secrets.token_hex(8) for title in DEMOS}
+        INDEX_FILE.write_text(json.dumps(index, indent=2), encoding="utf-8")
+    return {title: DEMO_ROOT / folder for title, folder in index.items()}
 
 
 def write_wav(path, samples):
@@ -77,8 +92,14 @@ def make_stems(root: float, bpm: int, melody: int) -> dict[str, list[float]]:
 
 
 def write_files() -> None:
+    folders = demo_dirs()
+    # Older folders were named after the title's hash, which a player could recompute from the options.
+    if DEMO_ROOT.exists():
+        for old in DEMO_ROOT.iterdir():
+            if old not in folders.values():
+                shutil.rmtree(old, ignore_errors=True)
     for title, params in DEMOS.items():
-        folder = demo_dir(title)
+        folder = folders[title]
         if all((folder / f"{name}.wav").exists() for name in STEM_NAMES):
             continue
         folder.mkdir(parents=True, exist_ok=True)
@@ -89,6 +110,7 @@ def write_files() -> None:
 
 def register_songs() -> None:
     init_db()
+    folders = demo_dirs()
     with SessionLocal() as db:
         for title in DEMOS:
             source = f"demo:{title}"
@@ -97,7 +119,7 @@ def register_songs() -> None:
                 song = Song(title=title, artist="Stem Guess", aliases=[], source_file=source)
                 db.add(song)
                 print(f"added: {title}")
-            folder = demo_dir(title).relative_to(config.MEDIA_DIR).as_posix()
+            folder = folders[title].relative_to(config.MEDIA_DIR).as_posix()
             song.stems = [Stem(name=name, path=f"{folder}/{name}.wav") for name in STEM_NAMES]
             song.duration = float(SECONDS)
         db.commit()
