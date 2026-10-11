@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getTracks, makeTrack, setTracks, subscribe, type LocalTrack } from '../localLibrary';
+import { getFolder, getTracks, makeTrack, setTracks, subscribe, type LocalTrack } from '../localLibrary';
 import { request } from '../socket';
 import { LOCAL_POOL_FACTOR, type Library, type RoomState } from '../types';
 
@@ -59,7 +59,7 @@ function shuffled<T>(items: T[]): T[] {
 function LocalSongs({ rounds }: { rounds: number }) {
   const tracks = useLocalTracks();
   const [consent, setConsent] = useState(() => sessionStorage.getItem(CONSENT_KEY) === '1');
-  const [source, setSource] = useState('');
+  const [empty, setEmpty] = useState('');
   const folderInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const needed = rounds * LOCAL_POOL_FACTOR;
@@ -79,13 +79,21 @@ function LocalSongs({ rounds }: { rounds: number }) {
 
   /** The whole selection becomes the pool; the game draws from it, so the host never picks songs. */
   function takePool(input: HTMLInputElement | null) {
-    const files = [...(input?.files ?? [])].filter((f) => f.type.startsWith('audio/') || AUDIO_EXTENSIONS.test(f.name));
+    const all = [...(input?.files ?? [])];
     if (input) input.value = '';
-    if (!files.length) return;
-    const folder = files[0].webkitRelativePath.split('/')[0];
-    setSource(folder ? `"${folder}"` : 'your selection');
-    setTracks(shuffled(files).slice(0, MAX_TRACKS).map(makeTrack));
+    if (!all.length) return;
+    // Browsers only reveal the chosen folder's name, never its full path on the device.
+    const folder = all[0].webkitRelativePath.split('/')[0];
+    const files = all.filter((f) => f.type.startsWith('audio/') || AUDIO_EXTENSIONS.test(f.name));
+    if (!files.length) {
+      setEmpty(folder ? `No songs found in "${folder}". Choose a folder with audio files.` : 'None of those files are songs.');
+      return;
+    }
+    setEmpty('');
+    setTracks(shuffled(files).slice(0, MAX_TRACKS).map(makeTrack), folder);
   }
+
+  const folder = getFolder();
 
   return (
     <div className="local-songs">
@@ -105,20 +113,31 @@ function LocalSongs({ rounds }: { rounds: number }) {
       <input ref={fileInput} type="file" accept="audio/*" multiple hidden onChange={(e) => takePool(e.target)} />
       <div className="row local-pick">
         <button className="ghost" disabled={!consent} onClick={() => folderInput.current?.click()}>
-          {tracks.length ? 'Choose a different music folder' : 'Choose your music folder'}
+          {tracks.length ? 'Choose a different folder' : 'Choose a folder with songs'}
         </button>
         <button className="link small" disabled={!consent} onClick={() => fileInput.current?.click()}>
-          or select all your songs
+          or select song files
         </button>
       </div>
-      <p className="muted small" role="status">
-        {!tracks.length
-          ? 'The game picks songs from it at random, so even you won\'t know what comes up.'
-          : tracks.length < needed
-            ? `Found ${tracks.length} songs in ${source || 'your music'}. A ${rounds}-song game needs at least ${needed}.`
-            : `Found ${tracks.length} songs in ${source || 'your music'}. The game will pick ${rounds} at random.`}{' '}
-        Only the loudest 15 seconds of a picked song are played.
-      </p>
+      {!tracks.length && (
+        <p className="muted small">
+          Any folder works. The game picks songs from it at random, so even you won't know what comes up.
+        </p>
+      )}
+      {empty && <p className="error small">{empty}</p>}
+      {tracks.length > 0 && (
+        <>
+          <p className="chosen-folder" title={folder || undefined}>
+            📁 {folder || 'Selected files'}
+          </p>
+          <p className="muted small" role="status">
+            {tracks.length < needed
+              ? `Found ${tracks.length} songs. A ${rounds}-song game needs at least ${needed}.`
+              : `Found ${tracks.length} songs. The game will pick ${rounds} at random.`}{' '}
+            Only the loudest 15 seconds of a picked song are played.
+          </p>
+        </>
+      )}
     </div>
   );
 }

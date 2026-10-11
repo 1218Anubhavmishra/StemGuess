@@ -247,4 +247,5 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 0.85rem; line-height: 1.35; cursor: pointer; }
 .consent input { margin-top: 2px; accent-color: var(--accent); }
 .prepare-detail { margin: 0; text-align: center; }
+.chosen-folder { margin: 0; font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
 .error.small { font-size: 0.8rem; }

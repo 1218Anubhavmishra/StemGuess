@@ -10,12 +10,16 @@ const EDGE_SKIP = 0.1;
 
 let nextId = 1;
 let tracks: LocalTrack[] = [];
+// Name of the folder the songs came from ('' when picked as loose files).
+let folder = '';
 const listeners = new Set<() => void>();
 
 export const getTracks = () => tracks;
+export const getFolder = () => folder;
 
-export function setTracks(next: LocalTrack[]) {
+export function setTracks(next: LocalTrack[], from = '') {
   tracks = next;
+  folder = from;
   listeners.forEach((fn) => fn());
 }
 
