@@ -10,6 +10,7 @@ export default function Scoreboard({ room, meId }: { room: RoomState; meId: stri
           <span className="name">
             {p.name}
             {p.id === room.hostId && <span className="tag">host</span>}
+            {room.state === 'playing' && p.attempted && <span className="tag">answered</span>}
             {!p.connected && <DisconnectedIcon />}
           </span>
         </li>

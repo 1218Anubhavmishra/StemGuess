@@ -14,19 +14,23 @@ export type RoomState = {
 
 export type Library = 'demo' | 'cc' | 'local';
 
-export type StemInfo = { name: string; url: string };
-
 export type Phase = 'lobby' | 'prepare' | 'playing' | 'roundEnd' | 'gameOver';
 
 export type FeedItem = {
   id: number;
-  type: 'correct' | 'nobody' | 'guess' | 'system';
+  type: 'correct' | 'nobody' | 'system';
   name?: string;
   text?: string;
   points?: number;
 };
 
-export type RoundAnswer = { title: string; artist: string; isLast: boolean; points: Record<string, number> };
+export type RoundAnswer = {
+  title: string;
+  artist: string;
+  correct: number;
+  isLast: boolean;
+  points: Record<string, number>;
+};
 
 export type Ack = {
   ok: boolean;
@@ -34,7 +38,7 @@ export type Ack = {
   code?: string;
   playerId?: string;
   token?: string;
-  result?: 'correct' | 'close' | 'wrong';
+  result?: 'correct' | 'wrong';
   libraries?: Record<'demo' | 'cc', number>;
 };
 

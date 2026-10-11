@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { bgMusic, stemPlayer } from './audio';
 import { getClip } from './clipTransfer';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
-import type { FeedItem, Phase, Player, RoomState, RoundAnswer, StemInfo } from './types';
+import type { FeedItem, Phase, Player, RoomState, RoundAnswer } from './types';
 import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
@@ -13,9 +13,10 @@ export default function App() {
   const [connected, setConnected] = useState(socket.connected);
   const [room, setRoom] = useState<RoomState | null>(null);
   const [phase, setPhase] = useState<Phase>('lobby');
-  const [stems, setStems] = useState<StemInfo[]>([]);
-  const [revealed, setRevealed] = useState(0);
+  const [options, setOptions] = useState<string[]>([]);
+  const [choice, setChoice] = useState<number | null>(null);
   const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [nextAt, setNextAt] = useState<number | null>(null);
   const [answer, setAnswer] = useState<RoundAnswer | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
@@ -54,17 +55,18 @@ export default function App() {
     const onRoomState = (state: RoomState) => setRoom(state);
     const onLocalOrder = () => {
       setPhase('prepare');
-      setStems([]);
+      setOptions([]);
       setAnswer(null);
     };
     const onLocalStatus = (p: { ready: number; total: number }) => setTransfer(p);
-    const onPrepare = (p: { round: number; totalRounds: number; stems: StemInfo[]; resume?: boolean; track?: number }) => {
+    const onPrepare = (p: { round: number; totalRounds: number; urls: string[]; resume?: boolean; track?: number }) => {
       setTransfer(null);
       setPhase('prepare');
-      setStems(p.stems);
-      setRevealed(0);
+      setOptions([]);
+      setChoice(null);
       setAnswer(null);
       setEndsAt(null);
+      setNextAt(null);
       if (p.resume) {
         setFeed([]);
       } else if (p.round === 1) {
@@ -73,25 +75,24 @@ export default function App() {
       }
       pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
       if (p.track !== undefined) stemPlayer.prepareClip(getClip(p.track));
-      else stemPlayer.prepare(p.stems.map((s) => serverUrl(s.url)));
+      else stemPlayer.prepare(p.urls.map(serverUrl));
     };
-    const onStart = (p: { duration: number }) => {
+    const onStart = (p: { duration: number; options: string[]; choice?: number | null }) => {
       setPhase('playing');
+      setOptions(p.options);
+      setChoice(p.choice ?? null);
       setEndsAt(Date.now() + p.duration * 1000);
       void stemPlayer.start();
     };
-    const onReveal = (p: { index: number }) => {
-      setRevealed(p.index + 1);
-      stemPlayer.reveal(p.index);
-    };
-    const onRoundEnd = (p: RoundAnswer & { stems: StemInfo[]; winners: string[] }) => {
+    const onRoundEnd = (p: RoundAnswer & { options: string[]; winners: string[]; nextIn: number }) => {
       const song = p.artist ? `${p.title} - by ${p.artist}` : p.title;
       if (p.winners.length) p.winners.forEach((name) => pushFeed({ type: 'correct', name, text: song, points: p.points[name] }));
       else pushFeed({ type: 'nobody' });
       setPhase('roundEnd');
-      setAnswer({ title: p.title, artist: p.artist, isLast: p.isLast, points: p.points });
+      setOptions(p.options);
+      setAnswer({ title: p.title, artist: p.artist, correct: p.correct, isLast: p.isLast, points: p.points });
       setEndsAt(null);
-      setRevealed(p.stems.length);
+      setNextAt(Date.now() + p.nextIn * 1000);
       stemPlayer.stop();
     };
     const onGameOver = (p: { ranking: Player[] }) => {
@@ -106,10 +107,8 @@ export default function App() {
     socket.on('room_state', onRoomState);
     socket.on('round_prepare', onPrepare);
     socket.on('round_start', onStart);
-    socket.on('stem_reveal', onReveal);
     socket.on('round_end', onRoundEnd);
     socket.on('game_over', onGameOver);
-    socket.on('feed', pushFeed);
     socket.on('local_order', onLocalOrder);
     socket.on('local_status', onLocalStatus);
     if (socket.connected) void tryRejoin();
@@ -119,10 +118,8 @@ export default function App() {
       socket.off('room_state', onRoomState);
       socket.off('round_prepare', onPrepare);
       socket.off('round_start', onStart);
-      socket.off('stem_reveal', onReveal);
       socket.off('round_end', onRoundEnd);
       socket.off('game_over', onGameOver);
-      socket.off('feed', pushFeed);
       socket.off('local_order', onLocalOrder);
       socket.off('local_status', onLocalStatus);
     };
@@ -181,13 +178,14 @@ export default function App() {
           room={room}
           meId={meId}
           phase={gameOver ? 'roundEnd' : phase}
-          stems={stems}
-          revealed={revealed}
+          options={options}
+          choice={choice}
+          onPick={setChoice}
           endsAt={endsAt}
+          nextAt={nextAt}
           answer={answer}
           feed={feed}
           transfer={transfer}
-          isHost={isHost}
           onLeave={leave}
         />
       </div>

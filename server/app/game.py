@@ -10,8 +10,6 @@ from sqlalchemy import select
 
 from . import config
 from .db import SessionLocal
-from .matching import CLOSE_THRESHOLD, CORRECT_THRESHOLD, similarity
-from .media import audio_duration
 from .models import GameResult, Song, Stem
 
 log = logging.getLogger(__name__)
@@ -19,38 +17,22 @@ log = logging.getLogger(__name__)
 MAX_NAME_LENGTH = 20
 MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 3
 MIN_PLAYER_LIMIT, MAX_PLAYER_LIMIT, DEFAULT_PLAYER_LIMIT = 2, 10, 2
-MIN_ROUND_SECONDS = 10
 # Clients start audio ~0.1 s after round_start arrives, so the server waits slightly longer.
 AUDIO_START_GRACE = 0.3
+OPTION_COUNT = 4
+# A correct answer scores MAX_POINTS right at the start, falling to 1 point at the buzzer.
+MAX_POINTS = 10
 
 # Where a room's songs come from. Server libraries are told apart by their Song.source_file prefix;
 # songs without one (e.g. processed from a personal collection) are never served to games.
 SERVER_LIBRARIES = {"demo": "demo:", "cc": "cc:"}
 LIBRARIES = (*SERVER_LIBRARIES, "local")
-# Host-supplied songs: the host's device cuts LOCAL_CLIP_SECONDS clips and sends them straight to
-# the other players. The server only ever sees titles, never audio (apart from relaying chunks
-# between players whose network blocks a direct connection; nothing is stored).
-LOCAL_CLIP_SECONDS = 15
+# Host-supplied songs: the host's device cuts clips and sends them straight to the other players.
+# The server only ever sees titles, never audio (apart from relaying chunks between players whose
+# network blocks a direct connection; nothing is stored).
 MAX_LOCAL_TRACKS = 50
 LOCAL_TRANSFER_TIMEOUT = 90
-LOCAL_STAGES = ["Deep bass", "Low end", "Warmer", "Full song"]
 MAX_RELAY_CHUNK = 256 * 1024
-
-# Hardest-to-recognise first, vocals last.
-STEM_ORDER = [
-    "drums", "percussion", "bass", "guitars", "guitar", "keys", "piano",
-    "strings", "wind", "other", "accompaniments", "accompaniment",
-    "backing_vocals", "vocals",
-]
-
-
-def _stem_rank(name: str) -> int:
-    name = name.lower()
-    if name in STEM_ORDER:
-        return STEM_ORDER.index(name)
-    if "vocal" in name:
-        return len(STEM_ORDER)
-    return STEM_ORDER.index("other")
 
 
 def _is_remote(path: str) -> bool:
@@ -78,8 +60,9 @@ class Player:
     sid: str
     name: str
     score: int = 0
-    guessed: bool = False  # guessed correctly this round
-    attempted: bool = False  # used their one guess this round
+    guessed: bool = False  # picked the right option this round
+    attempted: bool = False  # used their one pick this round
+    choice: int | None = None
     round_points: int = 0
     connected: bool = True  # False once they drop out mid-game; removed when the game ends
     # Secret handed only to this player's client so it can reclaim the seat after a reconnect.
@@ -90,10 +73,10 @@ class Player:
 class Round:
     title: str
     artist: str
-    answers: list[str]
-    stems: list[dict]
-    duration: float | None = None
-    revealed: int = 0
+    urls: list[str]  # stem files, all played together; empty for the host's own songs
+    options: list[str] = field(default_factory=list)
+    correct: int = 0
+    duration: float = 0.0
     ends_at: float = 0.0  # time.monotonic() when the round's timer runs out
 
 
@@ -110,8 +93,9 @@ class Room:
     current: Round | None = None
     task: asyncio.Task | None = None
     all_guessed: asyncio.Event = field(default_factory=asyncio.Event)
-    advance: asyncio.Event = field(default_factory=asyncio.Event)
-    awaiting_next: bool = False
+    next_at: float | None = None  # time.monotonic() when the next round starts after a result
+    # Titles the wrong options are drawn from (the game's whole library, not just its playlist).
+    title_pool: list[str] = field(default_factory=list)
     # Last round_prepare / round_end payloads, replayed to players who rejoin mid-game.
     prepare_payload: dict | None = None
     end_payload: dict | None = None
@@ -254,12 +238,13 @@ class GameManager:
             return
         await self.sio.emit("round_prepare", {**room.prepare_payload, "resume": True}, to=sid)
         rnd = room.current
+        now = time.monotonic()
         if rnd:
-            await self.sio.emit("round_start", {"duration": max(0.0, rnd.ends_at - time.monotonic())}, to=sid)
-            for index in range(rnd.revealed):
-                await self.sio.emit("stem_reveal", {"index": index, "name": rnd.stems[index]["name"]}, to=sid)
-        elif room.awaiting_next and room.end_payload:
-            await self.sio.emit("round_end", room.end_payload, to=sid)
+            player = room.players[sid]
+            payload = {"duration": max(0.0, rnd.ends_at - now), "options": rnd.options, "choice": player.choice}
+            await self.sio.emit("round_start", payload, to=sid)
+        elif room.next_at and room.end_payload:
+            await self.sio.emit("round_end", {**room.end_payload, "nextIn": max(0.0, room.next_at - now)}, to=sid)
 
     async def leave(self, sid: str) -> None:
         code = self.sid_room.pop(sid, None)
@@ -339,6 +324,21 @@ class GameManager:
         room.local_tracks = cleaned
         await self._broadcast_state(room)
         return {"ok": True}
+
+    @staticmethod
+    def _with_options(rnd: Round, pool: list[str]) -> Round:
+        """Fills in the multiple-choice options: the right title plus up to three others from the library."""
+        seen = {rnd.title.casefold()}
+        others = []
+        for title in pool:
+            if title.casefold() not in seen:
+                seen.add(title.casefold())
+                others.append(title)
+        options = [rnd.title, *random.sample(others, min(OPTION_COUNT - 1, len(others)))]
+        random.shuffle(options)
+        rnd.options = options
+        rnd.correct = options.index(rnd.title)
+        return rnd
 
     # ----- clip transfer between players (host's own songs) -----
 
@@ -422,10 +422,12 @@ class GameManager:
             song_ids = list(range(len(room.local_tracks)))
             if len(song_ids) < MIN_ROUNDS:
                 return _error(f"Add at least {MIN_ROUNDS} songs from your device ({len(song_ids)} so far).")
+            room.title_pool = [t["title"] for t in room.local_tracks]
         else:
             song_ids = await asyncio.to_thread(self._playable_song_ids, room.library)
             if len(song_ids) < MIN_ROUNDS:
                 return _error(f"This library needs at least {MIN_ROUNDS} songs (it has {len(song_ids)}).")
+            room.title_pool = await asyncio.to_thread(self._titles, song_ids)
         if len(song_ids) < room.total_rounds:
             return _error(f"Only {len(song_ids)} songs available. Pick {len(song_ids)} or fewer.")
 
@@ -436,6 +438,7 @@ class GameManager:
         for p in room.players.values():
             p.score = 0
             p.guessed = p.attempted = False
+            p.choice = None
         room.state = "playing"
         room.task = asyncio.create_task(self._run_game(room))
         return {"ok": True}
@@ -448,14 +451,9 @@ class GameManager:
             return list(db.scalars(query))
 
     @staticmethod
-    def _local_round(track: dict) -> Round:
-        return Round(
-            title=track["title"],
-            artist=track["artist"],
-            answers=[track["title"]],
-            stems=[{"name": name, "url": ""} for name in LOCAL_STAGES],
-            duration=LOCAL_CLIP_SECONDS,
-        )
+    def _titles(song_ids: list[int]) -> list[str]:
+        with SessionLocal() as db:
+            return list(db.scalars(select(Song.title).where(Song.id.in_(song_ids))))
 
     @staticmethod
     def _load_round(song_id: int) -> Round | None:
@@ -463,20 +461,11 @@ class GameManager:
             song = db.get(Song, song_id)
             if not song or not song.stems:
                 return None
-            if song.duration is None:
-                local = [s.path for s in song.stems if not _is_remote(s.path)]
-                lengths = [d for p in local if (d := audio_duration(config.MEDIA_DIR / p))]
-                if lengths:
-                    song.duration = max(lengths)
-                    db.commit()
-            stems = sorted(song.stems, key=lambda s: _stem_rank(s.name))
             return Round(
                 title=song.title,
                 artist=song.artist,
-                duration=song.duration,
-                answers=[song.title, *(song.aliases or [])],
                 # Local paths are relative to the server; clients resolve against their server URL.
-                stems=[{"name": s.name, "url": s.path if _is_remote(s.path) else f"/media/{s.path}"} for s in stems],
+                urls=[s.path if _is_remote(s.path) else f"/media/{s.path}" for s in song.stems],
             )
 
     async def _run_game(self, room: Room) -> None:
@@ -488,11 +477,13 @@ class GameManager:
                 if not room.active():
                     return
                 if local:
-                    await self._play_round(room, self._local_round(room.local_tracks[song_id]), track=position)
+                    track = room.local_tracks[song_id]
+                    rnd = Round(title=track["title"], artist=track["artist"], urls=[])
+                    await self._play_round(room, self._with_options(rnd, room.title_pool), track=position)
                     continue
                 rnd = await asyncio.to_thread(self._load_round, song_id)
                 if rnd:
-                    await self._play_round(room, rnd)
+                    await self._play_round(room, self._with_options(rnd, room.title_pool))
             await self._finish(room)
         except asyncio.CancelledError:
             pass
@@ -508,11 +499,12 @@ class GameManager:
         room.all_guessed.clear()
         for p in room.players.values():
             p.guessed = p.attempted = False
+            p.choice = None
             p.round_points = 0
         await self._broadcast_state(room)
 
         room.end_payload = None
-        room.prepare_payload = {"round": room.round_number, "totalRounds": room.total_rounds, "stems": rnd.stems}
+        room.prepare_payload = {"round": room.round_number, "totalRounds": room.total_rounds, "urls": rnd.urls}
         if track is not None:
             # Position in local_order of the clip each player already holds.
             room.prepare_payload["track"] = track
@@ -520,52 +512,27 @@ class GameManager:
         await asyncio.sleep(config.PREPARE_SECONDS)
 
         room.current = rnd
-        if rnd.duration:
-            # The round lasts exactly one play-through of the clip; stems are spread evenly across it.
-            duration = max(rnd.duration, MIN_ROUND_SECONDS)
-            interval = duration / len(rnd.stems)
-        else:
-            interval = config.STEM_REVEAL_SECONDS
-            duration = len(rnd.stems) * interval + config.ROUND_EXTRA_SECONDS
-        rnd.ends_at = time.monotonic() + duration
-        await self.sio.emit("round_start", {"duration": duration}, room=room.code)
-        try:
-            await asyncio.wait_for(self._reveal_stems(room, rnd, interval), timeout=duration + AUDIO_START_GRACE)
-        except asyncio.TimeoutError:
-            pass
+        rnd.duration = config.ROUND_SECONDS
+        rnd.ends_at = time.monotonic() + rnd.duration
+        # Clients loop the clip until the countdown runs out, so the round length doesn't depend on it.
+        await self.sio.emit("round_start", {"duration": rnd.duration, "options": rnd.options}, room=room.code)
+        await _wait_event(room.all_guessed, rnd.duration + AUDIO_START_GRACE)
 
         room.current = None
-        room.advance.clear()
-        room.awaiting_next = True
         winners = [p for p in room.players.values() if p.guessed]
         room.end_payload = {
             "title": rnd.title,
             "artist": rnd.artist,
-            "stems": rnd.stems,
+            "options": rnd.options,
+            "correct": rnd.correct,
             "isLast": room.round_number >= room.total_rounds,
             "winners": [p.name for p in winners],
             "points": {p.name: p.round_points for p in winners},
         }
-        await self.sio.emit("round_end", room.end_payload, room=room.code)
-        await room.advance.wait()
-        room.awaiting_next = False
-
-    async def next_round(self, sid: str) -> dict:
-        room = self._room_of(sid)
-        if not room or not room.awaiting_next:
-            return _error("Nothing to advance")
-        if room.host_sid != sid:
-            return _error("Only the host can continue")
-        room.advance.set()
-        return {"ok": True}
-
-    async def _reveal_stems(self, room: Room, rnd: Round, interval: float) -> None:
-        for index, stem in enumerate(rnd.stems):
-            rnd.revealed = index + 1
-            await self.sio.emit("stem_reveal", {"index": index, "name": stem["name"]}, room=room.code)
-            if await _wait_event(room.all_guessed, interval):
-                return
-        await room.all_guessed.wait()
+        room.next_at = time.monotonic() + config.RESULT_SECONDS
+        await self.sio.emit("round_end", {**room.end_payload, "nextIn": config.RESULT_SECONDS}, room=room.code)
+        await asyncio.sleep(config.RESULT_SECONDS)
+        room.next_at = None
 
     async def _finish(self, room: Room) -> None:
         room.state = "finished"
@@ -595,30 +562,28 @@ class GameManager:
 
     # ----- guessing -----
 
-    async def guess(self, sid: str, text: object) -> dict:
+    async def guess(self, sid: str, option: object) -> dict:
         room = self._room_of(sid)
         rnd = room.current if room else None
         player = room.players.get(sid) if room else None
-        text = str(text or "").strip()[:100]
-        if not room or not rnd or not player or not text:
+        if not room or not rnd or not player:
             return _error("No round in progress")
+        if not isinstance(option, int) or isinstance(option, bool) or not 0 <= option < len(rnd.options):
+            return _error("Pick one of the options")
         if player.attempted:
-            return _error("You've already used your guess this round")
+            return _error("You've already answered this round")
 
         player.attempted = True
-        score = similarity(text, rnd.answers)
-        if score >= CORRECT_THRESHOLD:
+        player.choice = option
+        if option == rnd.correct:
             player.guessed = True
-            # Speed bonus: one point per stem still hidden, plus one.
-            player.round_points = len(rnd.stems) - rnd.revealed + 1
+            # Faster answers score more: MAX_POINTS at the start, 1 point at the buzzer.
+            left = min(1.0, max(0.0, (rnd.ends_at - time.monotonic()) / rnd.duration))
+            player.round_points = 1 + round((MAX_POINTS - 1) * left)
             player.score += player.round_points
             result = "correct"
-        elif score >= CLOSE_THRESHOLD:
-            # Near-misses stay private so they don't hint the answer to others.
-            result = "close"
         else:
             result = "wrong"
-            await self.sio.emit("feed", {"type": "guess", "name": player.name, "text": text}, room=room.code)
 
         await self._broadcast_state(room)
         self._check_all_guessed(room)

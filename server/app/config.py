@@ -39,6 +39,6 @@ R2_BUCKET = os.getenv("R2_BUCKET", "")
 # Public bucket URL, e.g. https://pub-xxxx.r2.dev or https://stems.example.com
 R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
 
-STEM_REVEAL_SECONDS = float(os.getenv("STEM_REVEAL_SECONDS", "8"))
-ROUND_EXTRA_SECONDS = float(os.getenv("ROUND_EXTRA_SECONDS", "10"))
+ROUND_SECONDS = float(os.getenv("ROUND_SECONDS", "30"))
+RESULT_SECONDS = float(os.getenv("RESULT_SECONDS", "5"))
 PREPARE_SECONDS = float(os.getenv("PREPARE_SECONDS", "3"))

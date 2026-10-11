@@ -1,9 +1,10 @@
 # Stem Guess
 
-Multiplayer "name that song" game: each round plays a song's instrument stems one at a time
-(drums, then bass, then other instruments, with vocals last). Players race to type the title,
-and a correct guess earns more points the fewer stems were needed. The host picks how many songs a game has (3-10) and the
-room's max player count (2-10).
+Multiplayer "name that song" game: each round plays a song clip (all its stems together, looped)
+and shows four titles. Every player gets one pick; a correct pick scores 10 points at the start of
+the round, falling to 1 point at the buzzer. A round ends when the countdown (30 s, `ROUND_SECONDS`)
+runs out or everyone has answered, and the next one starts 5 s after the answer is shown
+(`RESULT_SECONDS`). The host picks how many songs a game has (3-10) and the room's max player count (2-10).
 
 | Part | Tech |
 | --- | --- |
@@ -50,7 +51,6 @@ Optional hot-reload while editing the UI: keep the server running and run `npm r
    folder as 15 s clips (titles cleaned from tags/file names, listed in `songs_input/_library.csv`
    with doubtful ones marked `check`):
    `.\.venv\Scripts\python -m scripts.import_library "D:/music"` (add `--dry-run` to only list them).
-   Optional `Artist - Title.json` with `{"aliases": ["Alt title"]}` for extra accepted answers.
 3. Run `.\.venv\Scripts\python -m scripts.process_songs` from `server/`. Already processed files are skipped.
    Add `--cc` for Creative Commons tracks so they land in the lobby's Creative Commons library
    (only use `--cc` for songs whose licence allows it, and fill in the artist for the credit).
@@ -68,7 +68,7 @@ The host picks the song source in the lobby:
 With **My own music**, the host's browser cuts a 15 s clip from each picked file. The server only
 receives the titles. Clips go from the host to each player over a direct WebRTC connection, or
 through the server (forwarded, never stored) when a direct connection can't be made within 7 s.
-Rounds play the clip through a low-pass filter that opens up in four steps instead of stems.
+The wrong options come from the same library (the host's other titles in this mode).
 Songs on the server that are neither demo (`demo:`) nor Creative Commons (`cc:`) are never used in games.
 
 Cost is about $0.07 per minute of audio for standard stems (see [pricing](https://music.ai/pricing/)).

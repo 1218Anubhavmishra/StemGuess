@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { stemPlayer } from '../audio';
 import { request } from '../socket';
-import type { FeedItem, Phase, RoomState, RoundAnswer, StemInfo } from '../types';
+import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
 import Brand from './Brand';
 import Scoreboard from './Scoreboard';
 import SpeakerIcon from './SpeakerIcon';
@@ -10,13 +10,14 @@ type Props = {
   room: RoomState;
   meId: string;
   phase: Phase;
-  stems: StemInfo[];
-  revealed: number;
+  options: string[];
+  choice: number | null;
+  onPick: (option: number) => void;
   endsAt: number | null;
+  nextAt: number | null;
   answer: RoundAnswer | null;
   feed: FeedItem[];
   transfer: { ready: number; total: number } | null;
-  isHost: boolean;
   onLeave: () => void;
 };
 
@@ -24,6 +25,7 @@ function useCountdown(endsAt: number | null) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!endsAt) return;
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [endsAt]);
@@ -32,69 +34,54 @@ function useCountdown(endsAt: number | null) {
 
 const pointsLabel = (n: number) => `${n} point${n === 1 ? '' : 's'}`;
 
-const formatTime = (seconds?: number) =>
-  seconds === undefined ? '--:--' : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
-function SongProgress({ complete }: { complete: boolean }) {
-  const [progress, setProgress] = useState(stemPlayer.progress());
-  const lastDuration = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    if (complete) return;
-    let frame = 0;
-    const tick = () => {
-      const p = stemPlayer.progress();
-      if (p) lastDuration.current = p.duration;
-      setProgress(p);
-      frame = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(frame);
-  }, [complete]);
-
-  const duration = complete ? lastDuration.current : progress?.duration;
-  const position = complete ? lastDuration.current : progress?.position;
-  const percent = complete ? 100 : progress ? (progress.position / progress.duration) * 100 : 0;
-  return (
-    <div className="progress" role="progressbar" aria-label="Song progress" aria-valuenow={Math.round(percent)}>
-      <span>{formatTime(position)}</span>
-      <div className="progress-track">
-        <div className="progress-fill" style={{ width: `${percent}%` }} />
-      </div>
-      <span>{formatTime(duration)}</span>
-    </div>
-  );
-}
-
-export default function Game({ room, meId, phase, stems, revealed, endsAt, answer, feed, transfer, isHost, onLeave }: Props) {
-  const [guess, setGuess] = useState('');
+export default function Game({
+  room,
+  meId,
+  phase,
+  options,
+  choice,
+  onPick,
+  endsAt,
+  nextAt,
+  answer,
+  feed,
+  transfer,
+  onLeave,
+}: Props) {
   const [hint, setHint] = useState('');
-  const [wrongGuess, setWrongGuess] = useState<string | null>(null);
   const [volume, setVolume] = useState(stemPlayer.getVolume());
   const [muted, setMuted] = useState(stemPlayer.isMuted());
   const feedRef = useRef<HTMLUListElement>(null);
   const secondsLeft = useCountdown(endsAt);
+  const nextIn = useCountdown(nextAt);
   const me = room.players.find((p) => p.id === meId);
   const roundWinners = Object.keys(answer?.points ?? {});
-  const canGuess = phase === 'playing' && revealed > 0 && !me?.attempted;
+  const canPick = phase === 'playing' && choice === null && !me?.attempted;
+  const result = phase === 'roundEnd' && answer;
 
-  useEffect(() => {
-    setHint('');
-    setWrongGuess(null);
-  }, [room.round]);
+  useEffect(() => setHint(''), [room.round]);
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
   }, [feed]);
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const text = guess.trim();
-    if (!text) return;
-    setGuess('');
-    const ack = await request('guess', { text });
-    if (ack.result === 'close') setHint(`"${text}" was close, but not quite. That was your guess for this round.`);
-    else if (ack.result === 'wrong') setWrongGuess(text);
-    else if (ack.error) setHint(ack.error);
+  async function pick(option: number) {
+    if (!canPick) return;
+    onPick(option);
+    const ack = await request('guess', { option });
+    if (ack.error) setHint(ack.error);
   }
+
+  const optionClass = (i: number) =>
+    [
+      'option',
+      i === choice ? 'picked' : '',
+      result && i === answer.correct ? 'right' : '',
+      result && i === choice && i !== answer.correct ? 'wrong' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
 
   return (
     <main className="screen game">
@@ -149,7 +136,7 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
               ? `Sending songs from the host's device… ${transfer.ready}/${transfer.total} players ready`
               : room.library === 'local'
                 ? 'Get ready…'
-                : 'Get ready… loading stems'}
+                : 'Get ready… loading the song'}
           </p>
         )}
         {phase === 'playing' && secondsLeft !== null && (
@@ -158,15 +145,20 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
           </p>
         )}
         {phase === 'playing' && (
-          <p className="status">
-            {me?.guessed
-              ? 'You got it! Waiting for others…'
-              : me?.attempted
-                ? 'Guess used. Waiting for others…'
-                : 'Listen and guess the song: you get one guess'}
-          </p>
+          <>
+            <span className="now-playing" aria-hidden>
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+            <p className="status">
+              {me?.attempted ? 'Answer locked in. Waiting for others…' : 'Which song is this? You get one pick.'}
+            </p>
+          </>
         )}
-        {phase === 'roundEnd' && answer && (
+        {result && (
           <div className="answer">
             <p className="muted small">The song was</p>
             <h2>
@@ -175,54 +167,31 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
             </h2>
             <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
               {me && answer.points[me.name]
-                ? `Correct! You guessed it. +${pointsLabel(answer.points[me.name])}`
+                ? `Correct! +${pointsLabel(answer.points[me.name])}`
                 : roundWinners.length
-                  ? `${roundWinners.map((name) => `${name} (+${answer.points[name]})`).join(', ')} guessed it.`
+                  ? `${roundWinners.map((name) => `${name} (+${answer.points[name]})`).join(', ')} got it.`
                   : 'Nobody got this one'}
-              {wrongGuess && <span className="wrong-guess"> · Your guess "{wrongGuess}" was wrong.</span>}
+              {choice !== null && choice !== answer.correct && <span className="wrong-guess"> · Your pick was wrong.</span>}
             </p>
           </div>
         )}
 
-        <SongProgress complete={phase === 'roundEnd'} />
+        {options.length > 0 && (
+          <div className="options" role="group" aria-label="Answer options">
+            {options.map((title, i) => (
+              <button key={`${i}-${title}`} className={optionClass(i)} disabled={!canPick} onClick={() => void pick(i)}>
+                {title}
+              </button>
+            ))}
+          </div>
+        )}
 
-        <ul className="stems">
-          {stems.map((s, i) => (
-            <li key={`${i}-${s.name}`} className={i < revealed ? 'on' : ''}>
-              <span className="bars" aria-hidden>
-                <i />
-                <i />
-                <i />
-              </span>
-              {i < revealed ? s.name.replace(/_/g, ' ') : '?'}
-            </li>
-          ))}
-        </ul>
-
-        {room.state === 'finished' ? null : phase === 'roundEnd' ? (
-          isHost ? (
-            <button className="primary" onClick={() => void request('next_round')}>
-              {answer?.isLast ? 'See results' : 'Next'}
-            </button>
-          ) : (
-            <p className="status muted">Waiting for the host to continue…</p>
-          )
-        ) : (
-          <form className="row guess" onSubmit={submit}>
-            <input
-              value={guess}
-              onChange={(e) => setGuess(e.target.value)}
-              placeholder={canGuess ? 'Type the song title (one guess)…' : ''}
-              disabled={!canGuess}
-              autoFocus
-            />
-            <button type="submit" className="primary" disabled={!canGuess || !guess.trim()}>
-              Guess
-            </button>
-          </form>
+        {result && room.state !== 'finished' && nextIn !== null && (
+          <p className="status muted">
+            {answer.isLast ? 'Final results' : 'Next song'} in {nextIn}…
+          </p>
         )}
         {hint && <p className="hint">{hint}</p>}
-        {wrongGuess && phase !== 'roundEnd' && <p className="hint wrong-guess">Your guess "{wrongGuess}" was wrong.</p>}
       </section>
 
       <aside className="side">
@@ -239,11 +208,6 @@ export default function Game({ room, meId, phase, stems, revealed, endsAt, answe
                 {item.type === 'correct' &&
                   `${item.name} correctly guessed the song "${item.text}"!${item.points ? ` +${pointsLabel(item.points)}` : ''}`}
                 {item.type === 'nobody' && 'Nobody got this one'}
-                {item.type === 'guess' && (
-                  <>
-                    <b>{item.name}:</b> {item.text}
-                  </>
-                )}
               </li>
             ))}
           </ul>

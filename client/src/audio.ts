@@ -19,24 +19,15 @@ for (const event of ['pointerdown', 'keydown', 'touchstart']) {
 }
 
 const DEFAULT_VOLUME = 0.2;
-// Host-supplied songs have no stems: one clip goes from muffled to clear through a low-pass filter.
-const FILTER_STAGES_HZ = [180, 500, 1800, 20000];
 
-/**
- * Plays all stems of a round in sync (looped) and fades each one in when revealed.
- */
+/** Plays all stems of a round together, in sync and looped until the round ends. */
 class StemPlayer {
   private master?: GainNode;
   private buffers?: Promise<AudioBuffer[]>;
   private tracks: Track[] = [];
-  private filter?: BiquadFilterNode;
-  private filtered = false;
-  private revealed = new Set<number>();
   private generation = 0;
   private volume = DEFAULT_VOLUME;
   private muted = false;
-  private startedAt?: number;
-  private clipDuration = 0;
 
   private output(): GainNode {
     if (!this.master) {
@@ -48,10 +39,9 @@ class StemPlayer {
     return this.master;
   }
 
-  /** One clip already on this device (the host's own song), revealed by opening up a filter. */
+  /** One clip already on this device (the host's own song). */
   prepareClip(clip: Promise<ArrayBuffer>) {
     this.stop();
-    this.filtered = true;
     // decodeAudioData detaches its input, and the host may still need to send this clip to others.
     this.buffers = clip.then((data) => audioContext().decodeAudioData(data.slice(0))).then((b) => [b]);
     this.buffers.catch((err) => console.error(err));
@@ -59,7 +49,6 @@ class StemPlayer {
 
   prepare(urls: string[]) {
     this.stop();
-    this.filtered = false;
     const ctx = audioContext();
     this.buffers = Promise.all(
       urls.map(async (url) => {
@@ -79,45 +68,16 @@ class StemPlayer {
     const ctx = audioContext();
     void ctx.resume();
     const startAt = ctx.currentTime + 0.1;
-    this.startedAt = startAt;
-    this.clipDuration = Math.max(...buffers.map((b) => b.duration));
-    if (this.filtered) {
-      this.filter = ctx.createBiquadFilter();
-      this.filter.type = 'lowpass';
-      this.filter.frequency.value = FILTER_STAGES_HZ[Math.max(0, ...this.revealed)];
-    }
-    this.tracks = buffers.map((buffer, index) => {
+    this.tracks = buffers.map((buffer) => {
       const gain = ctx.createGain();
-      gain.gain.value = this.isAudible(index) ? 1 : 0;
       gain.connect(this.output());
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.loop = true;
-      if (this.filter) {
-        source.connect(this.filter);
-        this.filter.connect(gain);
-      } else {
-        source.connect(gain);
-      }
+      source.connect(gain);
       source.start(startAt);
       return { source, gain };
     });
-  }
-
-  private isAudible(index: number) {
-    return this.filtered ? this.revealed.size > 0 : this.revealed.has(index);
-  }
-
-  reveal(index: number) {
-    this.revealed.add(index);
-    const now = audioContext().currentTime;
-    if (this.filtered) {
-      this.filter?.frequency.setTargetAtTime(FILTER_STAGES_HZ[Math.min(index, FILTER_STAGES_HZ.length - 1)], now, 0.4);
-      this.tracks[0]?.gain.gain.setTargetAtTime(1, now, 0.3);
-      return;
-    }
-    const track = this.tracks[index];
-    if (track) track.gain.gain.setTargetAtTime(1, now, 0.3);
   }
 
   setVolume(value: number) {
@@ -143,16 +103,8 @@ class StemPlayer {
     this.setMuted(false);
   }
 
-  /** Playback position within the (looping) clip, or null when nothing is playing. */
-  progress(): { position: number; duration: number } | null {
-    if (this.startedAt === undefined || !this.clipDuration) return null;
-    const elapsed = Math.max(0, audioContext().currentTime - this.startedAt);
-    return { position: elapsed % this.clipDuration, duration: this.clipDuration };
-  }
-
   stop() {
     this.generation++;
-    this.startedAt = undefined;
     for (const { source, gain } of this.tracks) {
       try {
         source.stop();
@@ -162,10 +114,7 @@ class StemPlayer {
       source.disconnect();
       gain.disconnect();
     }
-    this.filter?.disconnect();
-    this.filter = undefined;
     this.tracks = [];
-    this.revealed.clear();
   }
 }
 
