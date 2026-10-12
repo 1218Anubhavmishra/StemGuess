@@ -24,9 +24,12 @@ export type FeedItem = {
   points?: number;
 };
 
+export type Credit = { text: string; url?: string; license: string; licenseUrl?: string };
+
 export type RoundAnswer = {
   title: string;
   artist: string;
+  credit?: Credit | null;
   correct: number;
   isLast: boolean;
   points: Record<string, number>;

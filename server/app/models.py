@@ -20,6 +20,8 @@ class Song(Base):
     source_file: Mapped[str] = mapped_column(String(500), unique=True)
     # Clip length in seconds; filled lazily from the stem files.
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Attribution for licensed songs: {"text", "url", "license", "licenseUrl"}.
+    credit: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     stems: Mapped[list["Stem"]] = relationship(

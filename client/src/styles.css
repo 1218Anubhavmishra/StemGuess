@@ -198,6 +198,8 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .status { font-size: 1.2rem; text-align: center; margin: 0; }
 .answer { text-align: center; }
 .answer h2 { font-size: 2rem; color: var(--accent-2); margin: 0; }
+.answer .credit { margin: 4px 0 0; }
+.answer .credit a { color: inherit; }
 
 .now-playing { display: flex; justify-content: center; align-items: flex-end; gap: 4px; height: 32px; color: var(--accent); }
 .now-playing i { width: 6px; height: 6px; background: currentColor; border-radius: 3px; animation: bounce 0.9s ease-in-out infinite; }

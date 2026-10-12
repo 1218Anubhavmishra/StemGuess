@@ -90,7 +90,14 @@ export default function App() {
       else pushFeed({ type: 'nobody' });
       setPhase('roundEnd');
       setOptions(p.options);
-      setAnswer({ title: p.title, artist: p.artist, correct: p.correct, isLast: p.isLast, points: p.points });
+      setAnswer({
+        title: p.title,
+        artist: p.artist,
+        credit: p.credit,
+        correct: p.correct,
+        isLast: p.isLast,
+        points: p.points,
+      });
       setEndsAt(null);
       setNextAt(Date.now() + p.nextIn * 1000);
       stemPlayer.stop();

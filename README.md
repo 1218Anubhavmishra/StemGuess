@@ -32,7 +32,7 @@ This builds the client, sets up the Python environment on first run and serves t
 http://localhost:8000. Open it in two browser windows to play against yourself. Phones on the same
 Wi-Fi can join via `http://<your-PC-IP>:8000` (allow Python through the Windows firewall).
 
-For quick testing without Music.ai, add 25 synthetic demo songs, one per genre (pop, rock, jazz, hip-hop, reggae, Indian classical and more), from `server/`:
+For quick testing without Music.ai, add 47 synthetic demo songs, one per genre (pop, rock, jazz, hip-hop, reggae, Indian classical and more), from `server/`:
 `.\.venv\Scripts\python -m scripts.seed_demo`
 
 Without `DATABASE_URL` the server uses `server/stemguess.db` (SQLite). For Postgres:
@@ -55,6 +55,11 @@ Optional hot-reload while editing the UI: keep the server running and run `npm r
    Add `--cc` for Creative Commons tracks so they land in the lobby's Creative Commons library
    (only use `--cc` for songs whose licence allows it, and fill in the artist for the credit).
 
+To fill the Creative Commons library without Music.ai or any account, run
+`.\.venv\Scripts\python -m scripts.import_cc` (add `--per-genre N`, default 2). It picks CC BY tracks
+across genres from Incompetech (Kevin MacLeod) and ccMixter, stores each as one 15 s "mix" clip, and
+keeps the attribution (title, author, source link, licence) that the game shows after each round.
+
 ## Song libraries
 
 The host picks the song source in the lobby:
@@ -62,7 +67,7 @@ The host picks the song source in the lobby:
 | Option | Where the audio comes from |
 | --- | --- |
 | StemGuess originals | Demo songs on the server (`seed_demo`) |
-| Creative Commons | Server songs processed with `--cc`; shown as "Coming soon" until there are enough |
+| Creative Commons | Server songs from `import_cc` or processed with `--cc`, credited after each round; "Coming soon" until there are enough |
 | My own music | Audio files picked on the host's device |
 
 With **My own music**, the host's browser cuts a 15 s clip from each picked file. The server only

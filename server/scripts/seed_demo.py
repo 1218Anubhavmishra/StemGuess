@@ -1,4 +1,4 @@
-"""Add 25 synthetic demo songs, one per music genre (generated audio, no Music.ai needed).
+"""Add 47 synthetic demo songs, one per music genre (generated audio, no Music.ai needed).
 
 From server/:  python -m scripts.seed_demo               (write missing files + add songs to the database)
                python -m scripts.seed_demo --files-only  (just write missing files, e.g. during a deploy build)
@@ -40,6 +40,10 @@ SCALES = {
     "pent_major": (0, 2, 4, 7, 9),
     "pent_minor": (0, 3, 5, 7, 10),
     "bhairav": (0, 1, 4, 5, 7, 8, 11),
+    "mixolydian": (0, 2, 4, 5, 7, 9, 10),
+    "hijaz": (0, 1, 4, 5, 7, 8, 10),
+    "harmonic_minor": (0, 2, 3, 5, 7, 8, 11),
+    "pelog": (0, 1, 3, 7, 8),
 }
 QUALITIES = {
     "maj": (0, 4, 7),
@@ -199,6 +203,121 @@ GENRES = {
         drums={"timp": "x..........."},
         bass="cello", bass_line="r---........", keys="strings", comp="....x-..x-..",
         lead="violin", rhythm="even8", legato=True, lead_range=(64, 86)),
+    "punk": dict(
+        bpm=172, key=7, scale="major", prog=[(0, "5"), (5, "5"), (7, "5"), (0, "5")],
+        drums={"kick": "x.x...x.x.x...x.", "snare": "....x.......x...", "hat": "x.x.x.x.x.x.x.x."},
+        crash=True, fill=True, bass="picked", bass_line="r-r-r-r-r-r-r-r-", keys="dist", keys_low=43,
+        comp="x-x-x-x-x-x-x-x-", lead="voice:a", rhythm="even8", legato=False, lead_range=(62, 79)),
+    "ska": dict(
+        bpm=160, key=2, scale="major", prog=[(0, "maj"), (9, "min"), (2, "min"), (7, "maj")],
+        drums={"kick": "x.......x.......", "snare": "....x.......x...", "hat": "x.x.x.x.x.x.x.x."},
+        bass="upright", bass_line="walk", keys="skank", comp="..x-..x-..x-..x-",
+        lead="brass", rhythm="syncop", legato=False),
+    "gospel": dict(
+        bpm=76, key=5, scale="major", swing=(0.4, 16), prog=[(0, "maj7"), (5, "maj7"), (9, "m7"), (7, "7")],
+        drums={"kick": "x.....x...x.....", "snare": "....x.......x...", "clap": "....x.......x...",
+               "hat": "x.x.x.x.x.x.x.x."},
+        bass="sub", bass_line="r-------f---r---", keys="choir:o", comp="x---------------",
+        lead="voice:a", rhythm="syncop", legato=True),
+    "soul": dict(
+        bpm=108, key=0, scale="major", prog=[(0, "maj"), (9, "min"), (5, "maj"), (7, "maj")],
+        drums={"kick": "x..x..x...x..x..", "snare": "x...x...x...x...", "tamb": "....x.......x..."},
+        bass="picked", bass_line="r--r-f-6r--r-f-o", keys="piano", comp="x.x.x.x.x.x.x.x.",
+        lead="voice:o", rhythm="syncop", legato=True),
+    "trance": dict(
+        bpm=138, key=9, scale="minor", prog=[(0, "min"), (5, "min"), (8, "maj"), (10, "maj")],
+        drums={"kick": "x...x...x...x...", "clap": "....x.......x...", "ohat": "..x...x...x...x.",
+               "hat": "gggggggggggggggg"},
+        crash=True, bass="synth_bass", bass_line=".rrr.rrr.rrr.rrr", keys="saw", keys_low=57,
+        comp="0123012301230123", lead="synth", rhythm="long", legato=True, lead_range=(64, 84)),
+    "chiptune": dict(
+        bpm=150, key=0, scale="major", prog=[(0, "maj"), (5, "maj"), (7, "maj"), (9, "min")],
+        drums={"kick": "x.......x.......", "snare": "....x.......x...", "hat": "x.x.x.x.x.x.x.x."},
+        bass="chip_bass", bass_line="r-o-r-o-r-o-r-o-", keys="chip", keys_low=60, comp="0121012101210121",
+        lead="square", rhythm="busy", legato=False, lead_range=(67, 86)),
+    "samba": dict(
+        bpm=100, key=7, scale="major", prog=[(0, "maj"), (2, "m7"), (7, "7"), (0, "maj")],
+        drums={"surdo": "x.......X.......", "shaker": "xgxgxgxgxgxgxgxg", "rim": "x.xx.x.xx.x.x.x.",
+               "cowbell": "x..x..x...x.x..."},
+        bass="picked", bass_line="r------.f------.", keys="nylon", comp="x.xx.x.x.xx.x.x.",
+        lead="voice:a", rhythm="syncop", legato=True),
+    "salsa": dict(
+        bpm=95, key=9, scale="minor", prog=[(0, "min"), (5, "min"), (7, "7"), (0, "min")],
+        drums={"cowbell": "x...x...x...x...", "clave": "x..x...x..x.x...", "conga": "..xx..x...xx..x."},
+        bass="picked", bass_line="...r--.f...r--.f", keys="piano", comp="0.2.1.2.0.2.1.21",
+        lead="brass", rhythm="syncop", legato=False),
+    "tango": dict(
+        bpm=120, key=2, scale="harmonic_minor", prog=[(0, "min"), (7, "7"), (7, "7"), (0, "min")],
+        drums={"rim": "X...x...x.x.X..."},
+        bass="upright", bass_line="r---f---r---f-r-", keys="accordion", comp="x-..x-..x-..x.x.",
+        lead="violin", rhythm="even8", legato=True),
+    "flamenco": dict(
+        bpm=120, beats=3, key=4, scale="hijaz", prog=[(5, "min"), (3, "maj"), (1, "maj"), (0, "maj")],
+        drums={"clap": "x..x..x.x.x.", "rim": "......x....."},
+        bass="upright", bass_line="r-----r-----", keys="nylon", comp="xxx.x.x.xxx.",
+        lead="voice:a", rhythm="even8", legato=True),
+    "celtic": dict(
+        bpm=180, beats=3, key=2, scale="major", prog=[(0, "maj"), (0, "maj"), (7, "maj"), (0, "maj")],
+        drums={"bodhran": "X.x.x.X.x.x."},
+        bass="upright", bass_line="r-----f-----", keys="guitar", comp="x...x.x...x.",
+        lead="fiddle", rhythm="even8", legato=False, lead_range=(62, 81)),
+    "bluegrass": dict(
+        bpm=120, key=9, scale="pent_major", prog=[(0, "maj"), (0, "maj"), (5, "maj"), (7, "maj")],
+        drums={"snare": "....g.......g..."},
+        bass="upright", bass_line="r---f---r---f---", keys="muted", comp="....x.......x...",
+        lead="banjo", rhythm="busy", legato=False, lead_range=(62, 81)),
+    "bhangra": dict(
+        bpm=100, key=2, scale="mixolydian", swing=(0.6, 8), prog=[(0, "maj"), (0, "maj"), (10, "maj"), (0, "maj")],
+        drums={"dhol_lo": "x.....x.x.....x.", "dhol_hi": "..x.x...x.x.x...", "clap": "....x.......x..."},
+        bass="sub", bass_line="r..r..r.r..r..r.", keys="tumbi", keys_low=62, comp="0.0.2.0.0.0.2.1.",
+        lead="voice:a", rhythm="syncop", legato=True),
+    "k_pop": dict(
+        bpm=124, key=4, scale="major", prog=[(5, "maj7"), (7, "maj"), (4, "m7"), (9, "min")],
+        drums={"kick": "x...x...x...x...", "clap": "....x.......x...", "hat": "x.xxx.x.x.xxx.x."},
+        crash=True, bass="synth_bass", bass_line="r.r.r..rr.r.r..r", keys="saw", comp="x..x..x.x..x..x.",
+        lead="voice:i", rhythm="busy", legato=True),
+    "arabic": dict(
+        bpm=100, key=2, scale="hijaz", prog=[(0, "5")],
+        drums={"darbuka_lo": "x.......x.......", "darbuka_hi": "..x...x.....x.g."},
+        bass="drone", bass_line="r---------------", keys="oud", comp="0.2.1.2.0.2.1.2.",
+        lead="ney", rhythm="even8", legato=True),
+    "march": dict(
+        bpm=116, key=10, scale="major", prog=[(0, "maj"), (5, "maj"), (7, "7"), (0, "maj")],
+        drums={"kick": "x...x...x...x...", "snare": "x..gx.x.x..gx.x."},
+        crash=True, bass="tuba", bass_line="r---f---r---f---", keys="brass", comp="..x-..x-..x-..x-",
+        lead="trumpet", rhythm="even8", legato=False),
+    "swing": dict(
+        bpm=160, key=3, scale="major", swing=(1.0, 8), prog=[(0, "maj7"), (9, "m7"), (2, "m7"), (7, "7")],
+        drums={"ride": "x...x.x.x...x.x.", "hat": "....x.......x...", "kick": "g...g...g...g..."},
+        bass="upright", bass_line="walk", keys="brass", comp="..x-......x-....",
+        lead="clarinet", rhythm="even8", legato=True, lead_range=(62, 81)),
+    "dancehall": dict(
+        bpm=100, key=9, scale="minor", prog=[(0, "min"), (5, "min"), (7, "min"), (5, "min")],
+        drums={"kick": "x..x....x..x....", "snare": "....x.......x...", "rim": "..x..x..x..x..x.",
+               "hat": "x.x.x.x.x.x.x.x."},
+        bass="sub", bass_line="r..r....r..r....", keys="synth_pluck", comp="..x...x...x..x..",
+        lead="voice:e", rhythm="syncop", legato=True),
+    "polka": dict(
+        bpm=120, key=0, scale="major", prog=[(0, "maj"), (7, "7"), (7, "7"), (0, "maj")],
+        drums={"kick": "x...x...x...x...", "snare": "..x...x...x...x."},
+        bass="tuba", bass_line="r---f---r---f---", keys="accordion", comp="..x-..x-..x-..x-",
+        lead="clarinet", rhythm="busy", legato=False),
+    "baroque": dict(
+        bpm=100, key=7, scale="major", prog=[(0, "maj"), (5, "maj"), (7, "7"), (0, "maj")],
+        drums={},
+        bass="cello", bass_line="r-o-f-o-r-o-t-o-", keys="harpsichord", comp="0121012101210121",
+        lead="violin", rhythm="busy", legato=False, lead_range=(67, 86)),
+    "gamelan": dict(
+        bpm=90, key=0, scale="pelog", prog=[(0, "5")],
+        drums={"gong": "x...............", "conga": "x.x..x.xx.x..x.."},
+        bass="metallo", bass_line="r---f---o---f---", keys="metallo", keys_low=60, comp="0.1.2.1.0.1.2.1.",
+        lead="bell", rhythm="even8", legato=False, lead_range=(67, 86)),
+    "calypso": dict(
+        bpm=110, key=0, scale="major", prog=[(0, "maj"), (5, "maj"), (7, "7"), (0, "maj")],
+        drums={"kick": "x..x....x..x....", "rim": "....x.......x...", "shaker": "xgxgxgxgxgxgxgxg",
+               "cowbell": "x...x...x...x..."},
+        bass="picked", bass_line="r..r..f.r..r..f.", keys="guitar", comp="x.xx.xx.x.xx.xx.",
+        lead="steel", rhythm="syncop", legato=False, lead_range=(64, 84)),
 }
 
 DEMOS = {
@@ -227,6 +346,28 @@ DEMOS = {
     "Tangerine Drive": "bossa_nova",
     "Quiet Volcano": "hip_hop",
     "Satellite Waltz": "classical_waltz",
+    "Broken Antenna": "punk",
+    "Checkered Sunday": "ska",
+    "Morning Choir": "gospel",
+    "Honey Avenue": "soul",
+    "Infinite Horizon": "trance",
+    "Pixel Kingdom": "chiptune",
+    "Carnival Feathers": "samba",
+    "Mango Street": "salsa",
+    "Velvet Rose": "tango",
+    "Andalusian Dust": "flamenco",
+    "Emerald Hills": "celtic",
+    "Rusty Porch": "bluegrass",
+    "Golden Fields": "bhangra",
+    "Starlight Signal": "k_pop",
+    "Silk Road Nights": "arabic",
+    "Iron Regiment": "march",
+    "Ballroom Lights": "swing",
+    "Island Pulse": "dancehall",
+    "Village Dance": "polka",
+    "Candle Sonata": "baroque",
+    "Temple Bells": "gamelan",
+    "Coconut Breeze": "calypso",
 }
 
 # ---------------------------------------------------------------- instruments
@@ -293,6 +434,25 @@ INSTRUMENTS = {
     "guitar_lead": dict(amps=SAW, attack=0.005, decay=1, sustain=0.7, release=0.05, drive=6, cutoff=3000,
                         vibrato=(5.5, 0.008, 0.2), glide=0.03),
     "pluck": dict(pluck=0.995, bright=0.7, release=0.05),
+    # more bass, keys and leads
+    "chip_bass": dict(amps=[1, 0, 1 / 9, 0, 1 / 25, 0, 1 / 49], attack=0.002, release=0.02),
+    "tuba": dict(amps=SAW, attack=0.03, decay=3, sustain=0.6, release=0.05, cutoff=500),
+    "metallo": dict(amps=[1, 0, 0, 0.3, 0, 0, 0, 0, 0.12], attack=0.002, decay=1.2, sustain=0, release=0.4),
+    "accordion": dict(amps=[1, 0.7, 0.6, 0.45, 0.35, 0.25, 0.2, 0.15, 0.1], detune=1.004, attack=0.02,
+                      release=0.05, tremolo=(5.5, 0.08)),
+    "choir": dict(attack=0.25, release=0.3, vibrato=(5, 0.005, 0.1)),
+    "chip": dict(amps=SQUARE, attack=0.002, decay=6, sustain=0.3, release=0.02),
+    "synth_pluck": dict(amps=SAW, attack=0.002, decay=10, sustain=0, release=0.05, cutoff=900, fenv=4, fdecay=18),
+    "harpsichord": dict(pluck=0.993, bright=1.0, release=0.04),
+    "oud": dict(pluck=0.99, bright=0.65, buzz=0.15, release=0.06),
+    "tumbi": dict(pluck=0.985, bright=0.95, buzz=0.2, release=0.04),
+    "banjo": dict(pluck=0.98, bright=1.0, release=0.03),
+    "steel": dict(amps=[1, 0, 0, 0.35, 0, 0.15, 0, 0, 0.1], attack=0.002, decay=3.5, sustain=0, release=0.1),
+    "trumpet": dict(amps=SAW, attack=0.02, release=0.05, cutoff=2600, fenv=-0.6, fdecay=20, drive=1.2,
+                    vibrato=(5.5, 0.005, 0.25)),
+    "clarinet": dict(amps=[1, 0, 0.45, 0, 0.3, 0, 0.18, 0, 0.1], attack=0.03, release=0.06,
+                     vibrato=(5, 0.004, 0.3), glide=0.02),
+    "ney": dict(amps=[1, 0.2, 0.06], breath=0.18, attack=0.08, release=0.1, vibrato=(4.5, 0.009, 0.25), glide=0.1),
 }
 
 _tables: dict[tuple, list[float]] = {}
@@ -471,6 +631,31 @@ def drum(name: str, rng: random.Random) -> list[float]:
     if name == "timp":
         return [(math.sin(TAU * 73.4 * t) + 0.5 * math.sin(TAU * 110 * t) + 0.3 * math.sin(TAU * 146.8 * t))
                 * math.exp(-t * 3) + 0.2 * rng.uniform(-1, 1) * math.exp(-t * 60) for t in times(1.2)]
+    if name == "cowbell":
+        return [(math.sin(TAU * 560 * t) + 0.7 * math.sin(TAU * 845 * t)) * 0.5 * math.exp(-t * 12)
+                for t in times(0.3)]
+    if name == "clave":
+        return [math.sin(TAU * 2500 * t) * math.exp(-t * 60) for t in times(0.08)]
+    if name == "tamb":
+        ts = times(0.2)
+        return [(0.6 * n + 0.2 * (math.sin(TAU * 5200 * t) + math.sin(TAU * 7300 * t))) * math.exp(-t * 25)
+                for n, t in zip(hp_noise(len(ts)), ts)]
+    if name in ("surdo", "dhol_lo", "darbuka_lo", "bodhran"):
+        base, bend, rate, seconds = {"surdo": (70, 0.2, 4, 0.8), "dhol_lo": (80, 0.35, 6, 0.6),
+                                     "darbuka_lo": (110, -0.25, 8, 0.5), "bodhran": (110, 0.3, 10, 0.35)}[name]
+        out, ph = [], 0.0
+        for t in times(seconds):
+            ph += base * (1 + bend * math.exp(-t * 30)) / RATE
+            out.append(math.sin(TAU * ph) * math.exp(-t * rate) + 0.2 * rng.uniform(-1, 1) * math.exp(-t * 40))
+        return out
+    if name in ("dhol_hi", "darbuka_hi"):
+        pitch, seconds = (420, 0.15) if name == "dhol_hi" else (1200, 0.08)
+        ts = times(seconds)
+        return [0.6 * n * math.exp(-t * 80) + 0.5 * math.sin(TAU * pitch * t) * math.exp(-t * 40)
+                for n, t in zip(hp_noise(len(ts)), ts)]
+    if name == "gong":
+        return [sum(a * math.sin(TAU * f * t) for f, a in ((65, 1), (98.7, 0.6), (131, 0.4), (167, 0.3)))
+                * min(1.0, t / 0.02) * math.exp(-t * 1.2) for t in times(2.5)]
     raise ValueError(f"unknown drum: {name}")
 
 
@@ -707,11 +892,14 @@ def write_files() -> None:
                 shutil.rmtree(old, ignore_errors=True)
     for title, genre in DEMOS.items():
         folder = folders[title]
-        if all((folder / f"{name}.wav").exists() for name in STEM_NAMES):
+        # Every genre has a bass line, and it's written last, so it marks a finished song.
+        if (folder / "bass.wav").exists():
             continue
         folder.mkdir(parents=True, exist_ok=True)
-        for name, samples in render(title, GENRES[genre]).items():
-            write_wav(folder / f"{name}.wav", samples)
+        stems = render(title, GENRES[genre])
+        for name in sorted(stems, key=lambda n: n == "bass"):
+            if any(stems[name]):  # e.g. baroque has no drums
+                write_wav(folder / f"{name}.wav", stems[name])
         print(f"wrote: {title} ({genre})")
 
 
@@ -732,7 +920,8 @@ def register_songs() -> None:
                 db.add(song)
                 print(f"added: {title}")
             folder = folders[title].relative_to(config.MEDIA_DIR).as_posix()
-            song.stems = [Stem(name=name, path=f"{folder}/{name}.wav") for name in STEM_NAMES]
+            song.stems = [Stem(name=name, path=f"{folder}/{name}.wav") for name in STEM_NAMES
+                          if (folders[title] / f"{name}.wav").exists()]
             song.duration = song_seconds(GENRES[genre])
         db.commit()
 

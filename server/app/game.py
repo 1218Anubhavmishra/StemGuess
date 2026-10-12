@@ -77,6 +77,7 @@ class Round:
     title: str
     artist: str
     urls: list[str]  # stem files, all played together; empty for the host's own songs
+    credit: dict | None = None
     options: list[str] = field(default_factory=list)
     correct: int = 0
     duration: float = 0.0
@@ -485,6 +486,7 @@ class GameManager:
                 artist=song.artist,
                 # Local paths are relative to the server; clients resolve against their server URL.
                 urls=[s.path if _is_remote(s.path) else f"/media/{s.path}" for s in song.stems],
+                credit=song.credit,
             )
 
     async def _run_game(self, room: Room) -> None:
@@ -542,6 +544,7 @@ class GameManager:
         room.end_payload = {
             "title": rnd.title,
             "artist": rnd.artist,
+            "credit": rnd.credit,
             "options": rnd.options,
             "correct": rnd.correct,
             "isLast": room.round_number >= room.total_rounds,

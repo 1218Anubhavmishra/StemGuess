@@ -13,7 +13,7 @@ class Base(DeclarativeBase):
 
 
 # Columns added after the first release; create_all() doesn't alter existing tables.
-_ADDED_COLUMNS = {"songs": {"duration": "FLOAT"}}
+_ADDED_COLUMNS = {"songs": {"duration": "FLOAT", "credit": "JSON"}}
 
 
 def init_db() -> None:

@@ -166,6 +166,25 @@ export default function Game({
               {answer.title}
               {answer.artist && ` - ${answer.artist}`}
             </h2>
+            {answer.credit && (
+              <p className="credit muted small">
+                {answer.credit.url ? (
+                  <a href={answer.credit.url} target="_blank" rel="noreferrer">
+                    {answer.credit.text}
+                  </a>
+                ) : (
+                  answer.credit.text
+                )}
+                {' · Licensed under '}
+                {answer.credit.licenseUrl ? (
+                  <a href={answer.credit.licenseUrl} target="_blank" rel="noreferrer">
+                    {answer.credit.license}
+                  </a>
+                ) : (
+                  answer.credit.license
+                )}
+              </p>
+            )}
             <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
               {me && answer.points[me.name]
                 ? `Correct! +${pointsLabel(answer.points[me.name])}`
