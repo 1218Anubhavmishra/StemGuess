@@ -8,16 +8,23 @@ const CONSENT_KEY = 'stemguess:localMusicConsent';
 const MAX_TRACKS = 1000;
 const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|webm|wma|aiff?)$/i;
 
-const OPTIONS: { id: Library; label: string; notice: string }[] = [
+const OPTIONS: { id: Library; label: string; notice: string; howItWorks?: string; clipNote?: string }[] = [
   {
     id: 'demo',
     label: 'StemGuess demos',
     notice: 'Original & free to play demo tracks by StemGuess.',
+    howItWorks:
+      'In this mode, the game will randomly pick the chosen number of songs from the StemGuess demo tracks. ' +
+      'So no player (even us) will ever know the songs that will be picked for the game.',
   },
   {
     id: 'cc',
     label: 'Creative Commons',
     notice: 'Songs their artists share under Creative Commons licences, credited after each round.',
+    howItWorks:
+      'In this mode, the game will randomly pick the chosen number of songs from the Creative Commons library. ' +
+      'So no player (even us) will ever know the songs that will be picked for the game.',
+    clipNote: 'Only the loudest 15 seconds of a picked song are played.',
   },
   {
     id: 'local',
@@ -119,12 +126,10 @@ function LocalSongs({ rounds }: { rounds: number }) {
           or select song files
         </button>
       </div>
-      {!tracks.length && (
-        <p className="muted small">
-          In this mode, the game will randomly pick the chosen number of songs from that folder. So no player (even
-          us) will ever know the songs that will be picked for the game.
-        </p>
-      )}
+      <p className="muted small">
+        In this mode, the game will randomly pick the chosen number of songs from that folder. So no player (even us)
+        will ever know the songs that will be picked for the game.
+      </p>
       {empty && <p className="error small">{empty}</p>}
       {tracks.length > 0 && (
         <>
@@ -181,8 +186,20 @@ export default function SongSource({
           );
         })}
       </div>
-      <p className="notice small">{selected.notice}</p>
-      {room.library === 'local' && <LocalSongs rounds={rounds} />}
+      <div className="notice small">
+        <p>{selected.notice}</p>
+        {selected.howItWorks && <p>{selected.howItWorks}</p>}
+      </div>
+      {room.library === 'local' ? (
+        <LocalSongs rounds={rounds} />
+      ) : (
+        libraries && (
+          <p className="muted small" role="status">
+            Found {libraries[room.library]} songs. The game will pick {rounds} at random.
+            {selected.clipNote && ` ${selected.clipNote}`}
+          </p>
+        )
+      )}
     </fieldset>
   );
 }
