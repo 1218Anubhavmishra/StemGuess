@@ -32,7 +32,7 @@ This builds the client, sets up the Python environment on first run and serves t
 http://localhost:8000. Open it in two browser windows to play against yourself. Phones on the same
 Wi-Fi can join via `http://<your-PC-IP>:8000` (allow Python through the Windows firewall).
 
-For quick testing without Music.ai, add 25 synthetic demo songs (from `server/`):
+For quick testing without Music.ai, add 25 synthetic demo songs, one per genre (pop, rock, jazz, hip-hop, reggae, Indian classical and more), from `server/`:
 `.\.venv\Scripts\python -m scripts.seed_demo`
 
 Without `DATABASE_URL` the server uses `server/stemguess.db` (SQLite). For Postgres:

@@ -22,14 +22,14 @@ type Props = {
 };
 
 function useCountdown(endsAt: number | null) {
-  const [now, setNow] = useState(Date.now());
+  const [, setTick] = useState(0);
   useEffect(() => {
     if (!endsAt) return;
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 250);
+    const id = setInterval(() => setTick((t) => t + 1), 250);
     return () => clearInterval(id);
   }, [endsAt]);
-  return endsAt ? Math.max(0, Math.ceil((endsAt - now) / 1000)) : null;
+  // Read the clock while rendering: a stored timestamp is stale on the first render after endsAt changes.
+  return endsAt ? Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)) : null;
 }
 
 const pointsLabel = (n: number) => `${n} point${n === 1 ? '' : 's'}`;
