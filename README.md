@@ -59,6 +59,9 @@ To fill the Creative Commons library without Music.ai or any account, run
 `.\.venv\Scripts\python -m scripts.import_cc` (add `--per-genre N`, default 2). It picks CC BY tracks
 across genres from Incompetech (Kevin MacLeod) and ccMixter, stores each as one 15 s "mix" clip, and
 keeps the attribution (title, author, source link, licence) that the game shows after each round.
+After testing them locally (with a SQLite `DATABASE_URL`), put exactly those songs live with
+`.\.venv\Scripts\python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db`: it copies only the
+`cc:` songs into the database from `server/.env` and uploads only their clips to R2.
 
 ## Song libraries
 
