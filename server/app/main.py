@@ -77,7 +77,7 @@ async def create_room(sid, data=None):
 @sio.on("join_room")
 async def join_room(sid, data=None):
     data = data or {}
-    return await games.join_room(sid, data.get("code"), data.get("name"))
+    return await games.join_room(sid, data.get("code"), data.get("name"), data.get("spectate", False))
 
 
 @sio.on("rejoin")
@@ -101,6 +101,16 @@ async def update_settings(sid, data=None):
 @sio.on("library")
 async def library(_sid, _data=None):
     return {"ok": True, "libraries": await games.library_sizes()}
+
+
+@sio.on("library_songs")
+async def library_songs(_sid, data=None):
+    return await games.library_songs((data or {}).get("library"))
+
+
+@sio.on("song_clip")
+async def song_clip(_sid, data=None):
+    return await games.song_clip((data or {}).get("id"))
 
 
 @sio.on("practice_round")

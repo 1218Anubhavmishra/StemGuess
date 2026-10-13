@@ -68,8 +68,12 @@ The "Preview of hits" library comes from `scripts/hits.json` (artist, title, loc
 [Demucs](https://github.com/facebookresearch/demucs) (free, runs locally) into drums, bass and other,
 dropping the vocals; each song is credited with its YouTube link. Demucs needs PyTorch, so it runs in
 its own environment (`DEMUCS_PYTHON`, default `~/stem-sep/Scripts/python`; install with
-`pip install torch demucs soundfile`). On a laptop CPU it takes about 30 s per song. Songs without a
-file are listed as pending. Publish with `publish_cc ... --prefix hits:`.
+`pip install torch demucs soundfile`). Clips are separated 10 at a time with the model loaded once
+(on the GPU when there is one); on a laptop CPU it takes about 20 s per song. Songs without a file are
+listed as pending. Songs are matched by YouTube link, so titles can be shortened in `hits.json`: run
+`import_hits` again locally and `import_hits --sync-only` against the live database to rename them
+without re-importing. Publish with `publish_cc ... --prefix hits:`. `python -m scripts.backup_hits [folder]`
+copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/StemGuess backup/hits`).
 
 ## Song libraries
 
@@ -88,8 +92,12 @@ through the server (forwarded, never stored) when a direct connection can't be m
 The wrong options come from the same library (the host's other titles in this mode).
 Songs on the server outside the demo (`demo:`), Creative Commons (`cc:`) and hits (`hits:`) libraries are never used in games.
 
-**Play Library** (home and lobby) is solo practice against any of the four sources, one song at a
-time, with no room needed.
+**Play Library** (home and lobby) lists every song in any of the four sources to play on demand, or
+switches to Practice to guess random songs solo, with no room needed.
+
+Joining a game that has already started offers **Spectate**: spectators see and hear every round
+without answering and become players when the game ends. With My own music, each player's browser
+keeps the game's clips in IndexedDB, so a reload mid-game doesn't need them sent again.
 
 Cost is about $0.07 per minute of audio for standard stems (see [pricing](https://music.ai/pricing/)).
 

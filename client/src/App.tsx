@@ -9,7 +9,7 @@ import Game from './components/Game';
 import GameOver from './components/GameOver';
 import About from './components/About';
 import MenuLinks from './components/MenuLinks';
-import Practice from './components/Practice';
+import PlayLibrary from './components/PlayLibrary';
 let feedId = 0;
 
 export default function App() {
@@ -123,6 +123,7 @@ export default function App() {
     socket.on('game_over', onGameOver);
     socket.on('local_order', onLocalOrder);
     socket.on('local_status', onLocalStatus);
+    socket.on('room_closed', exitRoom);
     if (socket.connected) void tryRejoin();
     return () => {
       socket.off('connect', onConnect);
@@ -134,6 +135,7 @@ export default function App() {
       socket.off('game_over', onGameOver);
       socket.off('local_order', onLocalOrder);
       socket.off('local_status', onLocalStatus);
+      socket.off('room_closed', exitRoom);
     };
   }, []);
 
@@ -167,7 +169,7 @@ export default function App() {
   const aboutDialog = about && <About onClose={() => setAbout(false)} />;
 
   if (practising) {
-    return <Practice connected={connected} onBack={() => setPractice(false)} />;
+    return <PlayLibrary connected={connected} onBack={() => setPractice(false)} />;
   }
 
   if (!room) {

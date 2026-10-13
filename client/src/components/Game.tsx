@@ -59,7 +59,8 @@ export default function Game({
   const nextIn = useCountdown(nextAt);
   const me = room.players.find((p) => p.id === meId);
   const roundWinners = Object.keys(answer?.points ?? {});
-  const canPick = phase === 'playing' && choice === null && !me?.attempted;
+  const spectating = !me;
+  const canPick = phase === 'playing' && choice === null && !!me && !me.attempted;
   const result = phase === 'roundEnd' && answer;
 
   useEffect(() => setHint(''), [room.round]);
@@ -156,7 +157,11 @@ export default function Game({
               <i />
             </span>
             <p className="status">
-              {me?.attempted ? 'Answer locked in. Waiting for others…' : 'Which song is this? You get one pick.'}
+              {spectating
+                ? "You're spectating. You'll join as a player after this game."
+                : me.attempted
+                  ? 'Answer locked in. Waiting for others…'
+                  : 'Which song is this? You get one pick.'}
             </p>
           </>
         )}

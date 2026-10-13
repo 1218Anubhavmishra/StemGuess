@@ -15,16 +15,21 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
   const [maxPlayers, setMaxPlayers] = useState(PLAYER_LIMITS.min);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [canSpectate, setCanSpectate] = useState(false);
   const roomCode = code.replace(/ /g, '');
 
-  async function submit(event: 'create_room' | 'join_room') {
+  async function submit(event: 'create_room' | 'join_room', spectate = false) {
     unlockAudio();
     setBusy(true);
     setError('');
+    setCanSpectate(false);
     localStorage.setItem(NAME_KEY, name.trim());
-    const ack = await request(event, { name, code: roomCode, maxPlayers });
+    const ack = await request(event, { name, code: roomCode, maxPlayers, spectate });
     if (ack.ok) saveSession(ack);
-    else setError(ack.error ?? 'Something went wrong');
+    else {
+      setError(ack.error ?? 'Something went wrong');
+      setCanSpectate(!!ack.canSpectate);
+    }
     setBusy(false);
   }
 
@@ -79,6 +84,11 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
           </form>
 
           {error && <p className="error">{error}</p>}
+          {canSpectate && (
+            <button className="primary" disabled={busy} onClick={() => void submit('join_room', true)}>
+              Spectate
+            </button>
+          )}
           {!connected && <p className="muted small">Connecting to server…</p>}
         </div>
         {menu}

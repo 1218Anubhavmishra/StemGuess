@@ -1,5 +1,5 @@
 import { clipOf, getTracks } from './localLibrary';
-import { request, socket } from './socket';
+import { loadSession, request, socket } from './socket';
 
 /**
  * Moves the host's song clips to the other players' devices.
@@ -27,6 +27,54 @@ const waiters = new Map<number, ((clip: ArrayBuffer) => void)[]>();
 const peers = new Map<string, Peer>();
 const relayParts = new Map<number, ArrayBuffer[]>();
 
+// ----- cache: this game's clips survive a page reload (the host's picked files don't) -----
+
+const DB_NAME = 'stemguess';
+const STORE = 'clips';
+// Clips more than this old are from a finished game.
+const CACHE_HOURS = 6;
+let gameKey = '';
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const req = fn(db.transaction(STORE, mode).objectStore(STORE));
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }).finally(() => db.close()) as Promise<T>;
+}
+
+type Cached = { clip: ArrayBuffer; at: number };
+
+function cacheClip(position: number, clip: ArrayBuffer) {
+  if (!gameKey) return;
+  void withStore('readwrite', (s) => s.put({ clip, at: Date.now() } satisfies Cached, `${gameKey}#${position}`)).catch(
+    () => undefined,
+  );
+}
+
+async function cachedClip(position: number): Promise<ArrayBuffer | undefined> {
+  const hit = await withStore<Cached | undefined>('readonly', (s) => s.get(`${gameKey}#${position}`)).catch(() => undefined);
+  return hit && Date.now() - hit.at < CACHE_HOURS * 3600_000 ? hit.clip : undefined;
+}
+
+/** Drops clips of other games. */
+async function pruneCache() {
+  const keys = await withStore<IDBValidKey[]>('readonly', (s) => s.getAllKeys()).catch(() => []);
+  for (const key of keys) {
+    if (!String(key).startsWith(`${gameKey}#`)) void withStore('readwrite', (s) => s.delete(key)).catch(() => undefined);
+  }
+}
+
 /** The clip for a round, as soon as it has arrived on this device. */
 export function getClip(position: number): Promise<ArrayBuffer> {
   const clip = clips.get(position);
@@ -34,9 +82,10 @@ export function getClip(position: number): Promise<ArrayBuffer> {
   return new Promise((resolve) => waiters.set(position, [...(waiters.get(position) ?? []), resolve]));
 }
 
-function store(position: number, clip: ArrayBuffer) {
+function store(position: number, clip: ArrayBuffer, cache = true) {
   if (clips.has(position)) return;
   clips.set(position, clip);
+  if (cache) cacheClip(position, clip);
   waiters.get(position)?.forEach((resolve) => resolve(clip));
   waiters.delete(position);
   reportIfReady();
@@ -128,7 +177,7 @@ socket.on('clip_chunk', (p: { pos: number; seq: number; total: number; chunk: Ar
   }
 });
 
-socket.on('local_order', (p: { order: number[]; host: string }) => {
+socket.on('local_order', async (p: { order: number[]; host: string }) => {
   const key = `${p.host}:${p.order.join(',')}`;
   hostId = p.host;
   reportedReady = false;
@@ -137,11 +186,19 @@ socket.on('local_order', (p: { order: number[]; host: string }) => {
     order = p.order;
     clips.clear();
     relayParts.clear();
+    // The host's socket id changes on reload; the room code and song order identify the game.
+    gameKey = `${loadSession()?.code ?? ''}:${p.order.join(',')}`;
+    void pruneCache();
   }
-  if (socket.id === hostId) {
-    const tracks = getTracks();
-    order.forEach((index, position) => tracks[index] && void clipOf(tracks[index]).then((clip) => store(position, clip)));
-  }
+  const tracks = socket.id === hostId ? getTracks() : [];
+  await Promise.all(
+    order.map(async (index, position) => {
+      if (clips.has(position)) return;
+      const cached = await cachedClip(position);
+      if (cached) store(position, cached, false);
+      else if (tracks[index]) store(position, await clipOf(tracks[index]));
+    }),
+  );
   reportIfReady();
 });
 
@@ -194,12 +251,15 @@ async function sendRelayed(to: string, items: [number, ArrayBuffer][]) {
   }
 }
 
+/** A clip the host has (cut from its file or restored from the cache), or nothing after a while. */
+function hostClip(position: number): Promise<[number, ArrayBuffer] | null> {
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 60_000));
+  return Promise.race([getClip(position).then((clip) => [position, clip] as [number, ArrayBuffer]), timeout]);
+}
+
 async function sendClips(to: string) {
-  const tracks = getTracks();
-  const items = await Promise.all(
-    order.flatMap((index, position) =>
-      tracks[index] ? [clipOf(tracks[index]).then((clip) => [position, clip] as [number, ArrayBuffer])] : [],
-    ),
+  const items = (await Promise.all(order.map((_, position) => hostClip(position)))).filter(
+    (item): item is [number, ArrayBuffer] => item !== null,
   );
   if (!items.length) return;
   try {

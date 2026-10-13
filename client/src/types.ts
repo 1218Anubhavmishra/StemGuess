@@ -10,6 +10,7 @@ export type RoomState = {
   library: Library;
   localTracks: number;
   players: Player[];
+  spectators: { id: string; name: string }[];
 };
 
 export type ServerLibrary = 'demo' | 'cc' | 'hits';
@@ -53,9 +54,15 @@ export type Ack = {
   playerId?: string;
   token?: string;
   result?: 'correct' | 'wrong';
+  spectator?: boolean;
+  canSpectate?: boolean;
   libraries?: Record<ServerLibrary, number>;
   round?: PracticeRound;
+  songs?: LibrarySong[];
+  urls?: string[];
 };
+
+export type LibrarySong = { id: number; title: string; artist: string; credit?: Credit | null };
 
 export const GITHUB_URL = 'https://github.com/1218Anubhavmishra';
 

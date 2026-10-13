@@ -18,10 +18,10 @@ export default function About({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="about-head">
-          <h2 id="about-title">About StemGuess</h2>
-          <button className="ghost small" aria-label="Close" onClick={onClose}>
-            ✕
+          <button className="back-button" aria-label="Back" title="Back" onClick={onClose}>
+            &lt;
           </button>
+          <h2 id="about-title">About StemGuess</h2>
         </header>
 
         <p>
@@ -46,6 +46,11 @@ export default function About({ onClose }: { onClose: () => void }) {
           <li>After each round you see the answer and its credit. The highest score after the last song wins.</li>
           <li>Use the speaker button and slider to mute or change the game volume. End leaves the game.</li>
           <li>If your connection drops, the game keeps your seat and puts you back in when you reconnect.</li>
+          <li>
+            Joining a game that has already started (for example after losing your seat) lets you spectate: you
+            see and hear every round but can't answer, and you join as a player when the game ends.
+          </li>
+          <li>With My music, everyone's clips are kept on their device for the game, so reloading the page doesn't lose them.</li>
         </ul>
 
         <h3>Song sources</h3>
@@ -72,8 +77,8 @@ export default function About({ onClose }: { onClose: () => void }) {
 
         <h3>Play Library</h3>
         <p>
-          Practise on your own with any of the four song sources: listen to a song, pick its title, and see how many
-          you get right. No room needed.
+          Browse every song in any of the four song sources and play the one you choose, or switch to Practice to
+          guess random songs on your own and see how many you get right. No room needed.
         </p>
 
         <h3>Other options</h3>

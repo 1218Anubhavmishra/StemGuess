@@ -36,6 +36,7 @@ MAX_LOCAL_TRACKS = 1000
 LOCAL_POOL_FACTOR = 2
 LOCAL_TRANSFER_TIMEOUT = 90
 MAX_RELAY_CHUNK = 256 * 1024
+MAX_SPECTATORS = 20
 
 
 def _is_remote(path: str) -> bool:
@@ -73,6 +74,15 @@ class Player:
 
 
 @dataclass
+class Spectator:
+    """Watches a game already in progress (e.g. a player who lost their seat) without playing."""
+
+    sid: str
+    name: str
+    token: str = field(default_factory=lambda: secrets.token_urlsafe(16))
+
+
+@dataclass
 class Round:
     title: str
     artist: str
@@ -91,6 +101,8 @@ class Room:
     # Seat token of the game's real host, so they get the role back after dropping out mid-game.
     host_token: str = ""
     players: dict[str, Player] = field(default_factory=dict)
+    # Join as players once the game ends (if there's room).
+    spectators: dict[str, Spectator] = field(default_factory=dict)
     state: str = "lobby"  # lobby | playing | finished
     total_rounds: int = DEFAULT_ROUNDS
     max_players: int = DEFAULT_PLAYER_LIMIT
@@ -135,7 +147,14 @@ class Room:
                 }
                 for p in self.players.values()
             ],
+            "spectators": [{"id": s.sid, "name": s.name} for s in self.spectators.values()],
         }
+
+    def name_taken(self, name: str, sid: str) -> bool:
+        # Players who dropped out mid-game don't hold on to their name.
+        taken = [p.name for p in self.players.values() if p.connected and p.sid != sid]
+        taken += [s.name for s in self.spectators.values() if s.sid != sid]
+        return any(n.casefold() == name.casefold() for n in taken)
 
     def active(self) -> list[Player]:
         return [p for p in self.players.values() if p.connected]
@@ -188,19 +207,21 @@ class GameManager:
         room.host_token = room.players[sid].token
         return result
 
-    async def join_room(self, sid: str, code: object, name: object) -> dict:
+    async def join_room(self, sid: str, code: object, name: object, spectate: object = False) -> dict:
         name = _clean_name(name)
         if not name:
             return _error("Enter a name")
         room = self.rooms.get(str(code or "").strip().upper())
         if not room:
             return _error("Room not found")
+        if room.name_taken(name, sid):
+            return _error("That name is taken in this room")
         if room.state == "playing":
-            return _error("Game already in progress")
+            if spectate is True:
+                return await self._add_spectator(room, sid, name)
+            return {**_error("This game has already started. You can watch it as a spectator."), "canSpectate": True}
         if len(room.players) >= room.max_players:
             return _error(f"Room is full (max {room.max_players} players)")
-        if any(p.name.casefold() == name.casefold() for p in room.players.values() if p.sid != sid):
-            return _error("That name is taken in this room")
         await self.leave(sid)
         result = await self._add_player(room, sid, name)
         if room.state == "lobby" and len(room.players) >= room.max_players:
@@ -215,8 +236,37 @@ class GameManager:
         await self._broadcast_state(room)
         return {"ok": True, "code": room.code, "playerId": sid, "token": player.token}
 
+    async def _add_spectator(self, room: Room, sid: str, name: str) -> dict:
+        if len(room.spectators) >= MAX_SPECTATORS:
+            return _error("Too many people are watching this game")
+        await self.leave(sid)
+        spectator = Spectator(sid=sid, name=name)
+        room.spectators[sid] = spectator
+        self.sid_room[sid] = room.code
+        await self.sio.enter_room(sid, room.code)
+        await self._broadcast_state(room)
+        await self._send_round_snapshot(room, sid)
+        return {"ok": True, "code": room.code, "playerId": sid, "token": spectator.token, "spectator": True}
+
+    async def _rejoin_spectator(self, room: Room, sid: str, spectator: Spectator) -> dict:
+        if spectator.sid != sid:
+            self.sid_room.pop(spectator.sid, None)
+            await self.sio.leave_room(spectator.sid, room.code)
+            await self.leave(sid)
+            room.spectators.pop(spectator.sid, None)
+            spectator.sid = sid
+            room.spectators[sid] = spectator
+        self.sid_room[sid] = room.code
+        await self.sio.enter_room(sid, room.code)
+        await self._broadcast_state(room)
+        await self._send_round_snapshot(room, sid)
+        return {"ok": True, "code": room.code, "playerId": sid, "token": spectator.token, "spectator": True}
+
     async def rejoin(self, sid: str, code: object, token: object) -> dict:
         room = self.rooms.get(str(code or "").strip().upper())
+        spectator = next((s for s in room.spectators.values() if s.token == token), None) if room and token else None
+        if room and spectator:
+            return await self._rejoin_spectator(room, sid, spectator)
         player = next((p for p in room.players.values() if p.token == token), None) if room and token else None
         if not room or not player:
             return _error("That game is no longer available")
@@ -254,8 +304,9 @@ class GameManager:
         rnd = room.current
         now = time.monotonic()
         if rnd:
-            player = room.players[sid]
-            payload = {"duration": max(0.0, rnd.ends_at - now), "options": rnd.options, "choice": player.choice}
+            player = room.players.get(sid)
+            payload = {"duration": max(0.0, rnd.ends_at - now), "options": rnd.options,
+                       "choice": player.choice if player else None}
             await self.sio.emit("round_start", payload, to=sid)
         elif room.next_at and room.end_payload:
             await self.sio.emit("round_end", {**room.end_payload, "nextIn": max(0.0, room.next_at - now)}, to=sid)
@@ -264,6 +315,11 @@ class GameManager:
         code = self.sid_room.pop(sid, None)
         room = self.rooms.get(code) if code else None
         if not room:
+            return
+        if room.spectators.pop(sid, None):
+            await self.sio.leave_room(sid, room.code)
+            room.local_ready.discard(sid)
+            await self._broadcast_state(room)
             return
         player = room.players.get(sid)
         if room.state == "playing" and player:
@@ -274,6 +330,9 @@ class GameManager:
         if not room.active():
             if room.task:
                 room.task.cancel()
+            for spectator in room.spectators.values():
+                self.sid_room.pop(spectator.sid, None)
+            await self.sio.emit("room_closed", {}, room=room.code)
             del self.rooms[room.code]
             return
         if room.host_sid == sid:
@@ -360,7 +419,9 @@ class GameManager:
 
     def _same_room(self, sid: str, other: object) -> Room | None:
         room = self._room_of(sid)
-        return room if room and isinstance(other, str) and other in room.players else None
+        if room and isinstance(other, str) and (other in room.players or other in room.spectators):
+            return room
+        return None
 
     async def rtc_signal(self, sid: str, to: object, data: object) -> dict:
         """Relays WebRTC connection setup messages so two players can connect directly."""
@@ -424,6 +485,34 @@ class GameManager:
     @staticmethod
     def _library_sizes() -> dict[str, int]:
         return {name: len(GameManager._playable_song_ids(name)) for name in SERVER_LIBRARIES}
+
+    async def library_songs(self, library: object) -> dict:
+        """Every song in a server library, for the Play Library list."""
+        if library not in SERVER_LIBRARIES:
+            return _error("Unknown song library")
+        return {"ok": True, "songs": await asyncio.to_thread(self._library_songs, library)}
+
+    @staticmethod
+    def _library_songs(library: str) -> list[dict]:
+        ids = GameManager._playable_song_ids(library)
+        with SessionLocal() as db:
+            songs = db.scalars(select(Song).where(Song.id.in_(ids)).order_by(Song.artist, Song.title))
+            return [{"id": s.id, "title": s.title, "artist": s.artist, "credit": s.credit} for s in songs]
+
+    async def song_clip(self, song_id: object) -> dict:
+        """The stems of one library song, for playing it from the Play Library list."""
+        if not isinstance(song_id, int) or isinstance(song_id, bool):
+            return _error("Unknown song")
+        rnd = await asyncio.to_thread(self._load_library_round, song_id)
+        return {"ok": True, "urls": rnd.urls} if rnd else _error("Unknown song")
+
+    @staticmethod
+    def _load_library_round(song_id: int) -> Round | None:
+        with SessionLocal() as db:
+            song = db.get(Song, song_id)
+            if not song or not song.source_file.startswith(tuple(SERVER_LIBRARIES.values())):
+                return None
+        return GameManager._load_round(song_id)
 
     async def practice_round(self, library: object, exclude: object = None) -> dict:
         """One solo round for the Play Library screen. The answer is included: nothing is at stake."""
@@ -604,6 +693,12 @@ class GameManager:
             room=room.code,
         )
         room.drop_disconnected()
+        for spectator in list(room.spectators.values()):
+            if len(room.players) >= room.max_players:
+                break
+            del room.spectators[spectator.sid]
+            # Same seat token, so their saved session now rejoins them as a player.
+            room.players[spectator.sid] = Player(sid=spectator.sid, name=spectator.name, token=spectator.token)
         await self._broadcast_state(room)
 
     @staticmethod

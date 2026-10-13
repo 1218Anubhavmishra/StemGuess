@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://stem-guess-of6p.onrender.com/sitemap.xml

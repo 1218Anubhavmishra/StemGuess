@@ -19,3 +19,5 @@ server/demo_index.json
 # Capacitor native projects (generated)
 client/android/
 client/electron/
+
+server/server.log
