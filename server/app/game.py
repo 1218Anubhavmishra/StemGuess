@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 
 import socketio
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from . import config
 from .db import SessionLocal
@@ -499,7 +499,9 @@ class GameManager:
     def _library_songs(library: str) -> list[dict]:
         ids = GameManager._playable_song_ids(library)
         with SessionLocal() as db:
-            songs = db.scalars(select(Song).where(Song.id.in_(ids)).order_by(func.lower(Song.artist), func.lower(Song.title)))
+            songs = db.scalars(select(Song).where(Song.id.in_(ids))).all()
+            # Sorted here, not in SQL: Postgres and SQLite collate text differently.
+            songs.sort(key=lambda s: (s.artist.casefold(), s.title.casefold()))
             return [{"id": s.id, "title": s.title, "artist": s.artist, "credit": s.credit} for s in songs]
 
     async def song_clip(self, song_id: object) -> dict:
