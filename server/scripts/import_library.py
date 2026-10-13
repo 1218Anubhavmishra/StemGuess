@@ -21,6 +21,7 @@ from pathlib import Path
 
 from app import config
 from scripts.process_songs import FFMPEG, FFPROBE, clip_start
+from scripts.progress import Progress
 
 AUDIO_EXTS = {".mp3", ".m4a", ".flac", ".wav", ".ogg", ".aac"}
 MIN_SECONDS = 60
@@ -150,7 +151,9 @@ def main() -> None:
     seen: set[str] = set()
     rows, made, skipped = [], 0, {"length": 0, "duplicate": 0, "no title": 0}
 
+    progress = Progress(len(files), "audio files to check")
     for path in files:
+        progress.done += 1
         duration, tags = probe(path)
         if not duration or not MIN_SECONDS <= duration <= MAX_SECONDS:
             skipped["length"] += 1
@@ -179,9 +182,9 @@ def main() -> None:
         try:
             make_clip(path, dest)
             made += 1
-            print(f"clip: {dest.name}")
+            progress.note(f"clip: {dest.name}")
         except subprocess.CalledProcessError as exc:
-            print(f"  failed: {path.name}: {exc}")
+            progress.note(f"failed: {path.name}: {exc}")
         if args.limit and made >= args.limit:
             break
 

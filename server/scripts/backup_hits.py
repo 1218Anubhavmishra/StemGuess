@@ -18,6 +18,7 @@ from sqlalchemy import select
 from app import config
 from app.db import SessionLocal
 from app.models import Song
+from scripts.progress import Progress
 
 DEFAULT_DEST = Path("D:/StemGuess backup/hits")
 
@@ -32,7 +33,8 @@ def main() -> None:
     dest.mkdir(parents=True, exist_ok=True)
     manifest = []
     with SessionLocal() as db:
-        songs = db.scalars(select(Song).where(Song.source_file.startswith("hits:")).order_by(Song.artist, Song.title))
+        songs = db.scalars(select(Song).where(Song.source_file.startswith("hits:")).order_by(Song.artist, Song.title)).all()
+        progress = Progress(len(songs), "songs to back up")
         for song in songs:
             folder = dest / folder_name(song)
             folder.mkdir(exist_ok=True)
@@ -40,7 +42,7 @@ def main() -> None:
             for stem in song.stems:
                 src = config.MEDIA_DIR / stem.path
                 if stem.path.startswith("http") or not src.exists():
-                    print(f"missing locally: {song.title} {stem.name}")
+                    progress.note(f"missing locally: {song.title} {stem.name}")
                     continue
                 target = folder / src.name
                 if not target.exists():
@@ -48,6 +50,7 @@ def main() -> None:
                 files.append(f"{folder.name}/{src.name}")
             manifest.append({"title": song.title, "artist": song.artist, "source": song.source_file,
                              "youtube": (song.credit or {}).get("url"), "stems": files})
+            progress.step(folder.name)
     (dest / "songs.json").write_text(json.dumps(manifest, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"{len(manifest)} songs backed up to {dest}")
 

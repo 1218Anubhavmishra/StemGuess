@@ -17,6 +17,7 @@ from sqlalchemy import select
 from app import config
 from app.db import SessionLocal, init_db
 from app.models import Stem
+from scripts.progress import Progress
 
 
 def main() -> None:
@@ -37,10 +38,11 @@ def main() -> None:
     uploaded = 0
     with SessionLocal() as db:
         stems = db.scalars(select(Stem).where(Stem.path.not_like("http%"), Stem.path.not_like("demo/%"))).all()
+        progress = Progress(len(stems), "stems to upload")
         for stem in stems:
             local = config.MEDIA_DIR / stem.path
             if not local.exists():
-                print(f"  missing file, skipped: {stem.path}")
+                progress.step(f"missing file, skipped: {stem.path}")
                 continue
             content_type = mimetypes.guess_type(local.name)[0] or "application/octet-stream"
             s3.upload_file(
@@ -52,7 +54,7 @@ def main() -> None:
             stem.path = f"{config.R2_PUBLIC_URL}/{stem.path}"
             db.commit()
             uploaded += 1
-            print(f"uploaded: {stem.path}")
+            progress.step(f"uploaded: {stem.path}")
     print(f"done, {uploaded} stems uploaded")
 
 

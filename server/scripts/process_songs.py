@@ -35,6 +35,7 @@ from sqlalchemy import select
 from app import config
 from app.db import SessionLocal, init_db
 from app.models import Song, Stem
+from scripts.progress import Progress
 
 AUDIO_EXTS = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".aac"}
 POLL_SECONDS = 5
@@ -240,16 +241,16 @@ def main() -> None:
         done = set(db.scalars(select(Song.source_file)))
 
     client = MusicAi(config.MUSIC_AI_API_KEY, config.MUSIC_AI_BASE_URL)
-    for path in files:
-        if source_name(path) in done:
-            print(f"skip (already processed): {path.name}")
-            continue
-        print(f"processing: {path.name}")
+    todo = [p for p in files if source_name(p) not in done]
+    if len(todo) < len(files):
+        print(f"skip {len(files) - len(todo)} already processed")
+    progress = Progress(len(todo), "songs to process")
+    for path in todo:
+        progress.note(f"processing: {path.name}")
         try:
-            count = process(client, path)
-            print(f"  saved {count} stems")
+            progress.step(f"saved {process(client, path)} stems: {path.name}")
         except Exception as exc:
-            print(f"  failed: {exc}")
+            progress.step(f"failed: {path.name}: {exc}")
 
 
 if __name__ == "__main__":

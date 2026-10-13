@@ -19,6 +19,7 @@ from app import config
 from app.db import SessionLocal
 from app.models import Song
 from scripts.import_hits import HITS, video_id
+from scripts.progress import Progress
 
 REJECTED = HITS.with_name("hits_rejected.csv")
 
@@ -37,7 +38,9 @@ def delete_songs(ids: set[str]) -> None:
     s3 = None
     with SessionLocal() as db:
         sources = [f"hits:yt:{i}" for i in ids]
-        for song in db.scalars(select(Song).where(Song.source_file.in_(sources))).all():
+        songs = db.scalars(select(Song).where(Song.source_file.in_(sources))).all()
+        progress = Progress(len(songs), "songs to remove")
+        for song in songs:
             for stem in song.stems:
                 if stem.path.startswith("http"):
                     s3 = s3 or r2_client()
@@ -48,7 +51,7 @@ def delete_songs(ids: set[str]) -> None:
             if folder and not song.stems[0].path.startswith("http") and folder.is_dir() and not any(folder.iterdir()):
                 shutil.rmtree(folder)
             db.delete(song)
-            print(f"removed: {song.title} - {song.artist}", flush=True)
+            progress.step(f"removed: {song.title} - {song.artist}")
         db.commit()
 
 

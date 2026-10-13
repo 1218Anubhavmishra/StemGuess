@@ -30,6 +30,7 @@ from app import config
 from app.db import SessionLocal, init_db
 from app.models import Song, Stem
 from scripts.process_songs import FFMPEG, clip_start, duration_of, export_stem, is_silent
+from scripts.progress import Progress
 
 HITS = Path(__file__).with_name("hits.csv")
 SEPARATE = Path(__file__).with_name("separate.py")
@@ -64,7 +65,7 @@ def sync(hits: list[dict]) -> None:
     print(f"{changed} songs updated")
 
 
-def import_batch(batch: list[dict]) -> None:
+def import_batch(batch: list[dict], progress: Progress) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         jobs = []
         for i, hit in enumerate(batch):
@@ -76,16 +77,27 @@ def import_batch(batch: list[dict]) -> None:
                                 str(clip)], check=True)
                 jobs.append({"clip": str(clip), "out": str(Path(tmp) / f"{i}-stems"), "hit": i})
             except subprocess.CalledProcessError as exc:
-                print(f"  failed to cut {hit['title']}: {exc}", flush=True)
+                progress.step(f"failed to cut {hit['title']}: {exc}")
         jobs_file = Path(tmp) / "jobs.json"
         jobs_file.write_text(json.dumps(jobs), encoding="utf-8")
-        subprocess.run([DEMUCS_PYTHON, str(SEPARATE), str(jobs_file)], check=True)
-        for job in jobs:
-            hit = batch[job["hit"]]
-            try:
-                print(f"  {add_song(hit, Path(job['out']))} stems: {hit['title']} - {hit['artist']}", flush=True)
-            except Exception as exc:
-                print(f"  failed: {hit['title']}: {exc}", flush=True)
+        # separate.py prints "done <out>" or "failed <out>: <error>" as each clip finishes.
+        with subprocess.Popen([DEMUCS_PYTHON, str(SEPARATE), str(jobs_file)], stdout=subprocess.PIPE,
+                              text=True, encoding="utf-8") as demucs:
+            for line in demucs.stdout:
+                status, _, rest = line.strip().partition(" ")
+                job = next((j for j in jobs if rest == j["out"] or rest.startswith(j["out"] + ":")), None)
+                if not job:
+                    continue
+                hit = batch[job["hit"]]
+                if status != "done":
+                    progress.step(f"failed: {hit['title']}: {rest.removeprefix(job['out'] + ':').strip()}")
+                    continue
+                try:
+                    progress.step(f"{add_song(hit, Path(job['out']))} stems: {hit['title']} - {hit['artist']}")
+                except Exception as exc:
+                    progress.step(f"failed: {hit['title']}: {exc}")
+        if demucs.returncode:
+            raise subprocess.CalledProcessError(demucs.returncode, demucs.args)
 
 
 def add_song(hit: dict, stems_dir: Path) -> int:
@@ -131,10 +143,9 @@ def main() -> None:
         if f"hits:yt:{video_id(hit['youtube'])}" in done:
             continue
         (todo if hit.get("file") and Path(hit["file"]).exists() else pending).append(hit)
-    print(f"{len(todo)} songs to import", flush=True)
+    progress = Progress(len(todo), "songs to import")
     for start in range(0, len(todo), BATCH):
-        print(f"batch {start // BATCH + 1}: songs {start + 1}-{min(start + BATCH, len(todo))}", flush=True)
-        import_batch(todo[start : start + BATCH])
+        import_batch(todo[start : start + BATCH], progress)
     for hit in pending:
         print(f"pending (no audio file): {hit['title']} - {hit['artist']}  {hit['youtube']}")
 

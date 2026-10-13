@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app import config
 from app.db import SessionLocal, init_db
 from app.models import Song, Stem
+from scripts.progress import Progress
 
 PUBLISHABLE = ("cc:", "hits:")
 
@@ -49,10 +50,9 @@ def main() -> None:
         existing = set(live.scalars(select(Song.source_file).where(Song.source_file.startswith(prefix))))
     with Session(create_engine(source_url)) as local:
         songs = local.scalars(select(Song).where(Song.source_file.startswith(prefix))).all()
-        added = 0
-        for song in songs:
-            if song.source_file in existing:
-                continue
+        todo = [s for s in songs if s.source_file not in existing]
+        progress = Progress(len(todo), "songs to publish")
+        for song in todo:
             stems = []
             for stem in song.stems:
                 path = stem.path
@@ -68,9 +68,8 @@ def main() -> None:
                               source_file=song.source_file, duration=song.duration, credit=song.credit,
                               stems=stems))
                 live.commit()
-            added += 1
-            print(f"published: {song.title} - {song.artist}", flush=True)
-    print(f"done, {added} songs published ({len(songs) - added} already live)")
+            progress.step(f"published: {song.title} - {song.artist}")
+    print(f"done, {len(todo)} songs published ({len(songs) - len(todo)} already live)")
 
 
 if __name__ == "__main__":

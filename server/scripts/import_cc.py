@@ -28,6 +28,7 @@ from app import config
 from app.db import SessionLocal, init_db
 from app.models import Song, Stem
 from scripts.process_songs import FFMPEG, clip_start, duration_of, export_stem, is_silent
+from scripts.progress import Progress
 
 INCOMPETECH_CATALOG = "https://incompetech.com/music/royalty-free/pieces.json"
 INCOMPETECH_MP3 = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/"
@@ -153,18 +154,18 @@ def main() -> None:
     with SessionLocal() as db:
         done = set(db.scalars(select(Song.source_file).where(Song.source_file.startswith("cc:"))))
         titles = {t.casefold() for t in db.scalars(select(func.lower(Song.title)))}
-    for pick in incompetech_picks(per_genre) + ccmixter_picks():
-        if pick["source"] in done:
-            continue
+    picks = [p for p in incompetech_picks(per_genre) + ccmixter_picks() if p["source"] not in done]
+    progress = Progress(len(picks))
+    for pick in picks:
         if pick["title"].casefold() in titles:
-            print(f"skip (title already used): {pick['title']}")
+            progress.step(f"skip (title already used): {pick['title']}")
             continue
-        print(f"adding [{pick['genre']}]: {pick['title']} - {pick['artist']}", flush=True)
         try:
             add_song(pick)
             titles.add(pick["title"].casefold())
+            progress.step(f"added [{pick['genre']}]: {pick['title']} - {pick['artist']}")
         except Exception as exc:
-            print(f"  failed: {exc}")
+            progress.step(f"failed: {pick['title']}: {exc}")
 
 
 if __name__ == "__main__":
