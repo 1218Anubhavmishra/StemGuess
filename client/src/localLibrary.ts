@@ -7,6 +7,11 @@ export const CLIP_SECONDS = 15;
 // Mono 22.05 kHz 16-bit WAV: ~660 KB per clip, small enough to send to every player quickly.
 const CLIP_RATE = 22050;
 const EDGE_SKIP = 0.1;
+// Vocal removal keeps the mix below this frequency, where bass and kick live.
+const BASS_CUTOFF_HZ = 150;
+// Side energy below this share of the centre's means the file is (near) mono.
+const MIN_SIDE_RATIO = 0.01;
+const CLIP_PEAK = 0.9;
 
 let nextId = 1;
 let tracks: LocalTrack[] = [];
@@ -95,7 +100,45 @@ export function makeTrack(file: File): LocalTrack {
   return { id: nextId++, ...guessName(file.name), file };
 }
 
-/** Decodes an audio file on this device and cuts its loudest 15 s into a small WAV clip. */
+/** True when the left and right channels differ enough for centre cancellation to leave music behind. */
+function isStereo(buffer: AudioBuffer, start: number, length: number): boolean {
+  if (buffer.numberOfChannels < 2) return false;
+  const [left, right] = [buffer.getChannelData(0), buffer.getChannelData(1)];
+  const from = Math.floor(start * buffer.sampleRate);
+  const to = Math.min(left.length, from + Math.floor(length * buffer.sampleRate));
+  let mid = 0;
+  let side = 0;
+  for (let i = from; i < to; i += 16) {
+    mid += (left[i] + right[i]) ** 2;
+    side += (left[i] - right[i]) ** 2;
+  }
+  return side > mid * MIN_SIDE_RATIO;
+}
+
+/**
+ * Lead vocals are almost always mixed dead centre, so left minus right cancels them. Bass and kick
+ * sit in the centre too, so the low end of the normal mix is added back.
+ */
+function connectWithoutVocals(offline: OfflineAudioContext, source: AudioBufferSourceNode) {
+  const splitter = offline.createChannelSplitter(2);
+  const right = offline.createGain();
+  right.gain.value = -1;
+  source.connect(splitter);
+  splitter.connect(offline.destination, 0);
+  splitter.connect(right, 1).connect(offline.destination);
+  const low = offline.createBiquadFilter();
+  low.type = 'lowpass';
+  low.frequency.value = BASS_CUTOFF_HZ;
+  source.connect(low).connect(offline.destination);
+}
+
+function normalize(samples: Float32Array) {
+  let peak = 0;
+  for (const s of samples) peak = Math.max(peak, Math.abs(s));
+  if (peak > 0) samples.forEach((s, i) => (samples[i] = (s / peak) * CLIP_PEAK));
+}
+
+/** Decodes an audio file on this device and cuts its loudest 15 s, vocals removed, into a small WAV clip. */
 async function cutClip(file: File): Promise<ArrayBuffer> {
   const decoded = await audioContext().decodeAudioData(await file.arrayBuffer());
   const start = loudestWindow(decoded);
@@ -103,10 +146,13 @@ async function cutClip(file: File): Promise<ArrayBuffer> {
   const offline = new OfflineAudioContext(1, Math.ceil(length * CLIP_RATE), CLIP_RATE);
   const source = offline.createBufferSource();
   source.buffer = decoded;
-  source.connect(offline.destination);
+  // A mono file has no side signal to keep, so it plays as it is.
+  if (isStereo(decoded, start, length)) connectWithoutVocals(offline, source);
+  else source.connect(offline.destination);
   source.start(0, start, length);
-  const rendered = await offline.startRendering();
-  return encodeWav(rendered.getChannelData(0), CLIP_RATE);
+  const samples = (await offline.startRendering()).getChannelData(0);
+  normalize(samples);
+  return encodeWav(samples, CLIP_RATE);
 }
 
 const clipCache = new WeakMap<File, Promise<ArrayBuffer>>();

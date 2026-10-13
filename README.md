@@ -86,7 +86,10 @@ The host picks the song source in the lobby:
 | Preview of hits | Vocal-free stems of popular songs from `import_hits`, linked to their YouTube video |
 | My own music | Audio files picked on the host's device |
 
-With **My own music**, the host's browser cuts a 15 s clip from each picked file. The server only
+With **My own music**, the host's browser cuts a 15 s clip from each picked file and removes the
+vocals by centre-channel cancellation (left minus right, with the mix below 150 Hz added back for
+bass and kick). Vocals panned off-centre or with stereo reverb partly remain, and mono files are left
+as they are. The server only
 receives the titles. Clips go from the host to each player over a direct WebRTC connection, or
 through the server (forwarded, never stored) when a direct connection can't be made within 7 s.
 The wrong options come from the same library (the host's other titles in this mode).

@@ -68,8 +68,9 @@ export default function About({ onClose }: { onClose: () => void }) {
             YouTube video.
           </li>
           <li>
-            <b>My music</b>: the host picks a folder of songs on their device. The clips go straight to the other
-            players and are never stored by StemGuess.
+            <b>My music</b>: the host picks a folder of songs on their device. Their browser cuts a clip of each and
+            cancels the vocals mixed in the centre (some backing vocals and effects can remain; mono files keep
+            theirs). The clips go straight to the other players and are never stored by StemGuess.
           </li>
         </ul>
         <p className="muted small">
