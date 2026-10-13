@@ -103,6 +103,12 @@ async def library(_sid, _data=None):
     return {"ok": True, "libraries": await games.library_sizes()}
 
 
+@sio.on("practice_round")
+async def practice_round(_sid, data=None):
+    data = data or {}
+    return await games.practice_round(data.get("library"), data.get("exclude"))
+
+
 @sio.on("set_local_tracks")
 async def set_local_tracks(sid, data=None):
     return await games.set_local_tracks(sid, (data or {}).get("tracks"))

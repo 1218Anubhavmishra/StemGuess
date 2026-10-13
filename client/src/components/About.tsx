@@ -1,0 +1,94 @@
+import { useEffect } from 'react';
+import { GITHUB_URL, PLAYER_LIMITS, SONG_LIMITS } from '../types';
+
+export default function About({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <section
+        className="card about"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="about-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="about-head">
+          <h2 id="about-title">About StemGuess</h2>
+          <button className="ghost small" aria-label="Close" onClick={onClose}>
+            ✕
+          </button>
+        </header>
+
+        <p>
+          StemGuess is a multiplayer "name that song" game. Each round plays a short clip of a song, built from its
+          instrument stems, and everyone races to pick the right title.
+        </p>
+
+        <h3>Play with friends</h3>
+        <ol>
+          <li>Enter your name, choose the max players ({PLAYER_LIMITS.min}–{PLAYER_LIMITS.max}) and press Create Room.</li>
+          <li>Share the 4-letter room code, the invite link or the QR code. Friends join with the code.</li>
+          <li>
+            As the host, pick where the songs come from and how many songs to play ({SONG_LIMITS.min}–{SONG_LIMITS.max}),
+            then press Start game. The game also starts by itself once the room is full.
+          </li>
+        </ol>
+
+        <h3>How a round works</h3>
+        <ul>
+          <li>The clip loops until the timer runs out. Pick one of the four titles; you only get one pick.</li>
+          <li>Faster right answers score more: 10 points at the start, falling to 1 point at the buzzer.</li>
+          <li>After each round you see the answer and its credit. The highest score after the last song wins.</li>
+          <li>Use the speaker button and slider to mute or change the game volume. End leaves the game.</li>
+          <li>If your connection drops, the game keeps your seat and puts you back in when you reconnect.</li>
+        </ul>
+
+        <h3>Song sources</h3>
+        <ul>
+          <li>
+            <b>StemGuess demos</b>: original tracks made by StemGuess, one for each music genre.
+          </li>
+          <li>
+            <b>Creative Commons</b>: songs their artists share under Creative Commons licences, credited after each
+            round.
+          </li>
+          <li>
+            <b>Preview of hits</b>: short previews of popular hits with the vocals taken out, each linking to its
+            YouTube video.
+          </li>
+          <li>
+            <b>My music</b>: the host picks a folder of songs on their device. The clips go straight to the other
+            players and are never stored by StemGuess.
+          </li>
+        </ul>
+        <p className="muted small">
+          In every mode the game picks the songs at random, so nobody (not even the host) knows what's coming.
+        </p>
+
+        <h3>Play Library</h3>
+        <p>
+          Practise on your own with any of the four song sources: listen to a song, pick its title, and see how many
+          you get right. No room needed.
+        </p>
+
+        <h3>Other options</h3>
+        <ul>
+          <li>The speaker next to the logo turns the menu music on or off.</li>
+          <li>Your name is remembered on this device for next time.</li>
+        </ul>
+
+        <p className="about-github">
+          Made by{' '}
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+            1218Anubhavmishra on GitHub
+          </a>
+        </p>
+      </section>
+    </div>
+  );
+}

@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getFolder, getTracks, makeTrack, setTracks, subscribe, type LocalTrack } from '../localLibrary';
 import { request } from '../socket';
-import { LOCAL_POOL_FACTOR, type Library, type RoomState } from '../types';
+import { LOCAL_POOL_FACTOR, type Library, type RoomState, type ServerLibrary } from '../types';
 
 const CONSENT_KEY = 'stemguess:localMusicConsent';
 // Bigger folders are sampled down to this many songs (titles only go to the server).
 const MAX_TRACKS = 1000;
 const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|webm|wma|aiff?)$/i;
 
-const OPTIONS: { id: Library; label: string; notice: string; howItWorks?: string }[] = [
+export const OPTIONS: { id: Library; label: string; notice: string; howItWorks?: string }[] = [
   {
     id: 'demo',
     label: 'StemGuess demos',
@@ -26,6 +26,14 @@ const OPTIONS: { id: Library; label: string; notice: string; howItWorks?: string
       'So no player (even us) will ever know the songs that will be picked for the game.',
   },
   {
+    id: 'hits',
+    label: 'Preview of hits',
+    notice: 'Short previews of popular hits, with the vocals taken out. Each song links to its YouTube video after the round.',
+    howItWorks:
+      'In this mode, the game will randomly pick the chosen number of songs from the hits previews. ' +
+      'So no player (even us) will ever know the songs that will be picked for the game.',
+  },
+  {
     id: 'local',
     label: 'My music',
     notice:
@@ -38,16 +46,18 @@ const OPTIONS: { id: Library; label: string; notice: string; howItWorks?: string
 export const LIBRARY_LABELS: Record<Library, string> = {
   demo: 'StemGuess demos',
   cc: 'Creative Commons songs',
+  hits: 'Preview of hits',
   local: "🎵 Host's music",
 };
 
 export const GUEST_NOTICES: Record<Library, string> = {
   demo: 'Original & free to play demo tracks by StemGuess.',
   cc: 'Songs shared by their artists under Creative Commons licences.',
+  hits: 'Short previews of popular hits, with the vocals taken out.',
   local: "Songs come from the host's device and are shared only with this room. StemGuess doesn't store them.",
 };
 
-function useLocalTracks(): LocalTrack[] {
+export function useLocalTracks(): LocalTrack[] {
   const [tracks, set] = useState(getTracks);
   useEffect(() => subscribe(() => set(getTracks())), []);
   return tracks;
@@ -62,26 +72,18 @@ function shuffled<T>(items: T[]): T[] {
   return out;
 }
 
-function LocalSongs({ rounds }: { rounds: number }) {
+/** Consent, folder / file pickers and the chosen folder's name. `hint` goes under the folder name. */
+export function LocalPicker({ hint }: { hint?: ReactNode }) {
   const tracks = useLocalTracks();
   const [consent, setConsent] = useState(() => sessionStorage.getItem(CONSENT_KEY) === '1');
   const [empty, setEmpty] = useState('');
   const folderInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const needed = rounds * LOCAL_POOL_FACTOR;
 
   useEffect(() => {
     // Not in React's input typings. Browsers without folder picking (iOS) fall back to a file picker.
     folderInput.current?.setAttribute('webkitdirectory', '');
   }, []);
-
-  // Titles only (never audio) go to the server, which shows them as answer options.
-  useEffect(() => {
-    const id = setTimeout(() => {
-      void request('set_local_tracks', { tracks: tracks.map(({ title, artist }) => ({ title, artist })) });
-    }, 300);
-    return () => clearTimeout(id);
-  }, [tracks]);
 
   /** The whole selection becomes the pool; the game draws from it, so the host never picks songs. */
   function takePool(input: HTMLInputElement | null) {
@@ -130,18 +132,76 @@ function LocalSongs({ rounds }: { rounds: number }) {
           📁 {folder || 'Selected files'}
         </p>
       )}
-      <p className="muted small">
-        In this mode, the game will randomly pick the chosen number of songs from that folder. So no player (even us)
-        will ever know the songs that will be picked for the game.
-      </p>
+      {hint}
       {empty && <p className="error small">{empty}</p>}
-      {tracks.length > 0 && (
-        <p className="muted small" role="status">
-          {tracks.length < needed
-            ? `Found ${tracks.length} songs. A ${rounds}-song game needs at least ${needed}.`
-            : `Found ${tracks.length} songs. The game will pick ${rounds} at random.`}
-        </p>
-      )}
+    </div>
+  );
+}
+
+function LocalSongs({ rounds }: { rounds: number }) {
+  const tracks = useLocalTracks();
+  const needed = rounds * LOCAL_POOL_FACTOR;
+
+  // Titles only (never audio) go to the server, which shows them as answer options.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      void request('set_local_tracks', { tracks: tracks.map(({ title, artist }) => ({ title, artist })) });
+    }, 300);
+    return () => clearTimeout(id);
+  }, [tracks]);
+
+  return (
+    <LocalPicker
+      hint={
+        <>
+          <p className="muted small">
+            In this mode, the game will randomly pick the chosen number of songs from that folder. So no player (even
+            us) will ever know the songs that will be picked for the game.
+          </p>
+          {tracks.length > 0 && (
+            <p className="muted small" role="status">
+              {tracks.length < needed
+                ? `Found ${tracks.length} songs. A ${rounds}-song game needs at least ${needed}.`
+                : `Found ${tracks.length} songs. The game will pick ${rounds} at random.`}
+            </p>
+          )}
+        </>
+      }
+    />
+  );
+}
+
+/** Server libraries with fewer than `minSongs` songs show "Coming soon" and can't be picked. */
+export function LibraryTabs({
+  value,
+  libraries,
+  minSongs,
+  onChange,
+}: {
+  value: Library;
+  libraries: Record<ServerLibrary, number> | null;
+  minSongs: number;
+  onChange: (library: Library) => void;
+}) {
+  return (
+    <div className="segmented" role="radiogroup">
+      {OPTIONS.map((o) => {
+        const disabled = o.id !== 'local' && o.id !== 'demo' && (libraries?.[o.id] ?? 0) < minSongs;
+        return (
+          <button
+            key={o.id}
+            role="radio"
+            aria-checked={value === o.id}
+            className={value === o.id ? 'on' : ''}
+            disabled={disabled}
+            title={disabled ? 'Coming soon' : undefined}
+            onClick={() => onChange(o.id)}
+          >
+            {o.label}
+            {disabled && <small>Coming soon</small>}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -154,36 +214,17 @@ export default function SongSource({
   onChange,
 }: {
   room: RoomState;
-  libraries: Record<'demo' | 'cc', number> | null;
+  libraries: Record<ServerLibrary, number> | null;
   minSongs: number;
   rounds: number;
   onChange: (library: Library) => void;
 }) {
   const selected = OPTIONS.find((o) => o.id === room.library) ?? OPTIONS[0];
-  const ccReady = (libraries?.cc ?? 0) >= minSongs;
 
   return (
     <fieldset className="song-source">
       <legend>Songs from</legend>
-      <div className="segmented" role="radiogroup">
-        {OPTIONS.map((o) => {
-          const disabled = o.id === 'cc' && !ccReady;
-          return (
-            <button
-              key={o.id}
-              role="radio"
-              aria-checked={room.library === o.id}
-              className={room.library === o.id ? 'on' : ''}
-              disabled={disabled}
-              title={disabled ? 'Coming soon' : undefined}
-              onClick={() => onChange(o.id)}
-            >
-              {o.label}
-              {disabled && <small>Coming soon</small>}
-            </button>
-          );
-        })}
-      </div>
+      <LibraryTabs value={room.library} libraries={libraries} minSongs={minSongs} onChange={onChange} />
       <div className="notice small">
         <p>{selected.notice}</p>
         {selected.howItWorks && <p>{selected.howItWorks}</p>}

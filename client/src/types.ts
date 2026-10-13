@@ -12,7 +12,18 @@ export type RoomState = {
   players: Player[];
 };
 
-export type Library = 'demo' | 'cc' | 'local';
+export type ServerLibrary = 'demo' | 'cc' | 'hits';
+export type Library = ServerLibrary | 'local';
+
+export type PracticeRound = {
+  id: number;
+  urls: string[];
+  options: string[];
+  correct: number;
+  title: string;
+  artist: string;
+  credit?: Credit | null;
+};
 
 export type Phase = 'lobby' | 'prepare' | 'playing' | 'roundEnd' | 'gameOver';
 
@@ -24,7 +35,7 @@ export type FeedItem = {
   points?: number;
 };
 
-export type Credit = { text: string; url?: string; license: string; licenseUrl?: string };
+export type Credit = { text: string; url?: string; license?: string; licenseUrl?: string };
 
 export type RoundAnswer = {
   title: string;
@@ -42,8 +53,11 @@ export type Ack = {
   playerId?: string;
   token?: string;
   result?: 'correct' | 'wrong';
-  libraries?: Record<'demo' | 'cc', number>;
+  libraries?: Record<ServerLibrary, number>;
+  round?: PracticeRound;
 };
+
+export const GITHUB_URL = 'https://github.com/1218Anubhavmishra';
 
 export const SONG_LIMITS = { min: 3, max: 10 };
 export const PLAYER_LIMITS = { min: 2, max: 10 };

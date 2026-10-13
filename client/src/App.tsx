@@ -7,6 +7,9 @@ import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
 import GameOver from './components/GameOver';
+import About from './components/About';
+import MenuLinks from './components/MenuLinks';
+import Practice from './components/Practice';
 let feedId = 0;
 
 export default function App() {
@@ -24,6 +27,8 @@ export default function App() {
   const [transfer, setTransfer] = useState<{ ready: number; total: number } | null>(null);
   // Remounts the game view per game so in-game settings (volume, mute) start from their defaults.
   const [gameKey, setGameKey] = useState(0);
+  const [practice, setPractice] = useState(false);
+  const [about, setAbout] = useState(false);
 
   useEffect(() => {
     const pushFeed = (item: Omit<FeedItem, 'id'>) =>
@@ -149,13 +154,28 @@ export default function App() {
       : phase === 'gameOver'
         ? 'gameOver'
         : 'lobby';
-  const menuMusic = screen === 'home' || screen === 'lobby';
+  const practising = practice && (screen === 'home' || screen === 'lobby');
+  const menuMusic = (screen === 'home' || screen === 'lobby') && !practising;
 
   useEffect(() => bgMusic.setWanted(menuMusic), [menuMusic]);
+  // A game starting (e.g. the room filled up) takes over from the practice screen.
+  useEffect(() => {
+    if (screen === 'game') setPractice(false);
+  }, [screen]);
+
+  const menu = <MenuLinks onPractice={() => setPractice(true)} onAbout={() => setAbout(true)} />;
+  const aboutDialog = about && <About onClose={() => setAbout(false)} />;
+
+  if (practising) {
+    return <Practice connected={connected} onBack={() => setPractice(false)} />;
+  }
 
   if (!room) {
     return (
-      <Home connected={connected} />
+      <>
+        <Home connected={connected} menu={menu} />
+        {aboutDialog}
+      </>
     );
   }
 
@@ -171,7 +191,8 @@ export default function App() {
     return (
       <>
         {banner}
-        <Lobby room={room} isHost={isHost} onLeave={leave} />
+        <Lobby room={room} isHost={isHost} onLeave={leave} menu={menu} />
+        {aboutDialog}
       </>
     );
   }

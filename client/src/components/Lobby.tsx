@@ -1,15 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { request, socket } from '../socket';
-import { LOCAL_POOL_FACTOR, SONG_LIMITS, type Library, type RoomState } from '../types';
+import { LOCAL_POOL_FACTOR, SONG_LIMITS, type Library, type RoomState, type ServerLibrary } from '../types';
 import Brand from './Brand';
 import Invite from './Invite';
 import Scoreboard from './Scoreboard';
 import SongSource, { GUEST_NOTICES, LIBRARY_LABELS } from './SongSource';
 import Stepper from './Stepper';
 
-export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHost: boolean; onLeave: () => void }) {
+export default function Lobby({
+  room,
+  isHost,
+  onLeave,
+  menu,
+}: {
+  room: RoomState;
+  isHost: boolean;
+  onLeave: () => void;
+  menu: ReactNode;
+}) {
   const [error, setError] = useState('');
-  const [libraries, setLibraries] = useState<Record<'demo' | 'cc', number> | null>(null);
+  const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
 
   useEffect(() => {
     void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
@@ -19,7 +29,7 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
   // Songs per game the library can supply (the host's own songs are drawn from a bigger pool).
   const librarySize = local
     ? Math.floor(room.localTracks / LOCAL_POOL_FACTOR)
-    : (libraries?.[room.library as 'demo' | 'cc'] ?? null);
+    : (libraries?.[room.library as ServerLibrary] ?? null);
   const maxSongs = Math.min(SONG_LIMITS.max, librarySize ?? SONG_LIMITS.max);
   const notEnoughSongs = local
     ? room.localTracks < room.totalRounds * LOCAL_POOL_FACTOR
@@ -100,6 +110,7 @@ export default function Lobby({ room, isHost, onLeave }: { room: RoomState; isHo
             Leave room
           </button>
         </div>
+        {menu}
       </div>
     </main>
   );

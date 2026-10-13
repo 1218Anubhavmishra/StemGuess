@@ -25,7 +25,7 @@ MAX_POINTS = 10
 
 # Where a room's songs come from. Server libraries are told apart by their Song.source_file prefix;
 # songs without one (e.g. processed from a personal collection) are never served to games.
-SERVER_LIBRARIES = {"demo": "demo:", "cc": "cc:"}
+SERVER_LIBRARIES = {"demo": "demo:", "cc": "cc:", "hits": "hits:"}
 LIBRARIES = (*SERVER_LIBRARIES, "local")
 # Host-supplied songs: the host's device cuts clips and sends them straight to the other players.
 # The server only ever sees titles, never audio (apart from relaying chunks between players whose
@@ -424,6 +424,36 @@ class GameManager:
     @staticmethod
     def _library_sizes() -> dict[str, int]:
         return {name: len(GameManager._playable_song_ids(name)) for name in SERVER_LIBRARIES}
+
+    async def practice_round(self, library: object, exclude: object = None) -> dict:
+        """One solo round for the Play Library screen. The answer is included: nothing is at stake."""
+        if library not in SERVER_LIBRARIES:
+            return _error("Unknown song library")
+        return await asyncio.to_thread(self._practice_round, library, exclude if isinstance(exclude, list) else [])
+
+    @staticmethod
+    def _practice_round(library: str, exclude: list) -> dict:
+        song_ids = GameManager._playable_song_ids(library)
+        if not song_ids:
+            return _error("This library has no songs yet")
+        fresh = [i for i in song_ids if i not in set(exclude)] or song_ids
+        song_id = random.choice(fresh)
+        rnd = GameManager._load_round(song_id)
+        if not rnd:
+            return _error("Could not load a song")
+        rnd = GameManager._with_options(rnd, GameManager._titles(song_ids))
+        return {
+            "ok": True,
+            "round": {
+                "id": song_id,
+                "urls": rnd.urls,
+                "options": rnd.options,
+                "correct": rnd.correct,
+                "title": rnd.title,
+                "artist": rnd.artist,
+                "credit": rnd.credit,
+            },
+        }
 
     async def start_game(self, sid: str) -> dict:
         room = self._room_of(sid)

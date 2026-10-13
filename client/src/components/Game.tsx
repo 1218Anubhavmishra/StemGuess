@@ -3,6 +3,7 @@ import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
 import Brand from './Brand';
+import CreditLine from './CreditLine';
 import Scoreboard from './Scoreboard';
 import SpeakerIcon from './SpeakerIcon';
 
@@ -166,25 +167,7 @@ export default function Game({
               {answer.title}
               {answer.artist && ` - ${answer.artist}`}
             </h2>
-            {answer.credit && (
-              <p className="credit muted small">
-                {answer.credit.url ? (
-                  <a href={answer.credit.url} target="_blank" rel="noreferrer">
-                    {answer.credit.text}
-                  </a>
-                ) : (
-                  answer.credit.text
-                )}
-                {' · Licensed under '}
-                {answer.credit.licenseUrl ? (
-                  <a href={answer.credit.licenseUrl} target="_blank" rel="noreferrer">
-                    {answer.credit.license}
-                  </a>
-                ) : (
-                  answer.credit.license
-                )}
-              </p>
-            )}
+            {answer.credit && <CreditLine credit={answer.credit} />}
             <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
               {me && answer.points[me.name]
                 ? `Correct! +${pointsLabel(answer.points[me.name])}`

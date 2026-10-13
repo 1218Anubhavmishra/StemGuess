@@ -63,6 +63,14 @@ After testing them locally (with a SQLite `DATABASE_URL`), put exactly those son
 `.\.venv\Scripts\python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db`: it copies only the
 `cc:` songs into the database from `server/.env` and uploads only their clips to R2.
 
+The "Preview of hits" library comes from `scripts/hits.json` (artist, title, local file, YouTube link).
+`.\.venv\Scripts\python -m scripts.import_hits` cuts each song's loudest 15 s and splits it with
+[Demucs](https://github.com/facebookresearch/demucs) (free, runs locally) into drums, bass and other,
+dropping the vocals; each song is credited with its YouTube link. Demucs needs PyTorch, so it runs in
+its own environment (`DEMUCS_PYTHON`, default `~/stem-sep/Scripts/python`; install with
+`pip install torch demucs soundfile`). On a laptop CPU it takes about 30 s per song. Songs without a
+file are listed as pending. Publish with `publish_cc ... --prefix hits:`.
+
 ## Song libraries
 
 The host picks the song source in the lobby:
@@ -71,13 +79,17 @@ The host picks the song source in the lobby:
 | --- | --- |
 | StemGuess originals | Demo songs on the server (`seed_demo`) |
 | Creative Commons | Server songs from `import_cc` or processed with `--cc`, credited after each round; "Coming soon" until there are enough |
+| Preview of hits | Vocal-free stems of popular songs from `import_hits`, linked to their YouTube video |
 | My own music | Audio files picked on the host's device |
 
 With **My own music**, the host's browser cuts a 15 s clip from each picked file. The server only
 receives the titles. Clips go from the host to each player over a direct WebRTC connection, or
 through the server (forwarded, never stored) when a direct connection can't be made within 7 s.
 The wrong options come from the same library (the host's other titles in this mode).
-Songs on the server that are neither demo (`demo:`) nor Creative Commons (`cc:`) are never used in games.
+Songs on the server outside the demo (`demo:`), Creative Commons (`cc:`) and hits (`hits:`) libraries are never used in games.
+
+**Play Library** (home and lobby) is solo practice against any of the four sources, one song at a
+time, with no room needed.
 
 Cost is about $0.07 per minute of audio for standard stems (see [pricing](https://music.ai/pricing/)).
 

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { unlockAudio } from '../audio';
 import { request, saveSession } from '../socket';
 import { PLAYER_LIMITS } from '../types';
@@ -9,7 +9,7 @@ import Stepper from './Stepper';
 const NAME_KEY = 'stemguess:name';
 const NAME_LIMIT = 20;
 
-export default function Home({ connected }: { connected: boolean }) {
+export default function Home({ connected, menu }: { connected: boolean; menu: ReactNode }) {
   const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) ?? '');
   const [code, setCode] = useState(() => new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '');
   const [maxPlayers, setMaxPlayers] = useState(PLAYER_LIMITS.min);
@@ -81,6 +81,7 @@ export default function Home({ connected }: { connected: boolean }) {
           {error && <p className="error">{error}</p>}
           {!connected && <p className="muted small">Connecting to server…</p>}
         </div>
+        {menu}
       </div>
     </main>
   );
