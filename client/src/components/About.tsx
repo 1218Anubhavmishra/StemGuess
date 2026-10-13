@@ -48,7 +48,8 @@ export default function About({ onClose }: { onClose: () => void }) {
           <li>If your connection drops, the game keeps your seat and puts you back in when you reconnect.</li>
           <li>
             Joining a game that has already started (for example after losing your seat) lets you spectate: you
-            see and hear every round but can't answer, and you join as a player when the game ends.
+            see and hear every round but can't answer, and you join as a player when the game ends. A room holds at
+            most 10 people, players and spectators together.
           </li>
           <li>With My music, everyone's clips are kept on their device for the game, so reloading the page doesn't lose them.</li>
         </ul>

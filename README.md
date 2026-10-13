@@ -96,7 +96,7 @@ Songs on the server outside the demo (`demo:`), Creative Commons (`cc:`) and hit
 switches to Practice to guess random songs solo, with no room needed.
 
 Joining a game that has already started offers **Spectate**: spectators see and hear every round
-without answering and become players when the game ends. With My own music, each player's browser
+without answering and become players when the game ends. Players and spectators together are capped at 10. With My own music, each player's browser
 keeps the game's clips in IndexedDB, so a reload mid-game doesn't need them sent again.
 
 Cost is about $0.07 per minute of audio for standard stems (see [pricing](https://music.ai/pricing/)).

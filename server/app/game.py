@@ -36,7 +36,8 @@ MAX_LOCAL_TRACKS = 1000
 LOCAL_POOL_FACTOR = 2
 LOCAL_TRANSFER_TIMEOUT = 90
 MAX_RELAY_CHUNK = 256 * 1024
-MAX_SPECTATORS = 20
+# Players (connected or holding a seat) plus spectators.
+MAX_PEOPLE = MAX_PLAYER_LIMIT
 
 
 def _is_remote(path: str) -> bool:
@@ -219,8 +220,10 @@ class GameManager:
         if room.state == "playing":
             if spectate is True:
                 return await self._add_spectator(room, sid, name)
+            if len(room.players) + len(room.spectators) >= MAX_PEOPLE:
+                return _error(f"This game has already started and is full ({MAX_PEOPLE} people max)")
             return {**_error("This game has already started. You can watch it as a spectator."), "canSpectate": True}
-        if len(room.players) >= room.max_players:
+        if len(room.players) >= room.max_players or len(room.players) + len(room.spectators) >= MAX_PEOPLE:
             return _error(f"Room is full (max {room.max_players} players)")
         await self.leave(sid)
         result = await self._add_player(room, sid, name)
@@ -237,8 +240,8 @@ class GameManager:
         return {"ok": True, "code": room.code, "playerId": sid, "token": player.token}
 
     async def _add_spectator(self, room: Room, sid: str, name: str) -> dict:
-        if len(room.spectators) >= MAX_SPECTATORS:
-            return _error("Too many people are watching this game")
+        if len(room.players) + len(room.spectators) >= MAX_PEOPLE:
+            return _error(f"This game is full ({MAX_PEOPLE} people max, players and spectators together)")
         await self.leave(sid)
         spectator = Spectator(sid=sid, name=name)
         room.spectators[sid] = spectator
