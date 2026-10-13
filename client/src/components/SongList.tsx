@@ -1,23 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
 import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
+import { ProgressBar, usePlayback } from './Playback';
 import { useLocalTracks } from './SongSource';
 
-type Item = { key: string; title: string; artist: string; credit?: Credit | null; play: () => Promise<boolean> };
+type Item = { key: string; title: string; artist: string; credit?: Credit | null; load: () => Promise<boolean> };
 
-/** Every song in a library; pick one to hear its clip. Remount per library. */
+/** Every song in a library, with a player: pick a song, pause, seek, skip. Remount per library. */
 export default function SongList({ library, connected }: { library: Library; connected: boolean }) {
   const [songs, setSongs] = useState<Item[] | null>(null);
-  const [playing, setPlaying] = useState<string | null>(null);
-  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [current, setCurrent] = useState<Item | null>(null);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
+  const { playing } = usePlayback();
   const tracks = useLocalTracks();
   const local = library === 'local';
 
-  useEffect(() => () => stemPlayer.stop(), []);
+  useEffect(
+    () => () => {
+      stemPlayer.onEnded = undefined;
+      stemPlayer.stop();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (local) {
@@ -26,7 +34,7 @@ export default function SongList({ library, connected }: { library: Library; con
           key: `local:${t.id}`,
           title: t.title,
           artist: t.artist,
-          play: async () => {
+          load: async () => {
             stemPlayer.prepareClip(clipOf(t));
             return true;
           },
@@ -43,7 +51,7 @@ export default function SongList({ library, connected }: { library: Library; con
           title: s.title,
           artist: s.artist,
           credit: s.credit,
-          play: async () => {
+          load: async () => {
             const clip = await request('song_clip', { id: s.id });
             if (!clip.ok || !clip.urls) return false;
             stemPlayer.prepare(clip.urls.map(serverUrl));
@@ -54,34 +62,79 @@ export default function SongList({ library, connected }: { library: Library; con
     });
   }, [library, local, connected, tracks]);
 
-  async function toggle(item: Item) {
+  const needle = query.trim().toLowerCase();
+  const shown = (songs ?? []).filter((s) => !needle || `${s.title} ${s.artist}`.toLowerCase().includes(needle));
+
+  async function play(item: Item) {
     unlockAudio();
     stemPlayer.stop();
-    if (playing === item.key) {
-      setPlaying(null);
-      return;
-    }
     setError('');
-    setLoadingKey(item.key);
-    const ok = await item.play();
-    setLoadingKey(null);
+    setCurrent(item);
+    setLoading(true);
+    const ok = await item.load();
+    setLoading(false);
     if (!ok) {
-      setPlaying(null);
       setError(`Could not load "${item.title}"`);
       return;
     }
-    setPlaying(item.key);
-    void stemPlayer.start();
+    void stemPlayer.start({ loop: false });
   }
 
-  const needle = query.trim().toLowerCase();
-  const shown = (songs ?? []).filter((s) => !needle || `${s.title} ${s.artist}`.toLowerCase().includes(needle));
+  function toggle(item: Item) {
+    if (current?.key !== item.key) return void play(item);
+    unlockAudio();
+    if (playing) stemPlayer.pause();
+    else stemPlayer.resume();
+  }
+
+  function step(by: number) {
+    const list = shown.length ? shown : (songs ?? []);
+    if (!list.length) return;
+    const at = list.findIndex((s) => s.key === current?.key);
+    void play(list[(at + by + list.length) % list.length]);
+  }
+
+  // Each song plays once, then the next one in the list starts.
+  const advance = useRef(() => {});
+  advance.current = () => step(1);
+  useEffect(() => {
+    stemPlayer.onEnded = () => advance.current();
+  }, []);
 
   if (!songs) return <p className="muted small">{local ? '' : 'Loading songs…'}</p>;
   if (!songs.length) return <p className="muted small">{local ? 'Pick your songs above to see them here.' : 'No songs yet.'}</p>;
 
+  const isCurrent = (s: Item) => current?.key === s.key;
+
   return (
     <div className="song-list">
+      {current && (
+        <div className="player" aria-label="Player">
+          <div className="player-head">
+            <span className="song-name">
+              <b>{current.title}</b>
+              {current.artist && <span className="muted"> {current.artist}</span>}
+            </span>
+            <div className="player-buttons">
+              <button className="player-step" aria-label="Previous song" disabled={loading} onClick={() => step(-1)}>
+                ⏮
+              </button>
+              <button
+                className="play-song"
+                aria-label={playing ? 'Pause' : 'Play'}
+                disabled={loading}
+                onClick={() => toggle(current)}
+              >
+                {loading ? '…' : playing ? '❚❚' : '▶'}
+              </button>
+              <button className="player-step" aria-label="Next song" disabled={loading} onClick={() => step(1)}>
+                ⏭
+              </button>
+            </div>
+          </div>
+          <ProgressBar seekable />
+        </div>
+      )}
       <input
         className="song-search"
         type="search"
@@ -92,14 +145,14 @@ export default function SongList({ library, connected }: { library: Library; con
       />
       <ul>
         {shown.map((s) => (
-          <li key={s.key} className={playing === s.key ? 'playing' : ''}>
+          <li key={s.key} className={isCurrent(s) ? 'playing' : ''}>
             <button
               className="play-song"
-              aria-label={playing === s.key ? `Stop ${s.title}` : `Play ${s.title}`}
-              disabled={loadingKey !== null}
-              onClick={() => void toggle(s)}
+              aria-label={isCurrent(s) && playing ? `Pause ${s.title}` : `Play ${s.title}`}
+              disabled={loading}
+              onClick={() => toggle(s)}
             >
-              {loadingKey === s.key ? '…' : playing === s.key ? '■' : '▶'}
+              {isCurrent(s) && loading ? '…' : isCurrent(s) && playing ? '❚❚' : '▶'}
             </button>
             <span className="song-name">
               <b>{s.title}</b>

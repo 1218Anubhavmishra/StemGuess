@@ -46,8 +46,18 @@ def lan_address() -> dict:
             return {"ip": None}
 
 
+class ClientFiles(StaticFiles):
+    # Built assets have a content hash in their name and never change; everything else (index.html)
+    # must be revalidated, or a browser keeps a page pointing at assets the next deploy removed.
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        immutable = path.replace("\\", "/").startswith("assets/")
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable" if immutable else "no-cache"
+        return response
+
+
 if (config.CLIENT_DIST_DIR / "index.html").exists():
-    api.mount("/", StaticFiles(directory=config.CLIENT_DIST_DIR, html=True), name="client")
+    api.mount("/", ClientFiles(directory=config.CLIENT_DIST_DIR, html=True), name="client")
 else:
     log.warning("Web client not built: run `npm run build` in client/ to serve it from this server.")
 

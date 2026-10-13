@@ -4,6 +4,7 @@ import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
 import CreditLine from './CreditLine';
+import { ProgressBar } from './Playback';
 import { useLocalTracks } from './SongSource';
 
 type Round = { options: string[]; correct: number; title: string; artist: string; credit?: Credit | null };
@@ -115,6 +116,7 @@ export default function Practice({ library, connected }: { library: Library; con
               {round.credit && <CreditLine credit={round.credit} />}
             </div>
           )}
+          <ProgressBar />
           <div className="options" role="group" aria-label="Answer options">
             {round.options.map((title, i) => (
               <button key={`${i}-${title}`} className={optionClass(i)} disabled={choice !== null} onClick={() => pick(i)}>

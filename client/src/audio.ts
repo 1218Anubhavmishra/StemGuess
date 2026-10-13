@@ -20,14 +20,23 @@ for (const event of ['pointerdown', 'keydown', 'touchstart']) {
 
 const DEFAULT_VOLUME = 0.2;
 
-/** Plays all stems of a round together, in sync and looped until the round ends. */
+/** Plays all stems of a song together and in sync: looped in rounds, or once with seeking in the Song Library. */
 class StemPlayer {
   private master?: GainNode;
   private buffers?: Promise<AudioBuffer[]>;
+  private loaded?: AudioBuffer[];
   private tracks: Track[] = [];
   private generation = 0;
   private volume = DEFAULT_VOLUME;
   private muted = false;
+  private loop = true;
+  // Context time at which the song's 0 s mark plays, and where it is paused.
+  private origin = 0;
+  private offset = 0;
+  private playing = false;
+  private endTimer?: number;
+  /** Called when a song played with loop off reaches its end. */
+  onEnded?: () => void;
 
   private output(): GainNode {
     if (!this.master) {
@@ -60,24 +69,77 @@ class StemPlayer {
     this.buffers.catch((err) => console.error(err));
   }
 
-  async start() {
+  async start({ loop = true } = {}) {
     const generation = this.generation;
     const buffers = await this.buffers?.catch(() => undefined);
     if (!buffers || generation !== this.generation) return;
+    this.loaded = buffers;
+    this.loop = loop;
+    this.launch(0);
+  }
 
+  private launch(offset: number) {
+    if (!this.loaded) return;
+    this.release();
     const ctx = audioContext();
     void ctx.resume();
     const startAt = ctx.currentTime + 0.1;
-    this.tracks = buffers.map((buffer) => {
+    this.origin = startAt - offset;
+    this.offset = offset;
+    this.playing = true;
+    this.tracks = this.loaded.map((buffer) => {
       const gain = ctx.createGain();
       gain.connect(this.output());
       const source = ctx.createBufferSource();
       source.buffer = buffer;
-      source.loop = true;
+      source.loop = this.loop;
       source.connect(gain);
-      source.start(startAt);
+      source.start(startAt, offset);
       return { source, gain };
     });
+    if (!this.loop) {
+      this.endTimer = window.setTimeout(() => {
+        this.release();
+        this.playing = false;
+        this.offset = 0;
+        this.onEnded?.();
+      }, (this.duration() - offset + 0.1) * 1000);
+    }
+  }
+
+  /** Length of the loaded song in seconds (0 until it has started once). */
+  duration() {
+    return Math.max(0, ...(this.loaded ?? []).map((b) => b.duration));
+  }
+
+  /** Current point in the song, in seconds. */
+  position() {
+    const length = this.duration();
+    if (!this.playing || !length) return this.offset;
+    const t = Math.max(0, audioContext().currentTime - this.origin);
+    return this.loop ? t % length : Math.min(t, length);
+  }
+
+  isPlaying() {
+    return this.playing;
+  }
+
+  pause() {
+    if (!this.playing) return;
+    const at = this.position();
+    this.release();
+    this.playing = false;
+    this.offset = at;
+  }
+
+  resume() {
+    if (!this.playing) this.launch(this.offset >= this.duration() ? 0 : this.offset);
+  }
+
+  seek(seconds: number) {
+    const at = Math.min(Math.max(0, seconds), this.duration());
+    if (this.playing) this.launch(at);
+    else this.offset = at;
   }
 
   setVolume(value: number) {
@@ -105,6 +167,14 @@ class StemPlayer {
 
   stop() {
     this.generation++;
+    this.release();
+    this.loaded = undefined;
+    this.playing = false;
+    this.offset = 0;
+  }
+
+  private release() {
+    window.clearTimeout(this.endTimer);
     for (const { source, gain } of this.tracks) {
       try {
         source.stop();

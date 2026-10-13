@@ -490,7 +490,7 @@ class GameManager:
         return {name: len(GameManager._playable_song_ids(name)) for name in SERVER_LIBRARIES}
 
     async def library_songs(self, library: object) -> dict:
-        """Every song in a server library, for the Play Library list."""
+        """Every song in a server library, for the Song Library list."""
         if library not in SERVER_LIBRARIES:
             return _error("Unknown song library")
         return {"ok": True, "songs": await asyncio.to_thread(self._library_songs, library)}
@@ -503,7 +503,7 @@ class GameManager:
             return [{"id": s.id, "title": s.title, "artist": s.artist, "credit": s.credit} for s in songs]
 
     async def song_clip(self, song_id: object) -> dict:
-        """The stems of one library song, for playing it from the Play Library list."""
+        """The stems of one library song, for playing it from the Song Library list."""
         if not isinstance(song_id, int) or isinstance(song_id, bool):
             return _error("Unknown song")
         rnd = await asyncio.to_thread(self._load_library_round, song_id)
@@ -518,7 +518,7 @@ class GameManager:
         return GameManager._load_round(song_id)
 
     async def practice_round(self, library: object, exclude: object = None) -> dict:
-        """One solo round for the Play Library screen. The answer is included: nothing is at stake."""
+        """One solo round for Practice. The answer is included: nothing is at stake."""
         if library not in SERVER_LIBRARIES:
             return _error("Unknown song library")
         return await asyncio.to_thread(self._practice_round, library, exclude if isinstance(exclude, list) else [])

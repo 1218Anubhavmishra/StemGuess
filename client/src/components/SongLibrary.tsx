@@ -7,12 +7,20 @@ import Practice from './Practice';
 import SongList from './SongList';
 import { LibraryTabs, LocalPicker, OPTIONS } from './SongSource';
 
-type Mode = 'songs' | 'practice';
+export type LibraryMode = 'songs' | 'practice';
 
 /** Browse and play any library's songs, or practise guessing them. No room needed. */
-export default function PlayLibrary({ connected, onBack }: { connected: boolean; onBack: () => void }) {
+export default function SongLibrary({
+  connected,
+  initialMode,
+  onBack,
+}: {
+  connected: boolean;
+  initialMode: LibraryMode;
+  onBack: () => void;
+}) {
   const [library, setLibrary] = useState<Library>('demo');
-  const [mode, setMode] = useState<Mode>('songs');
+  const [mode, setMode] = useState<LibraryMode>(initialMode);
   const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
 
   useEffect(() => {
@@ -31,7 +39,7 @@ export default function PlayLibrary({ connected, onBack }: { connected: boolean;
       <div className="home-stack practice">
         <Brand music={false} />
         <div className="card narrow">
-          <h2 className="practice-head">Play Library</h2>
+          <h2 className="practice-head">Song Library</h2>
           <LibraryTabs value={library} libraries={libraries} minSongs={SONG_LIMITS.min} onChange={choose} />
           <p className="notice small">{selected.notice}</p>
           {library === 'local' && <LocalPicker />}

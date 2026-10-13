@@ -76,10 +76,12 @@ export default function About({ onClose }: { onClose: () => void }) {
           In every mode the game picks the songs at random, so nobody (not even the host) knows what's coming.
         </p>
 
-        <h3>Play Library</h3>
+        <h3>Song Library and Practice</h3>
         <p>
-          Browse every song in any of the four song sources and play the one you choose, or switch to Practice to
-          guess random songs on your own and see how many you get right. No room needed.
+          Song Library lists every song in any of the four song sources. Pick one to play it, then pause, skip back
+          or forward, or drag the progress bar to any point; the next song starts when one ends. Practice (also its
+          own button) plays random songs for you to guess on your own and counts how many you get right. No room
+          needed.
         </p>
 
         <h3>Other options</h3>
