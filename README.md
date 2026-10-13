@@ -93,7 +93,7 @@ The wrong options come from the same library (the host's other titles in this mo
 Songs on the server outside the demo (`demo:`), Creative Commons (`cc:`) and hits (`hits:`) libraries are never used in games.
 
 **Song Library** (home and lobby) lists every song in any of the four sources with a player (play/pause,
-previous/next, seekable progress bar, autoplay of the next song). **Practice** (its own button, or a tab
+5 s back/forward, previous/next, seekable progress bar, autoplay of the next song). **Practice** (its own button, or a tab
 in the Song Library) plays random songs to guess solo, with a progress bar. No room needed.
 
 Joining a game that has already started offers **Spectate**: spectators see and hear every round

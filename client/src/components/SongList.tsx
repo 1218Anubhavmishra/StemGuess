@@ -6,6 +6,8 @@ import type { Credit, Library } from '../types';
 import { ProgressBar, usePlayback } from './Playback';
 import { useLocalTracks } from './SongSource';
 
+const SKIP_SECONDS = 5;
+
 type Item = { key: string; title: string; artist: string; credit?: Credit | null; load: () => Promise<boolean> };
 
 /** Every song in a library, with a player: pick a song, pause, seek, skip. Remount per library. */
@@ -87,6 +89,13 @@ export default function SongList({ library, connected }: { library: Library; con
     else stemPlayer.resume();
   }
 
+  function skip(seconds: number) {
+    const target = stemPlayer.position() + seconds;
+    // Skipping past the end moves on, like the song finishing.
+    if (target >= stemPlayer.duration()) return step(1);
+    stemPlayer.seek(target);
+  }
+
   function step(by: number) {
     const list = shown.length ? shown : (songs ?? []);
     if (!list.length) return;
@@ -120,12 +129,28 @@ export default function SongList({ library, connected }: { library: Library; con
                 ⏮
               </button>
               <button
+                className="player-step player-skip"
+                aria-label={`Back ${SKIP_SECONDS} seconds`}
+                disabled={loading}
+                onClick={() => skip(-SKIP_SECONDS)}
+              >
+                -{SKIP_SECONDS}
+              </button>
+              <button
                 className="play-song"
                 aria-label={playing ? 'Pause' : 'Play'}
                 disabled={loading}
                 onClick={() => toggle(current)}
               >
                 {loading ? '…' : playing ? '❚❚' : '▶'}
+              </button>
+              <button
+                className="player-step player-skip"
+                aria-label={`Forward ${SKIP_SECONDS} seconds`}
+                disabled={loading}
+                onClick={() => skip(SKIP_SECONDS)}
+              >
+                +{SKIP_SECONDS}
               </button>
               <button className="player-step" aria-label="Next song" disabled={loading} onClick={() => step(1)}>
                 ⏭

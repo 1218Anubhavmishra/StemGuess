@@ -280,6 +280,7 @@ button.back { color: var(--muted); }
 .player-head { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
 .player-buttons { display: flex; align-items: center; gap: 6px; flex: none; }
 .player-step { width: 30px; height: 30px; padding: 0; border-radius: 50%; font-size: 0.75rem; background: var(--panel); }
+.player-skip { font-size: 0.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .progress-row { display: flex; align-items: center; gap: 8px; }
 .progress-time { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 2.4em; text-align: center; }
 .progress { flex: 1; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }

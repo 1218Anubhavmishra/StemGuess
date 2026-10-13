@@ -78,8 +78,9 @@ export default function About({ onClose }: { onClose: () => void }) {
 
         <h3>Song Library and Practice</h3>
         <p>
-          Song Library lists every song in any of the four song sources. Pick one to play it, then pause, skip back
-          or forward, or drag the progress bar to any point; the next song starts when one ends. Practice (also its
+          Song Library lists every song in any of the four song sources. Pick one to play it, then pause, jump 5 seconds
+          back or forward, go to the previous or next song, or drag the progress bar to any point; the next song
+          starts when one ends. Practice (also its
           own button) plays random songs for you to guess on your own and counts how many you get right. No room
           needed.
         </p>
