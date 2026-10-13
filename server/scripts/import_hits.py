@@ -2,10 +2,11 @@
 
 From server/:  python -m scripts.import_hits [--sync-only]
 
-Songs are listed in scripts/hits.json ({"artist", "title", "file", "youtube"}); the YouTube link
-identifies a song, so titles and artists can be edited there and re-synced. Each run:
+Songs are listed in scripts/hits.csv (title, artist, youtube, file; file is empty when there's no
+audio yet); the YouTube link identifies a song, so titles and artists can be edited there and
+re-synced. Each run:
 1. updates the title, artist and credit of songs already in the database (DATABASE_URL) to match
-   hits.json. --sync-only stops here, e.g. to rename songs in the live database;
+   hits.csv. --sync-only stops here, e.g. to rename songs in the live database;
 2. imports the new songs: each song's loudest CLIP_SECONDS are cut and split with Demucs (free, runs
    on this machine) into drums, bass and other, dropping the vocals. Demucs needs PyTorch, so it
    runs in its own environment, set with DEMUCS_PYTHON (default: ~/stem-sep/Scripts/python), once
@@ -13,6 +14,7 @@ identifies a song, so titles and artists can be edited there and re-synced. Each
 Songs without an audio file are listed as pending. Publish new songs with publish_cc --prefix hits:.
 """
 
+import csv
 import json
 import os
 import secrets
@@ -29,7 +31,7 @@ from app.db import SessionLocal, init_db
 from app.models import Song, Stem
 from scripts.process_songs import FFMPEG, clip_start, duration_of, export_stem, is_silent
 
-HITS = Path(__file__).with_name("hits.json")
+HITS = Path(__file__).with_name("hits.csv")
 SEPARATE = Path(__file__).with_name("separate.py")
 DEMUCS_PYTHON = os.environ.get("DEMUCS_PYTHON") or str(Path.home() / "stem-sep" / "Scripts" / "python")
 DEMUCS_RATE = 44100
@@ -113,7 +115,9 @@ def add_song(hit: dict, stems_dir: Path) -> int:
 
 
 def main() -> None:
-    hits = json.loads(HITS.read_text(encoding="utf-8"))
+    # utf-8-sig: spreadsheet apps add a byte-order mark when saving.
+    with HITS.open(encoding="utf-8-sig", newline="") as f:
+        hits = [{k: (v or "").strip() for k, v in row.items()} for row in csv.DictReader(f)]
     init_db()
     sync(hits)
     if "--sync-only" in sys.argv:

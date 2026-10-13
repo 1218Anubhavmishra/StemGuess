@@ -63,14 +63,14 @@ After testing them locally (with a SQLite `DATABASE_URL`), put exactly those son
 `.\.venv\Scripts\python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db`: it copies only the
 `cc:` songs into the database from `server/.env` and uploads only their clips to R2.
 
-The "Preview of hits" library comes from `scripts/hits.json` (artist, title, local file, YouTube link).
+The "Preview of hits" library comes from `scripts/hits.csv` (title, artist, YouTube link, local file), a table you can edit in Cursor or a spreadsheet app.
 `.\.venv\Scripts\python -m scripts.import_hits` cuts each song's loudest 15 s and splits it with
 [Demucs](https://github.com/facebookresearch/demucs) (free, runs locally) into drums, bass and other,
 dropping the vocals; each song is credited with its YouTube link. Demucs needs PyTorch, so it runs in
 its own environment (`DEMUCS_PYTHON`, default `~/stem-sep/Scripts/python`; install with
 `pip install torch demucs soundfile`). Clips are separated 10 at a time with the model loaded once
 (on the GPU when there is one); on a laptop CPU it takes about 20 s per song. Songs without a file are
-listed as pending. Songs are matched by YouTube link, so titles can be shortened in `hits.json`: run
+listed as pending. Songs are matched by YouTube link, so titles can be shortened in `hits.csv`: run
 `import_hits` again locally and `import_hits --sync-only` against the live database to rename them
 without re-importing. Publish with `publish_cc ... --prefix hits:`. `python -m scripts.backup_hits [folder]`
 copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/StemGuess backup/hits`).
