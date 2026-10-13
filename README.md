@@ -74,6 +74,8 @@ listed as pending. Songs are matched by YouTube link, so titles can be shortened
 `import_hits` again locally and `import_hits --sync-only` against the live database to rename them
 without re-importing. Publish with `publish_cc ... --prefix hits:`. `python -m scripts.backup_hits [folder]`
 copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/StemGuess backup/hits`).
+`python -m scripts.remove_hits <YouTube id> ...` deletes songs (e.g. ones where vocals leak through)
+with their stem files, and moves their rows to `hits_rejected.csv`; run it locally and against live.
 
 ## Song libraries
 
