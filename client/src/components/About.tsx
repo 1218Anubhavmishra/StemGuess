@@ -18,10 +18,10 @@ export default function About({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="about-head">
+          <h2 id="about-title">About StemGuess</h2>
           <button className="back-button" aria-label="Back" title="Back" onClick={onClose}>
             &lt;
           </button>
-          <h2 id="about-title">About StemGuess</h2>
         </header>
 
         <p>

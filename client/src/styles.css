@@ -310,7 +310,7 @@ button.back { color: var(--muted); }
 .about h3 { margin: 8px 0 0; }
 .about-head { display: flex; align-items: center; gap: 12px; }
 .back-button {
-  width: 36px; height: 36px; padding: 0; flex: none; border-radius: 10px;
+    width: 36px; height: 36px; padding: 0; flex: none; margin-left: auto; border-radius: 10px;
   background: var(--me); border-color: var(--me); color: #fff; font-size: 1.3rem; line-height: 1;
 }
 .about-head h2 { margin: 0; }
