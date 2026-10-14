@@ -4,7 +4,8 @@ From server/:  python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db [-
 
 The target is DATABASE_URL from server/.env (the live database). Only songs whose source starts with
 the prefix (default "cc:") are copied, so nothing else on the local machine is ever uploaded. Songs
-already in the target are skipped.
+already in the target are skipped, unless their clips changed (e.g. after reseparate_hits): then the
+new clips are uploaded and replace the old ones.
 """
 
 import mimetypes
@@ -45,31 +46,43 @@ def main() -> None:
         region_name="auto",
     )
 
+    def live_path(path: str) -> str:
+        return path if path.startswith("http") else f"{config.R2_PUBLIC_URL}/{path}"
+
     init_db()
     with SessionLocal() as live:
-        existing = set(live.scalars(select(Song.source_file).where(Song.source_file.startswith(prefix))))
+        existing = {s.source_file: {st.path for st in s.stems}
+                    for s in live.scalars(select(Song).where(Song.source_file.startswith(prefix)))}
     with Session(create_engine(source_url)) as local:
         songs = local.scalars(select(Song).where(Song.source_file.startswith(prefix))).all()
-        todo = [s for s in songs if s.source_file not in existing]
+        todo = [s for s in songs
+                if existing.get(s.source_file) != {live_path(st.path) for st in s.stems}]
         progress = Progress(len(todo), "songs to publish")
         for song in todo:
             stems = []
             for stem in song.stems:
-                path = stem.path
-                if not path.startswith("http"):
-                    file = config.MEDIA_DIR / path
+                if not stem.path.startswith("http"):
+                    file = config.MEDIA_DIR / stem.path
                     content_type = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
-                    s3.upload_file(str(file), config.R2_BUCKET, path, ExtraArgs={
+                    s3.upload_file(str(file), config.R2_BUCKET, stem.path, ExtraArgs={
                         "ContentType": content_type, "CacheControl": "public, max-age=31536000, immutable"})
-                    path = f"{config.R2_PUBLIC_URL}/{path}"
-                stems.append(Stem(name=stem.name, path=path))
+                stems.append(Stem(name=stem.name, path=live_path(stem.path)))
             with SessionLocal() as live:
-                live.add(Song(title=song.title, artist=song.artist, aliases=list(song.aliases or []),
-                              source_file=song.source_file, duration=song.duration, credit=song.credit,
-                              stems=stems))
+                old = live.scalars(select(Song).where(Song.source_file == song.source_file)).first()
+                if old:
+                    for path in {st.path for st in old.stems} - {st.path for st in stems}:
+                        if path.startswith(f"{config.R2_PUBLIC_URL}/"):
+                            s3.delete_object(Bucket=config.R2_BUCKET,
+                                             Key=path.removeprefix(f"{config.R2_PUBLIC_URL}/"))
+                    old.stems = stems
+                    old.duration = song.duration
+                else:
+                    live.add(Song(title=song.title, artist=song.artist, aliases=list(song.aliases or []),
+                                  source_file=song.source_file, duration=song.duration, credit=song.credit,
+                                  stems=stems))
                 live.commit()
-            progress.step(f"published: {song.title} - {song.artist}")
-    print(f"done, {len(todo)} songs published ({len(songs) - len(todo)} already live)")
+            progress.step(f"{'updated' if old else 'published'}: {song.title} - {song.artist}")
+    print(f"done, {len(todo)} songs published or updated ({len(songs) - len(todo)} already live)")
 
 
 if __name__ == "__main__":
