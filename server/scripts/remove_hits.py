@@ -1,7 +1,8 @@
 """Remove "Preview of hits" songs, e.g. ones whose vocals Demucs couldn't take out.
 
-From server/:  python -m scripts.remove_hits <YouTube id> [<YouTube id> ...]
+From server/:  python -m scripts.remove_hits <YouTube id or song source> [...]
 
+A song is named by its YouTube video id, or by its full source ("hits:yt:..." or "hits:file:...").
 Deletes the songs from the database in DATABASE_URL along with their stem files (local media or R2
 objects), and moves their rows from hits.csv to hits_rejected.csv so import_hits doesn't add them
 again. Run it once against the local database and once against the live one.
@@ -18,7 +19,7 @@ from sqlalchemy import select
 from app import config
 from app.db import SessionLocal
 from app.models import Song
-from scripts.import_hits import HITS, video_id
+from scripts.import_hits import HITS, read_hits, source_of
 from scripts.progress import Progress
 
 REJECTED = HITS.with_name("hits_rejected.csv")
@@ -34,10 +35,9 @@ def r2_client():
     )
 
 
-def delete_songs(ids: set[str]) -> None:
+def delete_songs(sources: set[str]) -> None:
     s3 = None
     with SessionLocal() as db:
-        sources = [f"hits:yt:{i}" for i in ids]
         songs = db.scalars(select(Song).where(Song.source_file.in_(sources))).all()
         progress = Progress(len(songs), "songs to remove")
         for song in songs:
@@ -55,14 +55,13 @@ def delete_songs(ids: set[str]) -> None:
         db.commit()
 
 
-def move_rows(ids: set[str]) -> None:
-    with HITS.open(encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        fields, rows = reader.fieldnames, list(reader)
-    keep = [r for r in rows if video_id(r["youtube"].strip()) not in ids]
-    moved = [r for r in rows if video_id(r["youtube"].strip()) in ids]
+def move_rows(sources: set[str]) -> None:
+    rows = read_hits()
+    keep = [r for r in rows if source_of(r) not in sources]
+    moved = [r for r in rows if source_of(r) in sources]
     if not moved:
         return
+    fields = list(rows[0].keys())
     new_file = not REJECTED.exists()
     with REJECTED.open("a", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
@@ -77,11 +76,11 @@ def move_rows(ids: set[str]) -> None:
 
 
 def main() -> None:
-    ids = set(sys.argv[1:])
-    if not ids:
-        sys.exit("Usage: python -m scripts.remove_hits <YouTube id> [<YouTube id> ...]")
-    delete_songs(ids)
-    move_rows(ids)
+    sources = {a if a.startswith("hits:") else f"hits:yt:{a}" for a in sys.argv[1:]}
+    if not sources:
+        sys.exit("Usage: python -m scripts.remove_hits <YouTube id or song source> [...]")
+    delete_songs(sources)
+    move_rows(sources)
 
 
 if __name__ == "__main__":

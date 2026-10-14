@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import { SONG_LIMITS, type Library, type ServerLibrary } from '../types';
+import ArtistPicker, { useLibraryArtists } from './ArtistPicker';
 import Brand from './Brand';
 import Practice from './Practice';
 import SongList from './SongList';
@@ -22,6 +23,8 @@ export default function SongLibrary({
   const [library, setLibrary] = useState<Library>('demo');
   const [mode, setMode] = useState<LibraryMode>(initialMode);
   const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
+  const [chosenArtists, setChosenArtists] = useState<string[]>([]);
+  const artists = useLibraryArtists(library, connected);
 
   useEffect(() => {
     if (connected) void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
@@ -30,6 +33,7 @@ export default function SongLibrary({
   function choose(next: Library) {
     stemPlayer.stop();
     setLibrary(next);
+    setChosenArtists([]);
   }
 
   const selected = OPTIONS.find((o) => o.id === library) ?? OPTIONS[0];
@@ -43,6 +47,7 @@ export default function SongLibrary({
           <LibraryTabs value={library} libraries={libraries} minSongs={SONG_LIMITS.min} onChange={choose} />
           <p className="notice small">{selected.notice}</p>
           {library === 'local' && <LocalPicker />}
+          <ArtistPicker artists={artists} chosen={chosenArtists} onChange={setChosenArtists} />
 
           <div className="segmented two" role="radiogroup" aria-label="Mode">
             {(
@@ -67,9 +72,14 @@ export default function SongLibrary({
           </div>
 
           {mode === 'songs' ? (
-            <SongList key={library} library={library} connected={connected} />
+            <SongList key={library} library={library} connected={connected} artists={chosenArtists} />
           ) : (
-            <Practice key={library} library={library} connected={connected} />
+            <Practice
+              key={`${library}|${chosenArtists.join('|')}`}
+              library={library}
+              connected={connected}
+              artists={chosenArtists}
+            />
           )}
 
           <button className="ghost leave-room back" onClick={onBack}>

@@ -291,6 +291,19 @@ button.back { color: var(--muted); }
 }
 .progress.seek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
 .progress.seek::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
+.artist-picker { display: flex; flex-direction: column; gap: 6px; }
+.artist-toggle { display: flex; align-items: center; gap: 4px; width: 100%; text-align: left; background: var(--panel); font-size: 0.9rem; padding: 8px 12px; }
+.artist-toggle b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artist-caret { margin-left: auto; color: var(--muted); }
+.artist-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
+.artist-tools { display: flex; gap: 6px; }
+.artist-tools .song-search { flex: 1; min-width: 0; }
+.artist-tools button { flex: none; font-size: 0.8rem; padding: 6px 10px; }
+.artist-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.artist-list label { display: flex; align-items: center; gap: 8px; padding: 5px 4px; font-size: 0.9rem; cursor: pointer; border-radius: 6px; }
+.artist-list label:hover { background: var(--panel-2); }
+.artist-list input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); flex: none; }
+.artist-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .about { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; gap: 8px; line-height: 1.45; }
 .about p, .about ul, .about ol { margin: 0; }
 .about ul, .about ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }

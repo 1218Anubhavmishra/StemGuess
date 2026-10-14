@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
+import { byArtists } from '../artists';
 import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
@@ -11,7 +12,16 @@ const SKIP_SECONDS = 5;
 type Item = { key: string; title: string; artist: string; credit?: Credit | null; load: () => Promise<boolean> };
 
 /** Every song in a library, with a player: pick a song, pause, seek, skip. Remount per library. */
-export default function SongList({ library, connected }: { library: Library; connected: boolean }) {
+export default function SongList({
+  library,
+  connected,
+  artists,
+}: {
+  library: Library;
+  connected: boolean;
+  /** Only songs by these artists are listed; all when empty. */
+  artists: string[];
+}) {
   const [songs, setSongs] = useState<Item[] | null>(null);
   const [current, setCurrent] = useState<Item | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,7 +75,9 @@ export default function SongList({ library, connected }: { library: Library; con
   }, [library, local, connected, tracks]);
 
   const needle = query.trim().toLowerCase();
-  const shown = (songs ?? []).filter((s) => !needle || `${s.title} ${s.artist}`.toLowerCase().includes(needle));
+  const byChosen = byArtists(artists);
+  const listed = (songs ?? []).filter((s) => byChosen(s.artist));
+  const shown = listed.filter((s) => !needle || `${s.title} ${s.artist}`.toLowerCase().includes(needle));
 
   async function play(item: Item) {
     unlockAudio();
@@ -97,7 +109,7 @@ export default function SongList({ library, connected }: { library: Library; con
   }
 
   function step(by: number) {
-    const list = shown.length ? shown : (songs ?? []);
+    const list = shown.length ? shown : listed;
     if (!list.length) return;
     const at = list.findIndex((s) => s.key === current?.key);
     void play(list[(at + by + list.length) % list.length]);
@@ -163,7 +175,7 @@ export default function SongList({ library, connected }: { library: Library; con
       <input
         className="song-search"
         type="search"
-        placeholder={`Search ${songs.length} songs`}
+        placeholder={`Search ${listed.length} songs`}
         aria-label="Search songs"
         value={query}
         onChange={(e) => setQuery(e.target.value)}

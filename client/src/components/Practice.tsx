@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
+import { byArtists } from '../artists';
 import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
@@ -21,7 +22,16 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 /** Solo practice: one random song at a time from a library; pick its title. Remount per library. */
-export default function Practice({ library, connected }: { library: Library; connected: boolean }) {
+export default function Practice({
+  library,
+  connected,
+  artists,
+}: {
+  library: Library;
+  connected: boolean;
+  /** Only songs by these artists come up; all when empty. Remount when it changes. */
+  artists: string[];
+}) {
   const [round, setRound] = useState<Round | null>(null);
   const [choice, setChoice] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,19 +49,27 @@ export default function Practice({ library, connected }: { library: Library; con
       setError('Pick at least 2 songs to practise with.');
       return null;
     }
-    const fresh = tracks.filter((t) => !seen.current.includes(t.id));
+    const chosen = tracks.filter((t) => byArtists(artists)(t.artist));
+    if (!chosen.length) {
+      setError('None of your songs are by these artists.');
+      return null;
+    }
+    const fresh = chosen.filter((t) => !seen.current.includes(t.id));
     if (!fresh.length) seen.current = [];
-    const pool = fresh.length ? fresh : tracks;
+    const pool = fresh.length ? fresh : chosen;
     const track = pool[Math.floor(Math.random() * pool.length)];
     seen.current.push(track.id);
-    const others = [...new Set(tracks.map((t) => t.title).filter((t) => t.toLowerCase() !== track.title.toLowerCase()))];
+    // Wrong options from the chosen artists' songs, or all songs if they have too few.
+    const titles = (from: typeof tracks) =>
+      [...new Set(from.map((t) => t.title).filter((t) => t.toLowerCase() !== track.title.toLowerCase()))];
+    const others = titles(chosen).length >= OPTION_COUNT - 1 ? titles(chosen) : titles(tracks);
     const options = shuffled([track.title, ...shuffled(others).slice(0, OPTION_COUNT - 1)]);
     stemPlayer.prepareClip(clipOf(track));
     return { options, correct: options.indexOf(track.title), title: track.title, artist: track.artist };
   }
 
   async function nextServer(): Promise<Round | null> {
-    const ack = await request('practice_round', { library, exclude: seen.current });
+    const ack = await request('practice_round', { library, exclude: seen.current, artists });
     if (!ack.ok || !ack.round) {
       setError(ack.error ?? 'Could not load a song');
       return null;

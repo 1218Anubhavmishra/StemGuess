@@ -28,7 +28,7 @@ export const OPTIONS: { id: Library; label: string; notice: string; howItWorks?:
   {
     id: 'hits',
     label: 'Preview of hits',
-    notice: 'Short previews of popular hits, with the vocals taken out. Each song links to its YouTube video after the round.',
+    notice: 'Short previews of popular hits, with the vocals taken out. Songs link to their YouTube video after the round where there is one.',
     howItWorks:
       'In this mode, the game will randomly pick the chosen number of songs from the hits previews. ' +
       'So no player (even us) will ever know the songs that will be picked for the game.',

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { request, socket } from '../socket';
 import { LOCAL_POOL_FACTOR, SONG_LIMITS, type Library, type RoomState, type ServerLibrary } from '../types';
+import ArtistPicker, { useLibraryArtists } from './ArtistPicker';
 import Brand from './Brand';
 import Invite from './Invite';
 import Scoreboard from './Scoreboard';
@@ -25,17 +26,18 @@ export default function Lobby({
     void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
   }, []);
 
+  const artists = useLibraryArtists(room.library, true);
   const local = room.library === 'local';
+  // Songs (by the chosen artists) the game can draw from.
+  const poolSize = room.poolSize ?? (local ? room.localTracks : (libraries?.[room.library as ServerLibrary] ?? null));
   // Songs per game the library can supply (the host's own songs are drawn from a bigger pool).
-  const librarySize = local
-    ? Math.floor(room.localTracks / LOCAL_POOL_FACTOR)
-    : (libraries?.[room.library as ServerLibrary] ?? null);
+  const librarySize = local && poolSize !== null ? Math.floor(poolSize / LOCAL_POOL_FACTOR) : poolSize;
   const maxSongs = Math.min(SONG_LIMITS.max, librarySize ?? SONG_LIMITS.max);
   const notEnoughSongs = local
-    ? room.localTracks < room.totalRounds * LOCAL_POOL_FACTOR
+    ? (poolSize ?? 0) < room.totalRounds * LOCAL_POOL_FACTOR
     : librarySize !== null && librarySize < SONG_LIMITS.min;
 
-  async function update(settings: { rounds?: number; library?: Library }) {
+  async function update(settings: { rounds?: number; library?: Library; artists?: string[] }) {
     setError('');
     const ack = await request('update_settings', settings);
     if (!ack.ok) setError(ack.error ?? 'Could not update settings');
@@ -74,6 +76,12 @@ export default function Lobby({
                 rounds={room.totalRounds}
                 onChange={(library) => void update({ library })}
               />
+              <ArtistPicker
+                artists={artists}
+                chosen={room.artists}
+                matching={room.poolSize}
+                onChange={(next) => void update({ artists: next })}
+              />
               <div className="row create-row">
                 <Stepper
                   label="Songs"
@@ -89,7 +97,14 @@ export default function Lobby({
               </div>
               {notEnoughSongs && !local && (
                 <p className="muted small">
-                  This library has {librarySize} song{librarySize === 1 ? '' : 's'}. It needs at least {SONG_LIMITS.min} to play.
+                  {room.artists.length ? 'The chosen artists have' : 'This library has'} {librarySize} song
+                  {librarySize === 1 ? '' : 's'}. A game needs at least {SONG_LIMITS.min}.
+                </p>
+              )}
+              {notEnoughSongs && local && room.artists.length > 0 && (
+                <p className="muted small">
+                  The chosen artists have {poolSize} of your songs. A {room.totalRounds}-song game needs at least{' '}
+                  {room.totalRounds * LOCAL_POOL_FACTOR}.
                 </p>
               )}
             </>
@@ -97,6 +112,7 @@ export default function Lobby({
             <>
               <p className="source-chip">{LIBRARY_LABELS[room.library]}</p>
               <p className="notice small">{GUEST_NOTICES[room.library]}</p>
+              {room.artists.length > 0 && <p className="muted">Artists: {room.artists.join(', ')}</p>}
               <p className="muted">{room.totalRounds} songs</p>
               <p className="muted">Waiting for the host to start…</p>
             </>

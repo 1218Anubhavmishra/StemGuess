@@ -46,7 +46,8 @@ const JUNK = [
 export function guessName(fileName: string): { artist: string; title: string } {
   let text = fileName.replace(/\.[^.]+$/, '');
   for (const pattern of JUNK) text = text.replace(pattern, ' ');
-  text = text.replace(/^\s*\d{1,3}\s*[-_.)]\s*/, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  // Track numbers: "02. Song", "7_Song", "09 Song" (zero-padded only, so "50 Cent" keeps its name).
+  text = text.replace(/^\s*(?:\d{1,3}\s*[-_.)]|0\d\s)\s*/, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
   const [artist, ...rest] = text.split(' - ');
   const title = rest.length ? rest.join(' - ') : artist;
   return { artist: rest.length ? artist.trim() : '', title: title.replace(/^[\s\-.,]+|[\s\-.,]+$/g, '') || fileName };

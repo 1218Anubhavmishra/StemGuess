@@ -68,13 +68,16 @@ The "Preview of hits" library comes from `scripts/hits.csv` (title, artist, YouT
 [Demucs](https://github.com/facebookresearch/demucs) (free, runs locally) into drums, bass and other,
 dropping the vocals; each song is credited with its YouTube link. Demucs needs PyTorch, so it runs in
 its own environment (`DEMUCS_PYTHON`, default `~/stem-sep/Scripts/python`; install with
-`pip install torch demucs soundfile`). Clips are separated 10 at a time with the model loaded once
-(on the GPU when there is one); on a laptop CPU it takes about 20 s per song. Songs without a file are
-listed as pending. Songs are matched by YouTube link, so titles can be shortened in `hits.csv`: run
+`pip install torch demucs soundfile`). Clips are separated 50 at a time with the model loaded once
+(on the GPU when there is one); on a laptop CPU it takes about 16-20 s per song. Songs without a file are
+listed as pending. `python -m scripts.add_folder_hits "D:/music"` adds every new song in a folder to
+`hits.csv` (names from tags or file names, without a YouTube link; `--dry-run` lists them first, and
+`--tidy` fills in artists that are part of a title). Songs are matched by YouTube link, or by file name
+when they have none, so titles can be shortened in `hits.csv`: run
 `import_hits` again locally and `import_hits --sync-only` against the live database to rename them
 without re-importing. Publish with `publish_cc ... --prefix hits:`. `python -m scripts.backup_hits [folder]`
 copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/StemGuess backup/hits`).
-`python -m scripts.remove_hits <YouTube id> ...` deletes songs (e.g. ones where vocals leak through)
+`python -m scripts.remove_hits <YouTube id or hits:file:... source> ...` deletes songs (e.g. ones where vocals leak through)
 with their stem files, and moves their rows to `hits_rejected.csv`; run it locally and against live.
 
 ## Song libraries
@@ -100,6 +103,11 @@ Songs on the server outside the demo (`demo:`), Creative Commons (`cc:`) and hit
 **Song Library** (home and lobby) lists every song in any of the four sources with a player (play/pause,
 5 s back/forward, previous/next, seekable progress bar, autoplay of the next song). **Practice** (its own button, or a tab
 in the Song Library) plays random songs to guess solo, with a progress bar. No room needed.
+
+**Artists**: in the lobby (host), Song Library and Practice, an Artists picker narrows the songs to
+chosen artists. A song counts for every artist it credits ("Dr. Dre ft. Eminem" is both), split the
+same way on the server (`app/artists.py`) and client (`src/artists.ts`). In games, the wrong options
+come from the chosen artists' songs when they have at least four titles.
 
 Joining a game that has already started offers **Spectate**: spectators see and hear every round
 without answering and become players when the game ends. Players and spectators together are capped at 10. With My own music, each player's browser

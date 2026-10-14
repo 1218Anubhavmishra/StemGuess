@@ -64,8 +64,8 @@ export default function About({ onClose }: { onClose: () => void }) {
             round.
           </li>
           <li>
-            <b>Preview of hits</b>: short previews of popular hits with the vocals taken out, each linking to its
-            YouTube video.
+            <b>Preview of hits</b>: short previews of popular hits with the vocals taken out, linking to their
+            YouTube video where there is one.
           </li>
           <li>
             <b>My music</b>: the host picks a folder of songs on their device. Their browser cuts a clip of each and
@@ -74,7 +74,8 @@ export default function About({ onClose }: { onClose: () => void }) {
           </li>
         </ul>
         <p className="muted small">
-          In every mode the game picks the songs at random, so nobody (not even the host) knows what's coming.
+          In every mode the game picks the songs at random, so nobody (not even the host) knows what's coming. The
+          host can also choose artists, so only their songs come up (songs featuring them count too).
         </p>
 
         <h3>Song Library and Practice</h3>
@@ -83,7 +84,7 @@ export default function About({ onClose }: { onClose: () => void }) {
           back or forward, go to the previous or next song, or drag the progress bar to any point; the next song
           starts when one ends. Practice (also its
           own button) plays random songs for you to guess on your own and counts how many you get right. No room
-          needed.
+          needed. In both, Artists narrows the songs to the artists you pick.
         </p>
 
         <h3>Other options</h3>

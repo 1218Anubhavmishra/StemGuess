@@ -15,6 +15,7 @@ Songs without an audio file are listed as pending. Publish new songs with publis
 """
 
 import csv
+import hashlib
 import json
 import os
 import secrets
@@ -36,30 +37,44 @@ HITS = Path(__file__).with_name("hits.csv")
 SEPARATE = Path(__file__).with_name("separate.py")
 DEMUCS_PYTHON = os.environ.get("DEMUCS_PYTHON") or str(Path.home() / "stem-sep" / "Scripts" / "python")
 DEMUCS_RATE = 44100
-BATCH = 10
+BATCH = 50
 
 
 def video_id(url: str) -> str:
     return parse_qs(urlparse(url).query).get("v", [url])[0]
 
 
+def source_of(hit: dict) -> str:
+    """A song's key: its YouTube video, or for songs without one, its file name."""
+    if hit.get("youtube"):
+        return f"hits:yt:{video_id(hit['youtube'])}"
+    return f"hits:file:{hashlib.sha1(Path(hit['file']).name.casefold().encode()).hexdigest()[:16]}"
+
+
 def credit_of(hit: dict) -> dict:
-    return {"text": f"\u201c{hit['title']}\u201d by {hit['artist']} on YouTube", "url": hit["youtube"]}
+    by = f" by {hit['artist']}" if hit["artist"] else ""
+    if not hit.get("youtube"):
+        return {"text": f"\u201c{hit['title']}\u201d{by}"}
+    return {"text": f"\u201c{hit['title']}\u201d{by} on YouTube", "url": hit["youtube"]}
+
+
+def read_hits(path: Path = HITS) -> list[dict]:
+    # utf-8-sig: spreadsheet apps add a byte-order mark when saving.
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        return [{k: (v or "").strip() for k, v in row.items()} for row in csv.DictReader(f)]
 
 
 def sync(hits: list[dict]) -> None:
-    by_video = {video_id(h["youtube"]): h for h in hits}
+    by_source = {source_of(h): h for h in hits}
     with SessionLocal() as db:
         changed = 0
         for song in db.scalars(select(Song).where(Song.source_file.startswith("hits:"))):
-            hit = by_video.get(video_id((song.credit or {}).get("url", "")))
+            hit = by_source.get(song.source_file)
             if not hit:
                 continue
-            source = f"hits:yt:{video_id(hit['youtube'])}"
-            if (song.title, song.artist, song.credit, song.source_file) != (hit["title"], hit["artist"],
-                                                                            credit_of(hit), source):
+            if (song.title, song.artist, song.credit) != (hit["title"], hit["artist"], credit_of(hit)):
                 print(f"update: {song.title} - {song.artist}  ->  {hit['title']} - {hit['artist']}")
-                song.title, song.artist, song.credit, song.source_file = hit["title"], hit["artist"], credit_of(hit), source
+                song.title, song.artist, song.credit = hit["title"], hit["artist"], credit_of(hit)
                 changed += 1
         db.commit()
     print(f"{changed} songs updated")
@@ -118,7 +133,7 @@ def add_song(hit: dict, stems_dir: Path) -> int:
         raise RuntimeError("every stem is silent")
     with SessionLocal() as db:
         song = Song(title=hit["title"], artist=hit["artist"], aliases=[],
-                    source_file=f"hits:yt:{video_id(hit['youtube'])}", duration=duration_of(stems[0]),
+                    source_file=source_of(hit), duration=duration_of(stems[0]),
                     credit=credit_of(hit))
         song.stems = [Stem(name=p.stem, path=p.relative_to(config.MEDIA_DIR).as_posix()) for p in stems]
         db.add(song)
@@ -127,9 +142,7 @@ def add_song(hit: dict, stems_dir: Path) -> int:
 
 
 def main() -> None:
-    # utf-8-sig: spreadsheet apps add a byte-order mark when saving.
-    with HITS.open(encoding="utf-8-sig", newline="") as f:
-        hits = [{k: (v or "").strip() for k, v in row.items()} for row in csv.DictReader(f)]
+    hits = read_hits()
     init_db()
     sync(hits)
     if "--sync-only" in sys.argv:
@@ -140,7 +153,7 @@ def main() -> None:
         done = set(db.scalars(select(Song.source_file).where(Song.source_file.startswith("hits:"))))
     todo, pending = [], []
     for hit in hits:
-        if f"hits:yt:{video_id(hit['youtube'])}" in done:
+        if source_of(hit) in done:
             continue
         (todo if hit.get("file") and Path(hit["file"]).exists() else pending).append(hit)
     progress = Progress(len(todo), "songs to import")

@@ -8,6 +8,10 @@ export type RoomState = {
   totalRounds: number;
   maxPlayers: number;
   library: Library;
+  /** Only songs by these artists play; empty means all. */
+  artists: string[];
+  /** Songs in the library by the chosen artists (null until counted). */
+  poolSize: number | null;
   localTracks: number;
   players: Player[];
   spectators: { id: string; name: string }[];
@@ -59,6 +63,7 @@ export type Ack = {
   libraries?: Record<ServerLibrary, number>;
   round?: PracticeRound;
   songs?: LibrarySong[];
+  artists?: { name: string; songs: number }[];
   urls?: string[];
 };
 
