@@ -66,7 +66,8 @@ After testing them locally (with a SQLite `DATABASE_URL`), put exactly those son
 The "Preview of hits" library comes from `scripts/hits.csv` (title, artist, YouTube link, local file), a table you can edit in Cursor or a spreadsheet app.
 `.\.venv\Scripts\python -m scripts.import_hits` cuts each song's loudest 15 s and splits it with
 [Demucs](https://github.com/facebookresearch/demucs) (free, runs locally) into drums, bass and other,
-dropping the vocals; each song is credited with its YouTube link. Demucs needs PyTorch, so it runs in
+dropping the vocals; each song is credited with its YouTube link (the `youtube` column can also hold
+another official link, e.g. Apple Music, when no YouTube upload plays). Demucs needs PyTorch, so it runs in
 its own environment (`DEMUCS_PYTHON`, default `~/stem-sep/Scripts/python`; install with
 `pip install torch demucs soundfile`). Clips are separated 50 at a time with the model loaded once
 (on the GPU when there is one); on a laptop CPU it takes about 16-20 s per song. Songs without a file are
@@ -88,7 +89,7 @@ The host picks the song source in the lobby:
 | --- | --- |
 | StemGuess originals | Demo songs on the server (`seed_demo`) |
 | Creative Commons | Server songs from `import_cc` or processed with `--cc`, credited after each round; "Coming soon" until there are enough |
-| Preview of hits | Vocal-free stems of popular songs from `import_hits`, linked to their YouTube video |
+| Preview of hits | Vocal-free stems of popular songs from `import_hits`, linked to their YouTube video (or Apple Music) |
 | My own music | Audio files picked on the host's device |
 
 With **My own music**, the host's browser cuts a 15 s clip from each picked file and removes the

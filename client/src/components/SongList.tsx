@@ -197,7 +197,11 @@ export default function SongList({
             </span>
             {s.credit?.url && (
               <a className="song-source-link small" href={s.credit.url} target="_blank" rel="noreferrer">
-                {s.credit.url.includes('youtube.com') ? 'YouTube' : 'Source'}
+                {s.credit.url.includes('youtube.com')
+                  ? 'YouTube'
+                  : s.credit.url.includes('music.apple.com')
+                    ? 'Apple Music'
+                    : 'Source'}
               </a>
             )}
           </li>

@@ -3,8 +3,9 @@
 From server/:  python -m scripts.import_hits [--sync-only]
 
 Songs are listed in scripts/hits.csv (title, artist, youtube, file; file is empty when there's no
-audio yet); the YouTube link identifies a song, so titles and artists can be edited there and
-re-synced. Each run:
+audio yet). The youtube column holds the song's official YouTube video, or another official link
+(e.g. Apple Music) when no YouTube upload plays; the link identifies a song, so titles and artists
+can be edited there and re-synced. Each run:
 1. updates the title, artist and credit of songs already in the database (DATABASE_URL) to match
    hits.csv. --sync-only stops here, e.g. to rename songs in the live database;
 2. imports the new songs: each song's loudest CLIP_SECONDS are cut and split with Demucs (free, runs
@@ -40,14 +41,25 @@ DEMUCS_RATE = 44100
 BATCH = 50
 
 
+SITES = {"youtube.com": "YouTube", "youtu.be": "YouTube", "music.apple.com": "Apple Music",
+         "open.spotify.com": "Spotify"}
+
+
 def video_id(url: str) -> str:
     return parse_qs(urlparse(url).query).get("v", [url])[0]
 
 
+def site_of(url: str) -> str:
+    host = urlparse(url).hostname or ""
+    return next((name for domain, name in SITES.items() if host == domain or host.endswith("." + domain)), host)
+
+
 def source_of(hit: dict) -> str:
-    """A song's key: its YouTube video, or for songs without one, its file name."""
+    """A song's key: its YouTube video, its other official link, or for songs without a link, its file name."""
     if hit.get("youtube"):
-        return f"hits:yt:{video_id(hit['youtube'])}"
+        if site_of(hit["youtube"]) == "YouTube":
+            return f"hits:yt:{video_id(hit['youtube'])}"
+        return f"hits:link:{hashlib.sha1(hit['youtube'].encode()).hexdigest()[:16]}"
     return f"hits:file:{hashlib.sha1(Path(hit['file']).name.casefold().encode()).hexdigest()[:16]}"
 
 
@@ -55,7 +67,7 @@ def credit_of(hit: dict) -> dict:
     by = f" by {hit['artist']}" if hit["artist"] else ""
     if not hit.get("youtube"):
         return {"text": f"\u201c{hit['title']}\u201d{by}"}
-    return {"text": f"\u201c{hit['title']}\u201d{by} on YouTube", "url": hit["youtube"]}
+    return {"text": f"\u201c{hit['title']}\u201d{by} on {site_of(hit['youtube'])}", "url": hit["youtube"]}
 
 
 def read_hits(path: Path = HITS) -> list[dict]:

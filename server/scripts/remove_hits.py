@@ -2,7 +2,7 @@
 
 From server/:  python -m scripts.remove_hits <YouTube id or song source> [...]
 
-A song is named by its YouTube video id, or by its full source ("hits:yt:..." or "hits:file:...").
+A song is named by its YouTube video id, or by its full source ("hits:yt:...", "hits:link:..." or "hits:file:...").
 Deletes the songs from the database in DATABASE_URL along with their stem files (local media or R2
 objects), and moves their rows from hits.csv to hits_rejected.csv so import_hits doesn't add them
 again. Run it once against the local database and once against the live one.

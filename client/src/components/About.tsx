@@ -65,7 +65,7 @@ export default function About({ onClose }: { onClose: () => void }) {
           </li>
           <li>
             <b>Preview of hits</b>: short previews of popular hits with the vocals taken out, linking to their
-            YouTube video where there is one.
+            official YouTube video, or to Apple Music when no YouTube upload is available.
           </li>
           <li>
             <b>My music</b>: the host picks a folder of songs on their device. Their browser cuts a clip of each and
