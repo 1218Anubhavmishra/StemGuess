@@ -19,6 +19,9 @@ export default function App() {
   const [options, setOptions] = useState<string[]>([]);
   const [choice, setChoice] = useState<number | null>(null);
   const [endsAt, setEndsAt] = useState<number | null>(null);
+  // When this player may start removing wrong options, and which ones they removed this round.
+  const [removeAt, setRemoveAt] = useState<number | null>(null);
+  const [removed, setRemoved] = useState<number[]>([]);
   const [nextAt, setNextAt] = useState<number | null>(null);
   const [answer, setAnswer] = useState<RoundAnswer | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
@@ -71,6 +74,8 @@ export default function App() {
       setChoice(null);
       setAnswer(null);
       setEndsAt(null);
+      setRemoveAt(null);
+      setRemoved([]);
       setNextAt(null);
       if (p.resume) {
         setFeed([]);
@@ -82,11 +87,19 @@ export default function App() {
       if (p.track !== undefined) stemPlayer.prepareClip(getClip(p.track));
       else stemPlayer.prepare(p.urls.map(serverUrl));
     };
-    const onStart = (p: { duration: number; options: string[]; choice?: number | null }) => {
+    const onStart = (p: {
+      duration: number;
+      options: string[];
+      removeIn: number;
+      choice?: number | null;
+      removed?: number[];
+    }) => {
       setPhase('playing');
       setOptions(p.options);
       setChoice(p.choice ?? null);
       setEndsAt(Date.now() + p.duration * 1000);
+      setRemoveAt(Date.now() + p.removeIn * 1000);
+      setRemoved(p.removed ?? []);
       void stemPlayer.start();
     };
     const onRoundEnd = (p: RoundAnswer & { options: string[]; winners: string[]; nextIn: number }) => {
@@ -104,6 +117,7 @@ export default function App() {
         points: p.points,
       });
       setEndsAt(null);
+      setRemoveAt(null);
       setNextAt(Date.now() + p.nextIn * 1000);
       stemPlayer.stop();
     };
@@ -212,6 +226,9 @@ export default function App() {
           choice={choice}
           onPick={setChoice}
           endsAt={endsAt}
+          removeAt={removeAt}
+          removed={removed}
+          onRemoved={setRemoved}
           nextAt={nextAt}
           answer={answer}
           feed={feed}

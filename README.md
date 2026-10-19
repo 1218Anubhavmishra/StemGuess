@@ -2,7 +2,9 @@
 
 Multiplayer "name that song" game: each round plays a song clip (all its stems together, looped)
 and shows four titles. Every player gets one pick; a correct pick scores 10 points at the start of
-the round, falling to 1 point at the buzzer. A round ends when the countdown (30 s, `ROUND_SECONDS`)
+the round, falling to 1 point at the buzzer. From halfway through a round, each player may remove up to two
+wrong options for themselves only; their correct pick then scores ×0.5 (one removed) or ×0.2 (two removed),
+rounded to one decimal (`REMOVE_AFTER`, `REMOVE_MULTIPLIERS`). A round ends when the countdown (30 s, `ROUND_SECONDS`)
 runs out or everyone has answered, and the next one starts 5 s after the answer is shown
 (`RESULT_SECONDS`). The host picks how many songs a game has (3-10) and the room's max player count (2-10).
 

@@ -220,6 +220,9 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .option.picked { border-color: var(--accent); }
 .option.right { background: var(--accent-2); color: white; }
 .option.wrong { background: var(--danger); color: white; }
+.option.removed { opacity: 0.25; text-decoration: line-through; }
+.remove-option { margin-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.remove-option p { margin: 0; }
 @media (max-width: 480px) { .options { grid-template-columns: 1fr; } }
 
 .side { grid-column: 2; grid-row: 2 / span 2; display: flex; flex-direction: column; gap: 16px; }

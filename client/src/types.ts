@@ -58,6 +58,8 @@ export type Ack = {
   playerId?: string;
   token?: string;
   result?: 'correct' | 'wrong';
+  removed?: number[];
+  multiplier?: number;
   spectator?: boolean;
   canSpectate?: boolean;
   libraries?: Record<ServerLibrary, number>;

@@ -167,4 +167,9 @@ async def guess(sid, data=None):
     return await games.guess(sid, (data or {}).get("option"))
 
 
+@sio.on("remove_option")
+async def remove_option(sid, _data=None):
+    return await games.remove_option(sid)
+
+
 app = socketio.ASGIApp(sio, other_asgi_app=api)

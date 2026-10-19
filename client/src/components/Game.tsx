@@ -15,6 +15,9 @@ type Props = {
   choice: number | null;
   onPick: (option: number) => void;
   endsAt: number | null;
+  removeAt: number | null;
+  removed: number[];
+  onRemoved: (removed: number[]) => void;
   nextAt: number | null;
   answer: RoundAnswer | null;
   feed: FeedItem[];
@@ -35,6 +38,9 @@ function useCountdown(endsAt: number | null) {
 
 const pointsLabel = (n: number) => `${n} point${n === 1 ? '' : 's'}`;
 
+// Share of the points a correct answer keeps after removing this many wrong options (mirrors the server).
+const REMOVE_MULTIPLIERS = [1, 0.5, 0.2];
+
 const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
 export default function Game({
@@ -45,6 +51,9 @@ export default function Game({
   choice,
   onPick,
   endsAt,
+  removeAt,
+  removed,
+  onRemoved,
   nextAt,
   answer,
   feed,
@@ -62,6 +71,13 @@ export default function Game({
   const spectating = !me;
   const canPick = phase === 'playing' && choice === null && !!me && !me.attempted;
   const result = phase === 'roundEnd' && answer;
+  const canRemove =
+    canPick &&
+    removeAt !== null &&
+    Date.now() >= removeAt &&
+    removed.length < REMOVE_MULTIPLIERS.length - 1 &&
+    options.length - removed.length > 2;
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => setHint(''), [room.round]);
   useEffect(() => {
@@ -75,9 +91,19 @@ export default function Game({
     if (ack.error) setHint(ack.error);
   }
 
+  async function removeOption() {
+    if (!canRemove || removing) return;
+    setRemoving(true);
+    const ack = await request('remove_option');
+    setRemoving(false);
+    if (ack.removed) onRemoved(ack.removed);
+    else if (ack.error) setHint(ack.error);
+  }
+
   const optionClass = (i: number) =>
     [
       'option',
+      removed.includes(i) && !(result && i === answer.correct) ? 'removed' : '',
       i === choice ? 'picked' : '',
       result && i === answer.correct ? 'right' : '',
       result && i === choice && i !== answer.correct ? 'wrong' : '',
@@ -187,10 +213,28 @@ export default function Game({
         {options.length > 0 && (
           <div className="options" role="group" aria-label="Answer options">
             {options.map((title, i) => (
-              <button key={`${i}-${title}`} className={optionClass(i)} disabled={!canPick} onClick={() => void pick(i)}>
+              <button
+                key={`${i}-${title}`}
+                className={optionClass(i)}
+                disabled={!canPick || removed.includes(i)}
+                onClick={() => void pick(i)}
+              >
                 {title}
               </button>
             ))}
+          </div>
+        )}
+        {phase === 'playing' && (canRemove || (removed.length > 0 && canPick)) && (
+          <div className="remove-option">
+            {canRemove && (
+              <button className="ghost small" disabled={removing} onClick={() => void removeOption()}>
+                {removed.length === 0 ? 'Remove a wrong option' : 'Remove another'} (right answer scores ×
+                {REMOVE_MULTIPLIERS[removed.length + 1]})
+              </button>
+            )}
+            {removed.length > 0 && (
+              <p className="muted small">A right answer now scores ×{REMOVE_MULTIPLIERS[removed.length]} points.</p>
+            )}
           </div>
         )}
 
