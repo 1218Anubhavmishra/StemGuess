@@ -37,8 +37,10 @@ export type FeedItem = {
   type: 'correct' | 'nobody' | 'system';
   name?: string;
   text?: string;
-  points?: number;
 };
+
+/** A song played in the game, revealed with the final scores. `track` is set for the host's own songs. */
+export type GameSong = { title: string; artist: string; credit?: Credit | null; urls: string[]; track?: number };
 
 export type Credit = { text: string; url?: string; license?: string; licenseUrl?: string };
 

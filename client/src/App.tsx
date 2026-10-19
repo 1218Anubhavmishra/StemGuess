@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { bgMusic, stemPlayer } from './audio';
 import { getClip } from './clipTransfer';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
-import type { FeedItem, Phase, Player, RoomState, RoundAnswer } from './types';
+import type { FeedItem, GameSong, Phase, Player, RoomState, RoundAnswer } from './types';
 import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
@@ -25,6 +25,7 @@ export default function App() {
   const [nextAt, setNextAt] = useState<number | null>(null);
   const [answer, setAnswer] = useState<RoundAnswer | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
+  const [songs, setSongs] = useState<GameSong[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   // Host's own songs: how many players have received the clips, shown before the first round.
   const [transfer, setTransfer] = useState<{ ready: number; total: number } | null>(null);
@@ -34,8 +35,7 @@ export default function App() {
   const [about, setAbout] = useState(false);
 
   useEffect(() => {
-    const pushFeed = (item: Omit<FeedItem, 'id'>) =>
-      setFeed((items) => [...items.slice(-49), { ...item, id: ++feedId }]);
+    const pushFeed = (item: Omit<FeedItem, 'id'>) => setFeed((items) => [...items, { ...item, id: ++feedId }]);
 
     const exitRoom = () => {
       clearSession();
@@ -62,6 +62,7 @@ export default function App() {
     };
     const onRoomState = (state: RoomState) => setRoom(state);
     const onLocalOrder = () => {
+      stemPlayer.stop();
       setPhase('prepare');
       setOptions([]);
       setAnswer(null);
@@ -103,8 +104,7 @@ export default function App() {
       void stemPlayer.start();
     };
     const onRoundEnd = (p: RoundAnswer & { options: string[]; winners: string[]; nextIn: number }) => {
-      const song = p.artist ? `${p.title} - by ${p.artist}` : p.title;
-      if (p.winners.length) p.winners.forEach((name) => pushFeed({ type: 'correct', name, text: song, points: p.points[name] }));
+      if (p.winners.length) p.winners.forEach((name) => pushFeed({ type: 'correct', name }));
       else pushFeed({ type: 'nobody' });
       setPhase('roundEnd');
       setOptions(p.options);
@@ -121,9 +121,10 @@ export default function App() {
       setNextAt(Date.now() + p.nextIn * 1000);
       stemPlayer.stop();
     };
-    const onGameOver = (p: { ranking: Player[] }) => {
+    const onGameOver = (p: { ranking: Player[]; songs?: GameSong[] }) => {
       setPhase('gameOver');
       setRanking(p.ranking);
+      setSongs(p.songs ?? []);
       stemPlayer.stop();
       stemPlayer.resetSettings();
     };
@@ -236,7 +237,7 @@ export default function App() {
           onLeave={leave}
         />
       </div>
-      {gameOver && <GameOver room={room} ranking={ranking} isHost={isHost} onLeave={leave} />}
+      {gameOver && <GameOver room={room} ranking={ranking} songs={songs} isHost={isHost} onLeave={leave} />}
     </>
   );
 }

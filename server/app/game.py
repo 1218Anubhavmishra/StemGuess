@@ -126,6 +126,8 @@ class Room:
     # Last round_prepare / round_end payloads, replayed to players who rejoin mid-game.
     prepare_payload: dict | None = None
     end_payload: dict | None = None
+    # Songs played this game ({"title", "artist", "credit", "urls", "track"?}), revealed with the final scores.
+    played: list[dict] = field(default_factory=list)
     library: str = "demo"
     # Only songs by these artists play (all songs when empty).
     artists: list[str] = field(default_factory=list)
@@ -635,6 +637,7 @@ class GameManager:
         room.playlist = song_ids[: room.total_rounds]
         room.local_order = room.playlist if room.library == "local" else []
         room.round_number = 0
+        room.played = []
         for p in room.players.values():
             p.score = 0
             p.guessed = p.attempted = False
@@ -743,6 +746,8 @@ class GameManager:
             "winners": [p.name for p in winners],
             "points": {p.name: p.round_points for p in winners},
         }
+        room.played.append({"title": rnd.title, "artist": rnd.artist, "credit": rnd.credit, "urls": rnd.urls,
+                            **({"track": track} if track is not None else {})})
         room.next_at = time.monotonic() + config.RESULT_SECONDS
         await self.sio.emit("round_end", {**room.end_payload, "nextIn": config.RESULT_SECONDS}, room=room.code)
         await asyncio.sleep(config.RESULT_SECONDS)
@@ -761,7 +766,8 @@ class GameManager:
                 "ranking": [
                     {"id": p.sid, "name": p.name, "score": p.score, "guessed": False, "attempted": False, "connected": p.connected}
                     for p in ranking
-                ]
+                ],
+                "songs": room.played,
             },
             room=room.code,
         )

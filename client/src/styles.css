@@ -172,6 +172,15 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .ranking .place { width: 24px; color: var(--muted); }
 .ranking .name { flex: 1; }
 .ranking li.winner { background: linear-gradient(90deg, var(--winner-bg), var(--panel-2)); }
+.final { max-height: calc(100vh - 32px); overflow-y: auto; }
+.answers-head { margin: 8px 0 0; }
+.answers { list-style: none; margin: 0; padding: 0; }
+.answers li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.answers li:last-child { border-bottom: none; }
+.answers li.playing { background: var(--winner-bg); border-radius: 8px; }
+.answers .place { width: 18px; flex: none; color: var(--muted); }
+.answers .credit { margin: 2px 0 0; }
+.answers .credit a { color: inherit; }
 
 /* game */
 .game {
@@ -226,7 +235,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 @media (max-width: 480px) { .options { grid-template-columns: 1fr; } }
 
 .side { grid-column: 2; grid-row: 2 / span 2; display: flex; flex-direction: column; gap: 16px; }
-.feed { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.feed { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
 .feed li.system { color: var(--muted); font-style: italic; }
 .feed li.correct { color: var(--accent-2); font-weight: 600; }
 .feed li.nobody { color: var(--danger); font-weight: 600; }

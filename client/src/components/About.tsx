@@ -47,7 +47,10 @@ export default function About({ onClose }: { onClose: () => void }) {
             Stuck? From halfway through the round you can remove a wrong option, and then one more. Only you see
             them disappear. A right answer then scores ×0.5 its points after one removal, or ×0.2 after two.
           </li>
-          <li>After each round you see the answer and its credit. The highest score after the last song wins.</li>
+          <li>
+            After each round you see the answer and its credit. The highest score after the last song wins, and the
+            final scores list every song of the game with a button to replay it.
+          </li>
           <li>Use the speaker button and slider to mute or change the game volume. End leaves the game.</li>
           <li>If your connection drops, the game keeps your seat and puts you back in when you reconnect.</li>
           <li>

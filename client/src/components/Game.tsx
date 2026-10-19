@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
@@ -63,7 +63,6 @@ export default function Game({
   const [hint, setHint] = useState('');
   const [volume, setVolume] = useState(stemPlayer.getVolume());
   const [muted, setMuted] = useState(stemPlayer.isMuted());
-  const feedRef = useRef<HTMLUListElement>(null);
   const secondsLeft = useCountdown(endsAt);
   const nextIn = useCountdown(nextAt);
   const me = room.players.find((p) => p.id === meId);
@@ -80,9 +79,6 @@ export default function Game({
   const [removing, setRemoving] = useState(false);
 
   useEffect(() => setHint(''), [room.round]);
-  useEffect(() => {
-    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
-  }, [feed]);
 
   async function pick(option: number) {
     if (!canPick) return;
@@ -253,12 +249,11 @@ export default function Game({
         </div>
         <div className="card">
           <h3>Guesses</h3>
-          <ul className="feed" ref={feedRef}>
+          <ul className="feed">
             {feed.map((item) => (
               <li key={item.id} className={item.type}>
                 {item.type === 'system' && item.text}
-                {item.type === 'correct' &&
-                  `${item.name} correctly guessed the song "${item.text}"!${item.points ? ` +${pointsLabel(item.points)}` : ''}`}
+                {item.type === 'correct' && `${item.name} guessed it!`}
                 {item.type === 'nobody' && 'Nobody got this one'}
               </li>
             ))}
