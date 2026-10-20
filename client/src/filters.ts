@@ -14,11 +14,11 @@ export const FILTER_LABELS: Record<FilterKind, string> = { genres: 'Genres', lan
 export type FacetRow = { artist: string; genre: string; language: string; songs: number };
 type SongFields = { artist: string; genre?: string; language?: string };
 
-/** The values a song has for one kind: one genre or language, or every artist it credits. */
+/** The values a song has for one kind: one genre, every language ("Hindi, English") or every artist it credits. */
 export function valuesOf(song: SongFields, kind: FilterKind): string[] {
   if (kind === 'artists') return splitArtists(song.artist);
-  const value = kind === 'genres' ? song.genre : song.language;
-  return value ? [value] : [];
+  if (kind === 'languages') return (song.language ?? '').split(',').map((l) => l.trim()).filter(Boolean);
+  return song.genre ? [song.genre] : [];
 }
 
 export function hasFilters(filters: SongFilters) {

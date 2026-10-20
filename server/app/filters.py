@@ -26,6 +26,11 @@ def clean_filters(data: dict) -> Filters | None:
     return out
 
 
+def split_languages(text: str | None) -> list[str]:
+    """A song's languages: "Hindi, English" is both."""
+    return [part.strip() for part in (text or "").split(",") if part.strip()]
+
+
 def song_filter(filters: Filters | None):
     """A test for (artist, genre, language) that's true when the song matches every kind."""
     filters = filters or {}
@@ -37,7 +42,7 @@ def song_filter(filters: Filters | None):
         return (
             (not artists or any(artist_key(n) in artists for n in split_artists(artist)))
             and (not genres or artist_key(genre or "") in genres)
-            and (not languages or artist_key(language or "") in languages)
+            and (not languages or any(artist_key(lang) in languages for lang in split_languages(language)))
         )
 
     return test

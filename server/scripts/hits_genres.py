@@ -19,6 +19,7 @@ from collections import Counter
 import httpx
 
 from app.artists import artist_key, split_artists
+from app.filters import split_languages
 from scripts.import_hits import HITS, read_hits, source_of
 from scripts.progress import Progress
 
@@ -119,7 +120,7 @@ def fill(cache: dict) -> None:
             votes = sum((by_artist.get(n, Counter()) for n in names_of(hit)), Counter())
             genre = votes.most_common(1)[0][0] if votes else genre
         # Apple files some Indian and Pakistani songs under "Worldwide" or not at all.
-        if genre in ("", "Other") and hit.get("language") in INDIAN_LANGUAGES:
+        if genre in ("", "Other") and INDIAN_LANGUAGES & set(split_languages(hit.get("language"))):
             genre = "Indian"
         hit["genre"] = genre
         filled += bool(genre)

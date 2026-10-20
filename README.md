@@ -115,7 +115,8 @@ server (`app/artists.py`, `app/filters.py`) and client (`src/artists.ts`, `src/f
 the wrong options come from the songs matching the filters when they have at least four titles.
 Genres and languages come from the `genre` and `language` columns of `hits.csv`:
 `python -m scripts.hits_genres` fills empty genres from Apple's iTunes Search API (song metadata only),
-grouped into broad genres; languages are set by hand. Publish edits with `import_hits --sync-only`.
+grouped into broad genres; languages are set by hand, comma-separated when a song has several
+("English, Hindi" counts under both). Publish edits with `import_hits --sync-only`.
 
 Joining a game that has already started offers **Spectate**: spectators see and hear every round
 without answering and become players when the game ends. Players and spectators together are capped at 10. With My own music, each player's browser
