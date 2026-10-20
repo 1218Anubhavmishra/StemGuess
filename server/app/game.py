@@ -35,6 +35,8 @@ REMOVE_CLOCK_SLACK = 1.0
 # songs without one (e.g. processed from a personal collection) are never served to games.
 SERVER_LIBRARIES = {"demo": "demo:", "cc": "cc:", "hits": "hits:"}
 LIBRARIES = (*SERVER_LIBRARIES, "local")
+# New rooms play the hits previews, or the demos on servers with too few hits for a game.
+DEFAULT_LIBRARY, FALLBACK_LIBRARY = "hits", "demo"
 # Host-supplied songs: the host's device cuts clips and sends them straight to the other players.
 # The server only ever sees titles, never audio (apart from relaying chunks between players whose
 # network blocks a direct connection; nothing is stored).
@@ -129,7 +131,7 @@ class Room:
     end_payload: dict | None = None
     # Songs played this game ({"title", "artist", "credit", "urls", "track"?}), revealed with the final scores.
     played: list[dict] = field(default_factory=list)
-    library: str = "demo"
+    library: str = DEFAULT_LIBRARY
     # Only songs by these artists, in these genres and languages play (any when empty).
     artists: list[str] = field(default_factory=list)
     genres: list[str] = field(default_factory=list)
@@ -230,7 +232,7 @@ class GameManager:
         await self.leave(sid)
         room = Room(code=self._new_code(), host_sid=sid, max_players=max_players)
         self.rooms[room.code] = room
-        await self._count_pool(room)
+        await self._use_default_library(room)
         result = await self._add_player(room, sid, name)
         room.host_token = room.players[sid].token
         return result
@@ -375,9 +377,10 @@ class GameManager:
                 # The songs were on the old host's device.
                 room.local_tracks = []
                 if room.library == "local":
-                    room.library = "demo"
                     room.set_filters(no_filters())
-                await self._count_pool(room)
+                    await self._use_default_library(room)
+                else:
+                    await self._count_pool(room)
         room.local_ready.discard(sid)
         self._check_transfer(room)
         self._check_all_guessed(room)
@@ -420,6 +423,13 @@ class GameManager:
             await self._count_pool(room)
         await self._broadcast_state(room)
         return {"ok": True}
+
+    async def _use_default_library(self, room: Room) -> None:
+        room.library = DEFAULT_LIBRARY
+        await self._count_pool(room)
+        if (room.pool_size or 0) < MIN_ROUNDS:
+            room.library = FALLBACK_LIBRARY
+            await self._count_pool(room)
 
     async def _count_pool(self, room: Room) -> None:
         if room.library == "local":

@@ -21,14 +21,20 @@ export default function SongLibrary({
   initialMode: LibraryMode;
   onBack: () => void;
 }) {
-  const [library, setLibrary] = useState<Library>('demo');
+  const [library, setLibrary] = useState<Library>('hits');
   const [mode, setMode] = useState<LibraryMode>(initialMode);
   const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
   const [filters, setFilters] = useState<SongFilters>(NO_FILTERS);
   const facets = useLibraryFacets(library, connected);
 
   useEffect(() => {
-    if (connected) void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
+    if (!connected) return;
+    void request('library').then((ack) => {
+      if (!ack.ok || !ack.libraries) return;
+      setLibraries(ack.libraries);
+      // Servers with too few hits for a game start on the demos, as rooms do.
+      if (ack.libraries.hits < SONG_LIMITS.min) setLibrary((current) => (current === 'hits' ? 'demo' : current));
+    });
   }, [connected]);
 
   function choose(next: Library) {
