@@ -51,13 +51,6 @@ function countValues(rows: FacetRow[], kind: FilterKind): Map<string, Option> {
   return counts;
 }
 
-export function filterSummary(filters: SongFilters) {
-  const chosen = FILTER_KINDS.flatMap((kind) => filters[kind]);
-  if (!chosen.length) return 'All songs';
-  if (chosen.length <= 2) return chosen.join(', ');
-  return `${chosen.slice(0, 2).join(', ')} +${chosen.length - 2}`;
-}
-
 /**
  * Choose songs by genre, language and artist, like a shop's search filters: ticks in one list widen
  * the pick, ticks in different lists narrow it. Each option shows how many songs it would add.
@@ -100,13 +93,27 @@ export default function Filters({
 
   return (
     <div className="artist-picker">
+      {chosen.length > 0 && (
+        <div className="filter-chips" aria-label="Chosen filters">
+          {chosen.map(({ kind, name }) => (
+            <button key={`${kind}:${name}`} className="chip" aria-label={`Remove ${name}`} onClick={() => toggle(kind, name)}>
+              {name}
+              <span aria-hidden> ×</span>
+            </button>
+          ))}
+          <button className="link small" onClick={() => onChange(NO_FILTERS)}>
+            Clear all
+          </button>
+        </div>
+      )}
       <button className="artist-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="muted">Filters:</span> <b>{filterSummary(value)}</b>
-        {chosen.length > 0 && facets && (
-          <span className="muted small">
-            {' '}
+        <span className="muted">Filters</span>
+        {chosen.length > 0 && facets ? (
+          <b>
             ({matching} song{matching === 1 ? '' : 's'})
-          </span>
+          </b>
+        ) : (
+          <span className="muted">: All songs</span>
         )}
         <span className="artist-caret" aria-hidden>
           {open ? '▴' : '▾'}
@@ -114,29 +121,17 @@ export default function Filters({
       </button>
       {open && (
         <div className="artist-panel">
-          {chosen.length > 0 && (
-            <div className="filter-chips">
-              {chosen.map(({ kind, name }) => (
-                <button key={`${kind}:${name}`} className="chip" aria-label={`Remove ${name}`} onClick={() => toggle(kind, name)}>
-                  {name}
-                  <span aria-hidden> ×</span>
-                </button>
-              ))}
-              <button className="link small" onClick={() => onChange(NO_FILTERS)}>
-                Clear all
-              </button>
-            </div>
-          )}
           {kinds.map((kind) => {
-            // Counts follow the other lists' ticks, as in a shop's filters.
+            // Counts follow the other lists' ticks, as in a shop's filters; options with no songs are hidden.
             const counts = countValues((facets ?? []).filter(songFilter(value, kind)), kind);
             const ticked = new Set(value[kind].map(artistKey));
             const options = all[kind].filter(
               (o) =>
-                kind !== 'artists' ||
                 ticked.has(artistKey(o.name)) ||
-                ((counts.get(artistKey(o.name))?.songs ?? 0) > 0 && (!needle || o.name.toLowerCase().includes(needle))),
+                ((counts.get(artistKey(o.name))?.songs ?? 0) > 0 &&
+                  (kind !== 'artists' || !needle || o.name.toLowerCase().includes(needle))),
             );
+            if (!options.length && kind !== 'artists') return null;
             return (
               <fieldset key={kind} className="facet">
                 <legend>{LABELS[kind]}</legend>
@@ -156,8 +151,8 @@ export default function Filters({
                     const on = ticked.has(artistKey(o.name));
                     return (
                       <li key={o.name}>
-                        <label className={!songs && !on ? 'empty' : undefined}>
-                          <input type="checkbox" checked={on} disabled={!songs && !on} onChange={() => toggle(kind, o.name)} />
+                        <label>
+                          <input type="checkbox" checked={on} onChange={() => toggle(kind, o.name)} />
                           <span className="artist-name">{o.name}</span>
                           <span className="muted small">{songs}</span>
                         </label>

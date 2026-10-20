@@ -320,8 +320,7 @@ button.back { color: var(--muted); }
 .artist-list label:hover { background: var(--panel-2); }
 .artist-list input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); flex: none; }
 .artist-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.artist-list label.empty { opacity: 0.45; cursor: default; }
-.filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
 .chip { padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; background: var(--winner-bg); border-color: var(--accent); color: var(--text); }
 .facet { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 4px 6px 6px; border: 1px solid var(--border); border-radius: 8px; }
 .facet legend { padding: 0 4px; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
