@@ -32,10 +32,18 @@ export default function About({ onClose }: { onClose: () => void }) {
         <h3>Play with friends</h3>
         <ol>
           <li>Enter your name, choose the max players ({PLAYER_LIMITS.min}–{PLAYER_LIMITS.max}) and press Create Room.</li>
-          <li>Share the 4-letter room code or copy the invite link. Friends join with the code.</li>
+          <li>
+            Share the 4-letter room code or copy the invite link. Friends join with the code.
+            <br />
+            <span className="muted small">
+              Playing on a StemGuess server running on a computer on your Wi-Fi (local network)? Share the invite
+              link instead of the code: it opens that computer's address, so only devices on the same network can
+              join.
+            </span>
+          </li>
           <li>
             As the host, pick where the songs come from and how many songs to play ({SONG_LIMITS.min}–{SONG_LIMITS.max}).
-            Use Filters to play only some genres, languages or artists. Then press Start game. The game also starts by itself once the room is full.
+            Use Filters to play only some genres, languages or artists (see Song filters below). Then press Start game. The game also starts by itself once the room is full.
           </li>
         </ol>
 
@@ -81,8 +89,16 @@ export default function About({ onClose }: { onClose: () => void }) {
           </li>
         </ul>
         <p className="muted small">
-          In every mode the game picks the songs at random, so nobody (not even the host) knows what's coming. The
-          host can also choose artists, so only their songs come up (songs featuring them count too).
+          In every mode the game picks the songs at random, so nobody (not even the host) knows what's coming.
+        </p>
+
+        <h3>Song filters</h3>
+        <p>
+          Song filters are available both in the game (the host sets them in the room) and in the Song Library and
+          Practice. Choose genres, languages or artists: ticks in one list widen the pick (Pop or Rock), ticks in
+          different lists narrow it (Pop or Rock, and in Hindi). Each option shows how many songs it would match,
+          and the Filters button shows how many songs are available. A song by several artists or in several
+          languages counts under each of them.
         </p>
 
         <h3>Song Library and Practice</h3>
@@ -91,7 +107,7 @@ export default function About({ onClose }: { onClose: () => void }) {
           back or forward, go to the previous or next song, or drag the progress bar to any point; the next song
           starts when one ends. Practice (also its
           own button) plays random songs for you to guess on your own and counts how many you get right. No room
-          needed. In both, Artists narrows the songs to the artists you pick.
+          needed. In both, Filters narrows the songs by genre, language or artist.
         </p>
 
         <h3>Other options</h3>
