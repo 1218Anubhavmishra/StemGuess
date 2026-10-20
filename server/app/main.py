@@ -105,9 +105,7 @@ async def leave_room(sid, _data=None):
 @sio.on("update_settings")
 async def update_settings(sid, data=None):
     data = data or {}
-    return await games.update_settings(
-        sid, data.get("rounds"), data.get("maxPlayers"), data.get("library"), data.get("artists")
-    )
+    return await games.update_settings(sid, data.get("rounds"), data.get("maxPlayers"), data.get("library"), data)
 
 
 @sio.on("library")
@@ -125,6 +123,11 @@ async def library_artists(_sid, data=None):
     return await games.library_artists((data or {}).get("library"))
 
 
+@sio.on("library_facets")
+async def library_facets(_sid, data=None):
+    return await games.library_facets((data or {}).get("library"))
+
+
 @sio.on("song_clip")
 async def song_clip(_sid, data=None):
     return await games.song_clip((data or {}).get("id"))
@@ -133,7 +136,7 @@ async def song_clip(_sid, data=None):
 @sio.on("practice_round")
 async def practice_round(_sid, data=None):
     data = data or {}
-    return await games.practice_round(data.get("library"), data.get("exclude"), data.get("artists"))
+    return await games.practice_round(data.get("library"), data.get("exclude"), data)
 
 
 @sio.on("set_local_tracks")

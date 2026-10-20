@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import { SONG_LIMITS, type Library, type ServerLibrary } from '../types';
-import ArtistPicker, { useLibraryArtists } from './ArtistPicker';
+import { NO_FILTERS, type SongFilters } from '../filters';
 import Brand from './Brand';
+import Filters, { useLibraryFacets } from './Filters';
 import Practice from './Practice';
 import SongList from './SongList';
 import { LibraryTabs, LocalPicker, OPTIONS } from './SongSource';
@@ -23,8 +24,8 @@ export default function SongLibrary({
   const [library, setLibrary] = useState<Library>('demo');
   const [mode, setMode] = useState<LibraryMode>(initialMode);
   const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
-  const [chosenArtists, setChosenArtists] = useState<string[]>([]);
-  const artists = useLibraryArtists(library, connected);
+  const [filters, setFilters] = useState<SongFilters>(NO_FILTERS);
+  const facets = useLibraryFacets(library, connected);
 
   useEffect(() => {
     if (connected) void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
@@ -33,7 +34,7 @@ export default function SongLibrary({
   function choose(next: Library) {
     stemPlayer.stop();
     setLibrary(next);
-    setChosenArtists([]);
+    setFilters(NO_FILTERS);
   }
 
   const selected = OPTIONS.find((o) => o.id === library) ?? OPTIONS[0];
@@ -43,11 +44,16 @@ export default function SongLibrary({
       <div className="home-stack practice">
         <Brand music={false} />
         <div className="card narrow">
-          <h2 className="practice-head">Song Library</h2>
+          <header className="about-head">
+            <h2 className="practice-head">Song Library</h2>
+            <button className="back-button" aria-label="Back" title="Back" onClick={onBack}>
+              &lt;
+            </button>
+          </header>
           <LibraryTabs value={library} libraries={libraries} minSongs={SONG_LIMITS.min} onChange={choose} />
           <p className="notice small">{selected.notice}</p>
           {library === 'local' && <LocalPicker />}
-          <ArtistPicker artists={artists} chosen={chosenArtists} onChange={setChosenArtists} />
+          <Filters facets={facets} value={filters} onChange={setFilters} />
 
           <div className="segmented two" role="radiogroup" aria-label="Mode">
             {(
@@ -72,14 +78,9 @@ export default function SongLibrary({
           </div>
 
           {mode === 'songs' ? (
-            <SongList key={library} library={library} connected={connected} artists={chosenArtists} />
+            <SongList key={library} library={library} connected={connected} filters={filters} />
           ) : (
-            <Practice
-              key={`${library}|${chosenArtists.join('|')}`}
-              library={library}
-              connected={connected}
-              artists={chosenArtists}
-            />
+            <Practice key={`${library}|${JSON.stringify(filters)}`} library={library} connected={connected} filters={filters} />
           )}
 
           <button className="ghost leave-room back" onClick={onBack}>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
-import { byArtists } from '../artists';
+import { songFilter, type SongFilters } from '../filters';
 import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
@@ -25,12 +25,12 @@ function shuffled<T>(items: T[]): T[] {
 export default function Practice({
   library,
   connected,
-  artists,
+  filters,
 }: {
   library: Library;
   connected: boolean;
-  /** Only songs by these artists come up; all when empty. Remount when it changes. */
-  artists: string[];
+  /** Only songs matching these come up. Remount when they change. */
+  filters: SongFilters;
 }) {
   const [round, setRound] = useState<Round | null>(null);
   const [choice, setChoice] = useState<number | null>(null);
@@ -49,7 +49,7 @@ export default function Practice({
       setError('Pick at least 2 songs to practise with.');
       return null;
     }
-    const chosen = tracks.filter((t) => byArtists(artists)(t.artist));
+    const chosen = tracks.filter(songFilter(filters));
     if (!chosen.length) {
       setError('None of your songs are by these artists.');
       return null;
@@ -69,7 +69,7 @@ export default function Practice({
   }
 
   async function nextServer(): Promise<Round | null> {
-    const ack = await request('practice_round', { library, exclude: seen.current, artists });
+    const ack = await request('practice_round', { library, exclude: seen.current, ...filters });
     if (!ack.ok || !ack.round) {
       setError(ack.error ?? 'Could not load a song');
       return null;

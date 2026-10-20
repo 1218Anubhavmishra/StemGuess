@@ -9,13 +9,14 @@ import socketio
 from sqlalchemy import select
 
 from . import config
-from .artists import artist_key, clean_choice, count_artists, matches
+from .artists import artist_key, count_artists, matches
 from .db import SessionLocal
+from .filters import Filters, clean_filters, no_filters, song_filter
 from .models import GameResult, Song, Stem
 
 log = logging.getLogger(__name__)
 
-MAX_NAME_LENGTH = 28
+MAX_NAME_LENGTH = 20
 MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 3
 MIN_PLAYER_LIMIT, MAX_PLAYER_LIMIT, DEFAULT_PLAYER_LIMIT = 2, 10, 2
 # Clients start audio ~0.1 s after round_start arrives, so the server waits slightly longer.
@@ -129,9 +130,11 @@ class Room:
     # Songs played this game ({"title", "artist", "credit", "urls", "track"?}), revealed with the final scores.
     played: list[dict] = field(default_factory=list)
     library: str = "demo"
-    # Only songs by these artists play (all songs when empty).
+    # Only songs by these artists, in these genres and languages play (any when empty).
     artists: list[str] = field(default_factory=list)
-    # Songs in the library by the chosen artists; None until counted.
+    genres: list[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
+    # Songs in the library matching the filters; None until counted.
     pool_size: int | None = None
     # Host's own songs: titles only ({"title", "artist"}), indexed like the host's local clip list.
     local_tracks: list[dict] = field(default_factory=list)
@@ -139,6 +142,13 @@ class Room:
     local_order: list[int] = field(default_factory=list)
     local_ready: set[str] = field(default_factory=set)
     transfer_done: asyncio.Event = field(default_factory=asyncio.Event)
+
+    def filters(self) -> Filters:
+        return {"artists": self.artists, "genres": self.genres, "languages": self.languages}
+
+    def set_filters(self, filters: Filters) -> None:
+        for kind, chosen in filters.items():
+            setattr(self, kind, chosen)
 
     def public(self) -> dict:
         return {
@@ -149,7 +159,7 @@ class Room:
             "totalRounds": self.total_rounds,
             "maxPlayers": self.max_players,
             "library": self.library,
-            "artists": self.artists,
+            **self.filters(),
             "poolSize": self.pool_size,
             # A count only: titles would give the answers away.
             "localTracks": len(self.local_tracks),
@@ -366,7 +376,7 @@ class GameManager:
                 room.local_tracks = []
                 if room.library == "local":
                     room.library = "demo"
-                    room.artists = []
+                    room.set_filters(no_filters())
                 await self._count_pool(room)
         room.local_ready.discard(sid)
         self._check_transfer(room)
@@ -374,7 +384,7 @@ class GameManager:
         await self._broadcast_state(room)
 
     async def update_settings(
-        self, sid: str, rounds: object, max_players: object, library: object = None, artists: object = None
+        self, sid: str, rounds: object, max_players: object, library: object = None, filters: dict | None = None
     ) -> dict:
         room = self._room_of(sid)
         if not room:
@@ -396,18 +406,17 @@ class GameManager:
             return _error(f"{len(room.players)} players are already in the room")
         if library is not None and library not in LIBRARIES:
             return _error("Unknown song library")
-        chosen = clean_choice(artists) if artists is not None else None
-        if artists is not None and chosen is None:
-            return _error("Invalid artists")
+        chosen = clean_filters(filters or {})
+        if chosen is None:
+            return _error("Invalid filters")
         room.total_rounds = rounds
         room.max_players = max_players
         if library is not None and library != room.library:
             room.library = library
-            # Another library has other artists.
-            room.artists = []
-        if chosen is not None:
-            room.artists = chosen
-        if library is not None or chosen is not None:
+            # Another library has other artists, genres and languages.
+            room.set_filters(no_filters())
+        room.set_filters(chosen)
+        if library is not None or chosen:
             await self._count_pool(room)
         await self._broadcast_state(room)
         return {"ok": True}
@@ -417,7 +426,7 @@ class GameManager:
             chosen = {artist_key(a) for a in room.artists}
             room.pool_size = sum(matches(t["artist"], chosen) for t in room.local_tracks)
         else:
-            room.pool_size = len(await asyncio.to_thread(self._playable_song_ids, room.library, room.artists))
+            room.pool_size = len(await asyncio.to_thread(self._playable_song_ids, room.library, room.filters()))
 
     async def set_local_tracks(self, sid: str, tracks: object) -> dict:
         room = self._room_of(sid)
@@ -540,7 +549,8 @@ class GameManager:
             songs = db.scalars(select(Song).where(Song.id.in_(ids))).all()
             # Sorted here, not in SQL: Postgres and SQLite collate text differently.
             songs.sort(key=lambda s: (s.artist.casefold(), s.title.casefold()))
-            return [{"id": s.id, "title": s.title, "artist": s.artist, "credit": s.credit} for s in songs]
+            return [{"id": s.id, "title": s.title, "artist": s.artist, "credit": s.credit,
+                     "genre": s.genre or "", "language": s.language or ""} for s in songs]
 
     async def library_artists(self, library: object) -> dict:
         """Every artist in a server library with their song count, for choosing artists."""
@@ -553,6 +563,22 @@ class GameManager:
         ids = GameManager._playable_song_ids(library)
         with SessionLocal() as db:
             return count_artists(list(db.scalars(select(Song.artist).where(Song.id.in_(ids)))))
+
+    async def library_facets(self, library: object) -> dict:
+        """Song counts per (artist, genre, language) in a server library, for its filters. No titles."""
+        if library not in SERVER_LIBRARIES:
+            return _error("Unknown song library")
+        return {"ok": True, "facets": await asyncio.to_thread(self._library_facets, library)}
+
+    @staticmethod
+    def _library_facets(library: str) -> list[dict]:
+        ids = GameManager._playable_song_ids(library)
+        counts: dict[tuple[str, str, str], int] = {}
+        with SessionLocal() as db:
+            for row in db.execute(select(Song.artist, Song.genre, Song.language).where(Song.id.in_(ids))):
+                key = (row.artist, row.genre or "", row.language or "")
+                counts[key] = counts.get(key, 0) + 1
+        return [{"artist": a, "genre": g, "language": lang, "songs": n} for (a, g, lang), n in counts.items()]
 
     async def song_clip(self, song_id: object) -> dict:
         """The stems of one library song, for playing it from the Song Library list."""
@@ -569,21 +595,21 @@ class GameManager:
                 return None
         return GameManager._load_round(song_id)
 
-    async def practice_round(self, library: object, exclude: object = None, artists: object = None) -> dict:
+    async def practice_round(self, library: object, exclude: object = None, filters: dict | None = None) -> dict:
         """One solo round for Practice. The answer is included: nothing is at stake."""
         if library not in SERVER_LIBRARIES:
             return _error("Unknown song library")
-        chosen = clean_choice(artists if artists is not None else [])
+        chosen = clean_filters(filters or {})
         if chosen is None:
-            return _error("Invalid artists")
+            return _error("Invalid filters")
         exclude = exclude if isinstance(exclude, list) else []
         return await asyncio.to_thread(self._practice_round, library, exclude, chosen)
 
     @staticmethod
-    def _practice_round(library: str, exclude: list, artists: list[str]) -> dict:
-        song_ids = GameManager._playable_song_ids(library, artists)
+    def _practice_round(library: str, exclude: list, filters: Filters) -> dict:
+        song_ids = GameManager._playable_song_ids(library, filters)
         if not song_ids:
-            return _error("No songs by these artists" if artists else "This library has no songs yet")
+            return _error("No songs match these filters" if any(filters.values()) else "This library has no songs yet")
         fresh = [i for i in song_ids if i not in set(exclude)] or song_ids
         song_id = random.choice(fresh)
         rnd = GameManager._load_round(song_id)
@@ -612,8 +638,10 @@ class GameManager:
         if room.state == "playing":
             return _error("Game already running")
 
-        by_artists = " by the chosen artists" if room.artists else ""
-        if room.library == "local":
+        local = room.library == "local"
+        filtered = room.artists if local else any(room.filters().values())
+        by_artists = (" by the chosen artists" if local else " matching the filters") if filtered else ""
+        if local:
             chosen = {artist_key(a) for a in room.artists}
             song_ids = [i for i, t in enumerate(room.local_tracks) if matches(t["artist"], chosen)]
             needed = room.total_rounds * LOCAL_POOL_FACTOR
@@ -625,7 +653,7 @@ class GameManager:
             titles = [room.local_tracks[i]["title"] for i in song_ids]
             room.title_pool = titles if len(set(titles)) >= OPTION_COUNT else [t["title"] for t in room.local_tracks]
         else:
-            song_ids = await asyncio.to_thread(self._playable_song_ids, room.library, room.artists)
+            song_ids = await asyncio.to_thread(self._playable_song_ids, room.library, room.filters())
             if len(song_ids) < MIN_ROUNDS:
                 return _error(f"Games need at least {MIN_ROUNDS} songs{by_artists or ' in the library'} "
                               f"(there are {len(song_ids)}).")
@@ -648,12 +676,13 @@ class GameManager:
         return {"ok": True}
 
     @staticmethod
-    def _playable_song_ids(library: str, artists: list[str] | None = None) -> list[int]:
+    def _playable_song_ids(library: str, filters: Filters | None = None) -> list[int]:
         prefix = SERVER_LIBRARIES[library]
-        chosen = {artist_key(a) for a in artists or []}
+        keep = song_filter(filters)
         with SessionLocal() as db:
-            query = select(Song.id, Song.artist).join(Stem).where(Song.source_file.startswith(prefix)).distinct()
-            return [song_id for song_id, artist in db.execute(query) if matches(artist, chosen)]
+            query = (select(Song.id, Song.artist, Song.genre, Song.language).join(Stem)
+                     .where(Song.source_file.startswith(prefix)).distinct())
+            return [r.id for r in db.execute(query) if keep(r.artist, r.genre, r.language)]
 
     @staticmethod
     def _titles(song_ids: list[int]) -> list[str]:
@@ -662,7 +691,7 @@ class GameManager:
 
     @staticmethod
     def _option_titles(library: str, song_ids: list[int]) -> list[str]:
-        """Wrong options come from the chosen artists' songs, or the whole library if they have too few."""
+        """Wrong options come from the songs matching the filters, or the whole library if they have too few."""
         titles = GameManager._titles(song_ids)
         if len({t.casefold() for t in titles}) >= OPTION_COUNT:
             return titles

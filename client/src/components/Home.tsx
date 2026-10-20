@@ -7,10 +7,10 @@ import Brand from './Brand';
 import Stepper from './Stepper';
 
 const NAME_KEY = 'stemguess:name';
-const NAME_LIMIT = 28;
+const NAME_LIMIT = 20;
 
 export default function Home({ connected, menu }: { connected: boolean; menu: ReactNode }) {
-  const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) ?? '');
+  const [name, setName] = useState(() => (localStorage.getItem(NAME_KEY) ?? '').slice(0, NAME_LIMIT));
   const [code, setCode] = useState(() => new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '');
   const [maxPlayers, setMaxPlayers] = useState(PLAYER_LIMITS.min);
   const [error, setError] = useState('');
@@ -58,15 +58,15 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
 
         <div className="card narrow">
 
-          <label className="field">
-            <span>Host name (you)</span>
+          <label className="field inline name-field">
+            <span>Player Name</span>
             <span className="slot-wrap">
               <input
                 ref={nameRef}
                 className="slots name-input"
                 style={{ '--n': NAME_LIMIT } as CSSProperties}
                 value={name}
-                placeholder="type your name here to enter"
+                placeholder="Type your name here-"
                 maxLength={NAME_LIMIT}
                 spellCheck={false}
                 onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}

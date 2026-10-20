@@ -2,11 +2,11 @@
 
 From server/:  python -m scripts.import_hits [--sync-only]
 
-Songs are listed in scripts/hits.csv (title, artist, youtube, file; file is empty when there's no
-audio yet). The youtube column holds the song's official YouTube video, or another official link
+Songs are listed in scripts/hits.csv (title, artist, genre, language, youtube, file; file is empty
+when there's no audio yet; genre and language choose songs for a game, see hits_genres). The youtube column holds the song's official YouTube video, or another official link
 (e.g. Apple Music) when no YouTube upload plays; the link identifies a song, so titles and artists
 can be edited there and re-synced. Each run:
-1. updates the title, artist and credit of songs already in the database (DATABASE_URL) to match
+1. updates the title, artist, genre, language and credit of songs already in the database (DATABASE_URL) to match
    hits.csv. --sync-only stops here, e.g. to rename songs in the live database;
 2. imports the new songs: each song's loudest CLIP_SECONDS are cut and split with Demucs (free, runs
    on this machine) into drums, bass and other, dropping the vocals. Demucs needs PyTorch, so it
@@ -84,9 +84,11 @@ def sync(hits: list[dict]) -> None:
             hit = by_source.get(song.source_file)
             if not hit:
                 continue
-            if (song.title, song.artist, song.credit) != (hit["title"], hit["artist"], credit_of(hit)):
-                print(f"update: {song.title} - {song.artist}  ->  {hit['title']} - {hit['artist']}")
-                song.title, song.artist, song.credit = hit["title"], hit["artist"], credit_of(hit)
+            want = (hit["title"], hit["artist"], credit_of(hit), hit.get("genre") or None, hit.get("language") or None)
+            if (song.title, song.artist, song.credit, song.genre, song.language) != want:
+                print(f"update: {song.title} - {song.artist}  ->  {hit['title']} - {hit['artist']}"
+                      f"  [{want[3] or '-'}, {want[4] or '-'}]")
+                song.title, song.artist, song.credit, song.genre, song.language = want
                 changed += 1
         db.commit()
     print(f"{changed} songs updated")
@@ -146,7 +148,7 @@ def add_song(hit: dict, stems_dir: Path) -> int:
     with SessionLocal() as db:
         song = Song(title=hit["title"], artist=hit["artist"], aliases=[],
                     source_file=source_of(hit), duration=duration_of(stems[0]),
-                    credit=credit_of(hit))
+                    credit=credit_of(hit), genre=hit.get("genre") or None, language=hit.get("language") or None)
         song.stems = [Stem(name=p.stem, path=p.relative_to(config.MEDIA_DIR).as_posix()) for p in stems]
         db.add(song)
         db.commit()

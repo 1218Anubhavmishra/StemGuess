@@ -21,3 +21,6 @@ client/android/
 client/electron/
 
 server/server.log
+server/hits_genres.log
+# Apple's raw answers for hits_genres (re-created on demand).
+server/scripts/hits_itunes.json

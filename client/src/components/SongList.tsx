@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
-import { byArtists } from '../artists';
+import { songFilter, type SongFilters } from '../filters';
 import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
@@ -9,18 +9,26 @@ import { useLocalTracks } from './SongSource';
 
 const SKIP_SECONDS = 5;
 
-type Item = { key: string; title: string; artist: string; credit?: Credit | null; load: () => Promise<boolean> };
+type Item = {
+  key: string;
+  title: string;
+  artist: string;
+  genre?: string;
+  language?: string;
+  credit?: Credit | null;
+  load: () => Promise<boolean>;
+};
 
 /** Every song in a library, with a player: pick a song, pause, seek, skip. Remount per library. */
 export default function SongList({
   library,
   connected,
-  artists,
+  filters,
 }: {
   library: Library;
   connected: boolean;
-  /** Only songs by these artists are listed; all when empty. */
-  artists: string[];
+  /** Only songs matching these are listed. */
+  filters: SongFilters;
 }) {
   const [songs, setSongs] = useState<Item[] | null>(null);
   const [current, setCurrent] = useState<Item | null>(null);
@@ -62,6 +70,8 @@ export default function SongList({
           key: String(s.id),
           title: s.title,
           artist: s.artist,
+          genre: s.genre,
+          language: s.language,
           credit: s.credit,
           load: async () => {
             const clip = await request('song_clip', { id: s.id });
@@ -75,8 +85,7 @@ export default function SongList({
   }, [library, local, connected, tracks]);
 
   const needle = query.trim().toLowerCase();
-  const byChosen = byArtists(artists);
-  const listed = (songs ?? []).filter((s) => byChosen(s.artist));
+  const listed = (songs ?? []).filter(songFilter(filters));
   const shown = listed.filter((s) => !needle || `${s.title} ${s.artist}`.toLowerCase().includes(needle));
 
   async function play(item: Item) {

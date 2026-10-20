@@ -1,3 +1,5 @@
+import type { FacetRow } from './filters';
+
 export type Player = { id: string; name: string; score: number; guessed: boolean; attempted: boolean; connected: boolean };
 
 export type RoomState = {
@@ -8,9 +10,11 @@ export type RoomState = {
   totalRounds: number;
   maxPlayers: number;
   library: Library;
-  /** Only songs by these artists play; empty means all. */
+  /** Only songs by these artists, in these genres and languages play; empty means any. */
   artists: string[];
-  /** Songs in the library by the chosen artists (null until counted). */
+  genres: string[];
+  languages: string[];
+  /** Songs in the library matching the filters (null until counted). */
   poolSize: number | null;
   localTracks: number;
   players: Player[];
@@ -67,11 +71,18 @@ export type Ack = {
   libraries?: Record<ServerLibrary, number>;
   round?: PracticeRound;
   songs?: LibrarySong[];
-  artists?: { name: string; songs: number }[];
+  facets?: FacetRow[];
   urls?: string[];
 };
 
-export type LibrarySong = { id: number; title: string; artist: string; credit?: Credit | null };
+export type LibrarySong = {
+  id: number;
+  title: string;
+  artist: string;
+  credit?: Credit | null;
+  genre?: string;
+  language?: string;
+};
 
 export const GITHUB_URL = 'https://github.com/1218Anubhavmishra';
 

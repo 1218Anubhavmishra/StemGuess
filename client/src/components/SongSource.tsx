@@ -237,7 +237,7 @@ export default function SongSource({
       ) : (
         libraries && (
           <p className="muted small" role="status">
-            Found {libraries[room.library]} songs. The game will pick {rounds} at random.
+            Found {room.poolSize ?? libraries[room.library]} songs. The game will pick {rounds} at random.
           </p>
         )
       )}

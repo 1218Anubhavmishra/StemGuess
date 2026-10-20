@@ -62,12 +62,13 @@ def move_rows(sources: set[str]) -> None:
     if not moved:
         return
     fields = list(rows[0].keys())
-    new_file = not REJECTED.exists()
-    with REJECTED.open("a", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
-        if new_file:
-            writer.writeheader()
-        writer.writerows(moved)
+    rejected = read_hits(REJECTED) if REJECTED.exists() else []
+    rejected_fields = list(rejected[0].keys()) if rejected else []
+    rejected_fields += [f for f in fields if f not in rejected_fields]
+    with REJECTED.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=rejected_fields, restval="")
+        writer.writeheader()
+        writer.writerows(rejected + moved)
     with HITS.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
