@@ -31,9 +31,25 @@ async function copyText(text: string) {
   }
 }
 
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="small"
+      onClick={async () => {
+        await copyText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? 'Copied!' : label}
+    </button>
+  );
+}
+
 export default function Invite({ code }: { code: string }) {
   const [link, setLink] = useState('');
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,19 +61,10 @@ export default function Invite({ code }: { code: string }) {
     };
   }, [code]);
 
-  if (!link) return null;
-
   return (
-    <button
-      type="button"
-      className="small invite"
-      onClick={async () => {
-        await copyText(link);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-    >
-      {copied ? 'Copied!' : 'Copy invite link'}
-    </button>
+    <div className="invite">
+      {link && <CopyButton text={link} label="Copy invite link" />}
+      <CopyButton text={code} label="Copy room code" />
+    </div>
   );
 }

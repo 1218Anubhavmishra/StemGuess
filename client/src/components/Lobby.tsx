@@ -3,7 +3,7 @@ import { request, socket } from '../socket';
 import { LOCAL_POOL_FACTOR, SONG_LIMITS, type Library, type RoomState, type ServerLibrary } from '../types';
 import { FILTER_KINDS, FILTER_LABELS, hasFilters, type SongFilters } from '../filters';
 import Brand from './Brand';
-import Filters, { useLibraryFacets } from './Filters';
+import Filters, { showsFilters, useLibraryFacets } from './Filters';
 import Invite from './Invite';
 import Scoreboard from './Scoreboard';
 import SongSource, { GUEST_NOTICES, LIBRARY_LABELS } from './SongSource';
@@ -76,6 +76,7 @@ export default function Lobby({
                 libraries={libraries}
                 minSongs={SONG_LIMITS.min}
                 rounds={room.totalRounds}
+                showCount={showsFilters(facets, filters) === false}
                 onChange={(library) => void update({ library })}
               />
               <Filters facets={facets} value={filters} onChange={(next) => void update(next)} />

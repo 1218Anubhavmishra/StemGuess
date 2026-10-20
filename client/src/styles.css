@@ -157,7 +157,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .scoreboard .score, .ranking .score { font-weight: 700; }
 .round-winners { margin: 8px 0 0; font-weight: 600; color: var(--accent-2); }
 .round-winners.none, .wrong-guess { color: var(--danger); }
-.invite { align-self: flex-start; }
+.invite { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; }
 .reconnecting {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 30;
   padding: 8px 16px; border-radius: 99px;

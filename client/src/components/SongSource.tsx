@@ -137,7 +137,7 @@ export function LocalPicker({ hint }: { hint?: ReactNode }) {
   );
 }
 
-function LocalSongs({ rounds }: { rounds: number }) {
+function LocalSongs({ rounds, showCount }: { rounds: number; showCount: boolean }) {
   const tracks = useLocalTracks();
   const needed = rounds * LOCAL_POOL_FACTOR;
 
@@ -157,7 +157,7 @@ function LocalSongs({ rounds }: { rounds: number }) {
             In this mode, the game will randomly pick the chosen number of songs from that folder. So no player (even
             us) will ever know the songs that will be picked for the game.
           </p>
-          {tracks.length > 0 && (
+          {tracks.length > 0 && (tracks.length < needed || showCount) && (
             <p className="muted small" role="status">
               {tracks.length < needed
                 ? `Found ${tracks.length} songs. A ${rounds}-song game needs at least ${needed}.`
@@ -210,12 +210,15 @@ export default function SongSource({
   libraries,
   minSongs,
   rounds,
+  showCount,
   onChange,
 }: {
   room: RoomState;
   libraries: Record<ServerLibrary, number> | null;
   minSongs: number;
   rounds: number;
+  /** Say how many songs were found (when no Filters button shows the count). */
+  showCount: boolean;
   onChange: (library: Library) => void;
 }) {
   const selected = OPTIONS.find((o) => o.id === room.library) ?? OPTIONS[0];
@@ -233,9 +236,10 @@ export default function SongSource({
         selected.howItWorks && <p className="muted small">{selected.howItWorks}</p>
       )}
       {room.library === 'local' ? (
-        <LocalSongs rounds={rounds} />
+        <LocalSongs rounds={rounds} showCount={showCount} />
       ) : (
-        libraries && (
+        libraries &&
+        showCount && (
           <p className="muted small" role="status">
             Found {room.poolSize ?? libraries[room.library]} songs. The game will pick {rounds} at random.
           </p>

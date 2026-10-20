@@ -51,6 +51,16 @@ function countValues(rows: FacetRow[], kind: FilterKind): Map<string, Option> {
   return counts;
 }
 
+/** Kinds worth a list: two or more values to choose between, or something already chosen. */
+function filterKinds(facets: FacetRow[], value: SongFilters) {
+  return FILTER_KINDS.filter((kind) => countValues(facets, kind).size >= 2 || value[kind].length > 0);
+}
+
+/** Whether <Filters> (and so its song count) shows; null while loading. */
+export function showsFilters(facets: FacetRow[] | null, value: SongFilters): boolean | null {
+  return facets ? filterKinds(facets, value).length > 0 : null;
+}
+
 /**
  * Choose songs by genre, language and artist, like a shop's search filters: ticks in one list widen
  * the pick, ticks in different lists narrow it. Each option shows how many songs it would add.
@@ -77,7 +87,7 @@ export default function Filters({
     return out;
   }, [facets]);
 
-  const kinds = FILTER_KINDS.filter((kind) => all[kind].length >= 2 || value[kind].length > 0);
+  const kinds = filterKinds(facets ?? [], value);
   // Hidden while loading, and when there's nothing to choose between.
   if (!kinds.length) return null;
 
@@ -108,12 +118,10 @@ export default function Filters({
       )}
       <button className="artist-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className="muted">Filters</span>
-        {chosen.length > 0 && facets ? (
+        {facets && (
           <b>
             ({matching} song{matching === 1 ? '' : 's'})
           </b>
-        ) : (
-          <span className="muted">: All songs</span>
         )}
         <span className="artist-caret" aria-hidden>
           {open ? '▴' : '▾'}
