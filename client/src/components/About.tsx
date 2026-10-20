@@ -32,15 +32,7 @@ export default function About({ onClose }: { onClose: () => void }) {
         <h3>Play with friends</h3>
         <ol>
           <li>Enter your name, choose the max players ({PLAYER_LIMITS.min}–{PLAYER_LIMITS.max}) and press Create Room.</li>
-          <li>
-            Share the 4-letter room code or copy the invite link. Friends join with the code.
-            <br />
-            <span className="muted small">
-              Playing on a StemGuess server running on a computer on your Wi-Fi (local network)? Share the invite
-              link instead of the code: it opens that computer's address, so only devices on the same network can
-              join.
-            </span>
-          </li>
+          <li>Share the 4-letter room code or copy the invite link. Friends join with the code.</li>
           <li>
             As the host, pick where the songs come from and how many songs to play ({SONG_LIMITS.min}–{SONG_LIMITS.max}).
             Use Filters to play only some genres, languages or artists (see Song filters below). Then press Start game. The game also starts by itself once the room is full.
