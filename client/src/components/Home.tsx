@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { unlockAudio } from '../audio';
 import { request, saveSession } from '../socket';
 import { PLAYER_LIMITS } from '../types';
@@ -16,9 +16,20 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [canSpectate, setCanSpectate] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
   const roomCode = code.replace(/ /g, '');
 
   async function submit(event: 'create_room' | 'join_room', spectate = false) {
+    // The buttons stay enabled so a tap explains what's missing instead of doing nothing.
+    if (!nameOk) {
+      setError(event === 'join_room' ? 'Enter your name above to join' : 'Enter your name first');
+      nameRef.current?.focus();
+      return;
+    }
+    if (event === 'join_room' && roomCode.length !== 4) {
+      setError('Enter the 4-character room code');
+      return;
+    }
     unlockAudio();
     setBusy(true);
     setError('');
@@ -51,6 +62,7 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
             <span>Host name (you)</span>
             <span className="slot-wrap">
               <input
+                ref={nameRef}
                 className="slots name-input"
                 style={{ '--n': NAME_LIMIT } as CSSProperties}
                 value={name}
@@ -70,7 +82,7 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
               max={PLAYER_LIMITS.max}
               onChange={setMaxPlayers}
             />
-            <button className="primary" disabled={!connected || !nameOk || busy} onClick={() => void submit('create_room')}>
+            <button className="primary" disabled={!connected || busy} onClick={() => void submit('create_room')}>
               Create Room
             </button>
           </div>
@@ -78,7 +90,7 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
           <form className="row join-row" onSubmit={onJoin}>
             <span className="divider">or join one</span>
             <CodeInput value={code} length={4} onChange={setCode} />
-            <button type="submit" disabled={!connected || !nameOk || roomCode.length !== 4 || busy}>
+            <button type="submit" disabled={!connected || busy}>
               Join
             </button>
           </form>
