@@ -94,6 +94,10 @@ input:disabled { opacity: 0.5; }
 .create-row { align-items: center; }
 .create-row .field { flex: 1; min-width: 0; }
 .create-row > button { white-space: nowrap; }
+@media (max-width: 440px) {
+  .create-row { flex-wrap: wrap; }
+  .create-row > button { flex: 1 1 100%; }
+}
 .join-row { align-items: center; }
 .join-row .divider { white-space: nowrap; margin-right: 2px; }
 button {
@@ -129,7 +133,8 @@ button.mute, .topbar button.ghost { color: var(--on-page); }
 .brand .logo { margin: 0; }
 .home-stack { display: flex; flex-direction: column; align-items: center; width: min(420px, 100%); }
 
-.room-code-row { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.room-code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.room-code-row > :not(:last-child) { white-space: nowrap; }
 .room-code { font-size: 1.6rem; letter-spacing: 0.15em; color: var(--accent-2); margin: 0; }
 
 .scoreboard, .ranking, .feed { list-style: none; margin: 0; padding: 0; }
@@ -249,6 +254,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .song-source { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px 12px; margin: 4px 0 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .song-source legend { padding: 0 6px; font-size: 0.85rem; color: var(--muted); }
 .segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--panel-2); border-radius: 10px; padding: 4px; }
+@media (max-width: 440px) { .segmented { grid-template-columns: repeat(2, 1fr); } }
 .segmented button { border: 1px solid transparent; background: transparent; padding: 8px 6px; font-size: 0.85rem; line-height: 1.2; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .segmented button.on { background: var(--panel); border-color: var(--border-strong); color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 6%); }
 .segmented small { font-size: 0.7rem; color: var(--muted); font-weight: 400; }
