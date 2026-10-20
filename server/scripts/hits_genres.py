@@ -30,7 +30,7 @@ PAUSE = 3.1
 # Broad genre -> Apple genres in it. Unlisted Apple genres become "Other".
 GENRES = {
     "Pop": ["Pop", "Teen Pop", "K-Pop", "J-Pop", "Pop Latino", "Pop/Rock", "Adult Contemporary", "Singer/Songwriter",
-            "Soft Rock", "Vocal", "Easy Listening"],
+            "Soft Rock", "Vocal", "Easy Listening", "Holiday", "Christmas"],
     "Hip-Hop/Rap": ["Hip-Hop/Rap", "Hip-Hop", "Rap", "Hip Hop", "Gangsta Rap", "Hardcore Rap", "Underground Rap",
                     "West Coast Rap", "East Coast Rap", "Dirty South", "Alternative Rap", "UK Hip-Hop", "Old School Rap",
                     "Latin Rap", "Grime", "Drill", "Trap"],
@@ -48,11 +48,14 @@ GENRES = {
     "Latin": ["Latin", "Latino", "Urbano latino", "Latin Urban", "Reggaeton", "Salsa y Tropical", "Música Mexicana",
               "Regional Mexicano", "Latin Pop", "Tropical", "Bachata", "Latin Alternative & Rock", "Flamenco"],
     "Country": ["Country", "Contemporary Country", "Americana", "Bluegrass", "Honky Tonk", "Folk", "Country Pop"],
-    "Reggae/Afro": ["Reggae", "Dancehall", "Afrobeats", "Afro-Pop", "African", "Afro House", "Ska"],
+    "Reggae/Afro": ["Reggae", "Roots Reggae", "Dancehall", "Afrobeats", "Afro-Pop", "African", "Afro House", "Ska"],
+    "Jazz/Classical": ["Jazz", "Vocal Jazz", "Contemporary Jazz", "Smooth Jazz", "Big Band", "Blues", "Classical",
+                       "Orchestral", "Opera", "Chamber Music"],
     "Soundtrack": ["Soundtrack", "Anime", "Video Game", "Original Score", "TV Soundtrack", "Musicals",
                    "Children's Music", "Disney"],
 }
 BROAD = {apple.casefold(): broad for broad, apples in GENRES.items() for apple in apples}
+INDIAN_LANGUAGES = {"Hindi", "Punjabi", "Haryanvi"}
 
 
 def broad_genre(apple: str) -> str:
@@ -115,6 +118,9 @@ def fill(cache: dict) -> None:
         if not genre or genre == "Soundtrack":
             votes = sum((by_artist.get(n, Counter()) for n in names_of(hit)), Counter())
             genre = votes.most_common(1)[0][0] if votes else genre
+        # Apple files some Indian and Pakistani songs under "Worldwide" or not at all.
+        if genre in ("", "Other") and hit.get("language") in INDIAN_LANGUAGES:
+            genre = "Indian"
         hit["genre"] = genre
         filled += bool(genre)
     with HITS.open("w", encoding="utf-8", newline="") as f:

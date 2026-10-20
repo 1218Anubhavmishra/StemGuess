@@ -65,7 +65,7 @@ After testing them locally (with a SQLite `DATABASE_URL`), put exactly those son
 `.\.venv\Scripts\python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db`: it copies only the
 `cc:` songs into the database from `server/.env` and uploads only their clips to R2.
 
-The "Preview of hits" library comes from `scripts/hits.csv` (title, artist, YouTube link, local file), a table you can edit in Cursor or a spreadsheet app.
+The "Preview of hits" library comes from `scripts/hits.csv` (title, artist, genre, language, YouTube link, local file), a table you can edit in Cursor or a spreadsheet app.
 `.\.venv\Scripts\python -m scripts.import_hits` cuts each song's loudest 15 s and splits it with
 [Demucs](https://github.com/facebookresearch/demucs) (free, runs locally) into drums, bass and other,
 dropping the vocals; each song is credited with its YouTube link (the `youtube` column can also hold
@@ -107,10 +107,15 @@ Songs on the server outside the demo (`demo:`), Creative Commons (`cc:`) and hit
 5 s back/forward, previous/next, seekable progress bar, autoplay of the next song). **Practice** (its own button, or a tab
 in the Song Library) plays random songs to guess solo, with a progress bar. No room needed.
 
-**Artists**: in the lobby (host), Song Library and Practice, an Artists picker narrows the songs to
-chosen artists. A song counts for every artist it credits ("Dr. Dre ft. Eminem" is both), split the
-same way on the server (`app/artists.py`) and client (`src/artists.ts`). In games, the wrong options
-come from the chosen artists' songs when they have at least four titles.
+**Filters**: in the lobby (host), Song Library and Practice, Filters narrow the songs by genre, language
+and artist, like a shop's search filters: ticks in one list widen the pick (Pop or Dance), ticks in
+different lists narrow it (Pop or Dance, and Hindi), and each option shows how many songs it would match.
+A song counts for every artist it credits ("Dr. Dre ft. Eminem" is both), split the same way on the
+server (`app/artists.py`, `app/filters.py`) and client (`src/artists.ts`, `src/filters.ts`). In games,
+the wrong options come from the songs matching the filters when they have at least four titles.
+Genres and languages come from the `genre` and `language` columns of `hits.csv`:
+`python -m scripts.hits_genres` fills empty genres from Apple's iTunes Search API (song metadata only),
+grouped into broad genres; languages are set by hand. Publish edits with `import_hits --sync-only`.
 
 Joining a game that has already started offers **Spectate**: spectators see and hear every round
 without answering and become players when the game ends. Players and spectators together are capped at 10. With My own music, each player's browser
