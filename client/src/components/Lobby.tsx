@@ -111,7 +111,7 @@ export default function Lobby({
           ) : (
             <>
               <p className="source-chip">{LIBRARY_LABELS[room.library]}</p>
-              <p className="notice small">{GUEST_NOTICES[room.library]}</p>
+              {GUEST_NOTICES[room.library] && <p className="notice small">{GUEST_NOTICES[room.library]}</p>}
               {room.artists.length > 0 && <p className="muted">Artists: {room.artists.join(', ')}</p>}
               <p className="muted">{room.totalRounds} songs</p>
               <p className="muted">Waiting for the host to start…</p>

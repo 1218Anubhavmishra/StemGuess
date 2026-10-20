@@ -50,9 +50,8 @@ export const LIBRARY_LABELS: Record<Library, string> = {
   local: "🎵 Host's music",
 };
 
-export const GUEST_NOTICES: Record<Library, string> = {
-  demo: 'Original & free to play demo tracks by StemGuess.',
-  cc: 'Songs shared by their artists under Creative Commons licences.',
+// Only these libraries show their notice in the room lobby.
+export const GUEST_NOTICES: Partial<Record<Library, string>> = {
   hits: 'Short previews of popular hits, with the vocals taken out.',
   local: "Songs come from the host's device and are shared only with this room. StemGuess doesn't store them.",
 };
@@ -225,10 +224,14 @@ export default function SongSource({
     <fieldset className="song-source">
       <legend>Songs from</legend>
       <LibraryTabs value={room.library} libraries={libraries} minSongs={minSongs} onChange={onChange} />
-      <div className="notice small">
-        <p>{selected.notice}</p>
-        {selected.howItWorks && <p>{selected.howItWorks}</p>}
-      </div>
+      {GUEST_NOTICES[room.library] ? (
+        <div className="notice small">
+          <p>{selected.notice}</p>
+          {selected.howItWorks && <p>{selected.howItWorks}</p>}
+        </div>
+      ) : (
+        selected.howItWorks && <p className="muted small">{selected.howItWorks}</p>
+      )}
       {room.library === 'local' ? (
         <LocalSongs rounds={rounds} />
       ) : (

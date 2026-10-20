@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
 import { SERVER_URL, serverUrl } from '../socket';
 
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
@@ -34,18 +33,12 @@ async function copyText(text: string) {
 
 export default function Invite({ code }: { code: string }) {
   const [link, setLink] = useState('');
-  const [qr, setQr] = useState('');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void shareableBase().then(async (base) => {
-      const url = `${base}/?room=${code}`;
-      const image = await QRCode.toDataURL(url, { margin: 1, width: 240 });
-      if (!cancelled) {
-        setLink(url);
-        setQr(image);
-      }
+    void shareableBase().then((base) => {
+      if (!cancelled) setLink(`${base}/?room=${code}`);
     });
     return () => {
       cancelled = true;
@@ -55,23 +48,16 @@ export default function Invite({ code }: { code: string }) {
   if (!link) return null;
 
   return (
-    <div className="invite">
-      <img src={qr} alt={`QR code to join room ${code}`} width={96} height={96} />
-      <div className="invite-text">
-        <span className="muted small">Scan or share the invite link</span>
-        <code className="invite-link">{link}</code>
-        <button
-          type="button"
-          className="small"
-          onClick={async () => {
-            await copyText(link);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          {copied ? 'Copied!' : 'Copy invite link'}
-        </button>
-      </div>
-    </div>
+    <button
+      type="button"
+      className="small invite"
+      onClick={async () => {
+        await copyText(link);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? 'Copied!' : 'Copy invite link'}
+    </button>
   );
 }
