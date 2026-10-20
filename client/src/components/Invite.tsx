@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { SERVER_URL, serverUrl } from '../socket';
 
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+const PRIVATE_IP = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 
 /** Base URL other devices can open. A localhost address is swapped for this machine's LAN IP. */
 async function shareableBase(): Promise<string> {
@@ -49,22 +50,34 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 export default function Invite({ code }: { code: string }) {
-  const [link, setLink] = useState('');
+  const [base, setBase] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    void shareableBase().then((base) => {
-      if (!cancelled) setLink(`${base}/?room=${code}`);
+    void shareableBase().then((found) => {
+      if (!cancelled) setBase(found);
     });
     return () => {
       cancelled = true;
     };
-  }, [code]);
+  }, []);
+
+  // A server on this Wi-Fi only knows its own rooms: friends must open its address, not the public site.
+  const lan = base ? new URL(base) : null;
+  const onLan = lan !== null && (PRIVATE_IP.test(lan.hostname) || LOCAL_HOSTS.includes(lan.hostname));
 
   return (
-    <div className="invite">
-      {link && <CopyButton text={link} label="Copy invite link" />}
-      <CopyButton text={code} label="Copy room code" />
-    </div>
+    <>
+      <div className="invite">
+        {base && <CopyButton text={`${base}/?room=${code}`} label="Copy invite link" />}
+        <CopyButton text={code} label="Copy room code" />
+      </div>
+      {onLan && (
+        <p className="muted small">
+          This room is on this computer. Friends on the same Wi-Fi open <b>{lan.host}</b> in their browser, then
+          enter the code.
+        </p>
+      )}
+    </>
   );
 }
