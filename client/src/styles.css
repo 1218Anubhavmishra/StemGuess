@@ -71,6 +71,8 @@ input.slots {
   background-position: calc(var(--pad) + var(--gap)) calc(100% - 7px);
 }
 input.name-input { padding-top: 10px; padding-bottom: 12px; font-size: 0.95rem; }
+input.name-input::placeholder { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+@media (max-width: 380px) { input.name-input { font-size: 0.8rem; } }
 input.code-input {
   --dash: var(--muted);
   --dash-h: 3px;

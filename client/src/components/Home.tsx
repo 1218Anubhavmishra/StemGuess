@@ -7,7 +7,7 @@ import Brand from './Brand';
 import Stepper from './Stepper';
 
 const NAME_KEY = 'stemguess:name';
-const NAME_LIMIT = 20;
+const NAME_LIMIT = 28;
 
 export default function Home({ connected, menu }: { connected: boolean; menu: ReactNode }) {
   const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) ?? '');
@@ -58,7 +58,7 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
 
         <div className="card narrow">
 
-          <label className="field inline">
+          <label className="field">
             <span>Host name (you)</span>
             <span className="slot-wrap">
               <input
@@ -66,6 +66,7 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
                 className="slots name-input"
                 style={{ '--n': NAME_LIMIT } as CSSProperties}
                 value={name}
+                placeholder="type your name here to enter"
                 maxLength={NAME_LIMIT}
                 spellCheck={false}
                 onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
