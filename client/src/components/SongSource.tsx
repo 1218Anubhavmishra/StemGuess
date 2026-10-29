@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { getFolder, getTracks, makeTrack, setTracks, subscribe, type LocalTrack } from '../localLibrary';
+import { getFolders, getTracks, makeTrack, setTracks, subscribe, type LocalTrack } from '../localLibrary';
 import { request } from '../socket';
 import { LOCAL_POOL_FACTOR, type Library, type RoomState, type ServerLibrary } from '../types';
 
@@ -40,6 +40,9 @@ export const OPTIONS: { id: Library; label: string; notice: string; howItWorks?:
       "Songs stay on your device and are shared only with players in this room. StemGuess doesn't store them. " +
       "You're responsible for the music you share: sharing commercial songs without permission may break " +
       'copyright law where you live.',
+    howItWorks:
+      'In this mode, the game will randomly pick the chosen number of songs from the ones you choose. ' +
+      'So no player (even us) will ever know the songs that will be picked for the game.',
   },
 ];
 
@@ -56,6 +59,26 @@ export const GUEST_NOTICES: Partial<Record<Library, string>> = {
   local: "Songs come from the host's device and are shared only with this room. StemGuess doesn't store them.",
 };
 
+export function hasLocalConsent() {
+  return sessionStorage.getItem(CONSENT_KEY) === '1';
+}
+
+/** A mode's notice, behind a "Mode details" button. Give it a key per mode so it resets on a switch. */
+export function ModeDetails({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mode-details">
+      <button className="artist-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className="muted">Mode details</span>
+        <span className="artist-caret" aria-hidden>
+          {open ? '▴' : '▾'}
+        </span>
+      </button>
+      {open && <div className="notice small">{children}</div>}
+    </div>
+  );
+}
+
 export function useLocalTracks(): LocalTrack[] {
   const [tracks, set] = useState(getTracks);
   useEffect(() => subscribe(() => set(getTracks())), []);
@@ -71,10 +94,10 @@ function shuffled<T>(items: T[]): T[] {
   return out;
 }
 
-/** Consent, folder / file pickers and the chosen folder's name. `hint` goes under the folder name. */
+/** Consent, folder / file pickers and the chosen folders' names. `hint` goes under the folder names. */
 export function LocalPicker({ hint }: { hint?: ReactNode }) {
   const tracks = useLocalTracks();
-  const [consent, setConsent] = useState(() => sessionStorage.getItem(CONSENT_KEY) === '1');
+  const [consent, setConsent] = useState(hasLocalConsent);
   const [empty, setEmpty] = useState('');
   const folderInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -84,7 +107,7 @@ export function LocalPicker({ hint }: { hint?: ReactNode }) {
     folderInput.current?.setAttribute('webkitdirectory', '');
   }, []);
 
-  /** The whole selection becomes the pool; the game draws from it, so the host never picks songs. */
+  /** The picked songs become the pool; the game draws from it, so the host never picks songs. */
   function takePool(input: HTMLInputElement | null) {
     const all = [...(input?.files ?? [])];
     if (input) input.value = '';
@@ -97,40 +120,61 @@ export function LocalPicker({ hint }: { hint?: ReactNode }) {
       return;
     }
     setEmpty('');
-    setTracks(shuffled(files).slice(0, MAX_TRACKS).map(makeTrack), folder);
+    // A pick adds to earlier picks of the same kind (folders, or single files) and replaces the other kind,
+    // so the songs come from folders or from single files, never both. A file picked twice counts once.
+    const sameKind = (getFolders().length > 0) === Boolean(folder);
+    const kept = sameKind ? getTracks() : [];
+    const keyOf = (f: File) => `${f.name}|${f.size}|${f.lastModified}`;
+    const known = new Set(kept.map((t) => keyOf(t.file)));
+    const added: LocalTrack[] = [];
+    for (const f of files) {
+      if (known.has(keyOf(f))) continue;
+      known.add(keyOf(f));
+      added.push(makeTrack(f));
+    }
+    if (!folder) return setTracks([...kept, ...added].slice(0, MAX_TRACKS));
+    const earlier = sameKind ? getFolders() : [];
+    const names = earlier.includes(folder) ? earlier : [...earlier, folder];
+    setTracks(shuffled([...kept, ...added]).slice(0, MAX_TRACKS), names);
   }
 
-  const folder = getFolder();
+  const folders = getFolders();
+  const source = tracks.length ? (folders.length ? 'folder' : 'files') : null;
+  const pickers = [
+    { id: 'folder', label: 'Choose folder', input: folderInput },
+    { id: 'files', label: 'Select individual songs', input: fileInput },
+  ] as const;
 
   return (
     <div className="local-songs">
-      <label className="consent">
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(e) => {
-            setConsent(e.target.checked);
-            sessionStorage.setItem(CONSENT_KEY, e.target.checked ? '1' : '0');
-          }}
-        />
-        I understand
-      </label>
+      <button
+        className={consent ? 'facet-option consent on' : 'facet-option consent'}
+        aria-pressed={consent}
+        onClick={() => {
+          setConsent(!consent);
+          sessionStorage.setItem(CONSENT_KEY, consent ? '0' : '1');
+        }}
+      >
+        {consent ? '✓ I understand' : 'I understand'}
+      </button>
 
       <input ref={folderInput} type="file" hidden onChange={(e) => takePool(e.target)} />
       <input ref={fileInput} type="file" accept="audio/*" multiple hidden onChange={(e) => takePool(e.target)} />
-      <div className="row local-pick">
-        <button className="ghost" disabled={!consent} onClick={() => folderInput.current?.click()}>
-          {tracks.length ? 'Choose a different folder' : 'Choose a folder with songs'}
-        </button>
-        <button className="link small" disabled={!consent} onClick={() => fileInput.current?.click()}>
-          or select song files
-        </button>
+      <div className="row local-pickers" role="radiogroup" aria-label="Songs from your device">
+        {pickers.map((p) => (
+          <button
+            key={p.id}
+            role="radio"
+            aria-checked={source === p.id}
+            className={source === p.id ? 'small primary' : 'small'}
+            disabled={!consent}
+            onClick={() => p.input.current?.click()}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
-      {tracks.length > 0 && (
-        <p className="chosen-folder" title={folder || undefined}>
-          📁 {folder || 'Selected files'}
-        </p>
-      )}
+      {source === 'folder' && <p className="chosen-folder">📁 {folders.join(', ')}</p>}
       {hint}
       {empty && <p className="error small">{empty}</p>}
     </div>
@@ -152,19 +196,14 @@ function LocalSongs({ rounds, showCount }: { rounds: number; showCount: boolean 
   return (
     <LocalPicker
       hint={
-        <>
-          <p className="muted small">
-            In this mode, the game will randomly pick the chosen number of songs from that folder. So no player (even
-            us) will ever know the songs that will be picked for the game.
+        tracks.length > 0 &&
+        (tracks.length < needed || showCount) && (
+          <p className="muted small" role="status">
+            {tracks.length < needed
+              ? `Found ${tracks.length} songs. A ${rounds}-song game needs at least ${needed}.`
+              : `Found ${tracks.length} songs. The game will pick ${rounds} at random.`}
           </p>
-          {tracks.length > 0 && (tracks.length < needed || showCount) && (
-            <p className="muted small" role="status">
-              {tracks.length < needed
-                ? `Found ${tracks.length} songs. A ${rounds}-song game needs at least ${needed}.`
-                : `Found ${tracks.length} songs. The game will pick ${rounds} at random.`}
-            </p>
-          )}
-        </>
+        )
       }
     />
   );
@@ -224,17 +263,12 @@ export default function SongSource({
   const selected = OPTIONS.find((o) => o.id === room.library) ?? OPTIONS[0];
 
   return (
-    <fieldset className="song-source">
-      <legend>Songs from</legend>
+    <div className="song-source" role="group" aria-label="Songs from">
       <LibraryTabs value={room.library} libraries={libraries} minSongs={minSongs} onChange={onChange} />
-      {GUEST_NOTICES[room.library] ? (
-        <div className="notice small">
-          <p>{selected.notice}</p>
-          {selected.howItWorks && <p>{selected.howItWorks}</p>}
-        </div>
-      ) : (
-        selected.howItWorks && <p className="muted small">{selected.howItWorks}</p>
-      )}
+      <ModeDetails key={room.library}>
+        <p>{selected.notice}</p>
+        {selected.howItWorks && <p>{selected.howItWorks}</p>}
+      </ModeDetails>
       {room.library === 'local' ? (
         <LocalSongs rounds={rounds} showCount={showCount} />
       ) : (
@@ -245,6 +279,6 @@ export default function SongSource({
           </p>
         )
       )}
-    </fieldset>
+    </div>
   );
 }

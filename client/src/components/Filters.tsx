@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { artistKey } from '../artists';
 import {
   FILTER_KINDS,
+  matchesSearch,
   NO_FILTERS,
   songFilter,
   valuesOf,
@@ -15,22 +16,37 @@ import { useLocalTracks } from './SongSource';
 
 const LABELS: Record<FilterKind, string> = { genres: 'Genre', languages: 'Language', artists: 'Artist' };
 
-/** Song counts per artist, genre and language in a library (null while loading). */
-export function useLibraryFacets(library: Library, connected: boolean): FacetRow[] | null {
+/** How long typing pauses before a search is sent to the server. */
+export const SEARCH_DELAY_MS = 300;
+
+/** Song counts per artist, genre and language in a library, of the songs matching a search (null while loading). */
+export function useLibraryFacets(library: Library, connected: boolean, search = ''): FacetRow[] | null {
   const tracks = useLocalTracks();
   const [server, setServer] = useState<{ library: Library; facets: FacetRow[] } | null>(null);
-  const local = useMemo(() => tracks.map((t) => ({ artist: t.artist, genre: '', language: '', songs: 1 })), [tracks]);
+  const local = useMemo(
+    () =>
+      tracks
+        .filter((t) => matchesSearch(search, t.title, t.artist))
+        .map((t) => ({ artist: t.artist, genre: '', language: '', songs: 1 })),
+    [tracks, search],
+  );
 
   useEffect(() => {
     if (library === 'local' || !connected) return;
     let live = true;
-    void request('library_facets', { library }).then((ack) => {
-      if (live && ack.ok) setServer({ library, facets: ack.facets ?? [] });
-    });
+    // The last counts stay up while typing; they're replaced once the typing pauses.
+    const timer = setTimeout(
+      () =>
+        void request('library_facets', { library, search }).then((ack) => {
+          if (live && ack.ok) setServer({ library, facets: ack.facets ?? [] });
+        }),
+      search ? SEARCH_DELAY_MS : 0,
+    );
     return () => {
       live = false;
+      clearTimeout(timer);
     };
-  }, [library, connected]);
+  }, [library, connected, search]);
 
   if (library === 'local') return local;
   return server?.library === library ? server.facets : null;
@@ -56,26 +72,32 @@ function filterKinds(facets: FacetRow[], value: SongFilters) {
   return FILTER_KINDS.filter((kind) => countValues(facets, kind).size >= 2 || value[kind].length > 0);
 }
 
-/** Whether <Filters> (and so its song count) shows; null while loading. */
-export function showsFilters(facets: FacetRow[] | null, value: SongFilters): boolean | null {
-  return facets ? filterKinds(facets, value).length > 0 : null;
+/** Whether <Filters> shows its song count; null while loading. */
+export function showsFilters(facets: FacetRow[] | null, value: SongFilters, search = ''): boolean | null {
+  return facets ? filterKinds(facets, value).length > 0 || search.trim() !== '' : null;
 }
 
 /**
- * Choose songs by genre, language and artist, like a shop's search filters: ticks in one list widen
- * the pick, ticks in different lists narrow it. Each option shows how many songs it would add.
+ * Choose songs by genre, language and artist, like a shop's search filters: options picked in one list
+ * widen the pick, options in different lists narrow it. Each option shows how many songs it would add.
  */
 export default function Filters({
   facets,
   value,
   onChange,
+  search,
 }: {
   facets: FacetRow[] | null;
   value: SongFilters;
   onChange: (next: SongFilters) => void;
+  /**
+   * A song search shown above the filters. The facets must already be of the songs matching it, so it
+   * narrows the songs and finds the genres, languages and artists to choose from.
+   */
+  search?: { value: string; onChange: (query: string) => void };
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const [artistQuery, setArtistQuery] = useState('');
   // Every value of each kind in a fixed order (most songs in the whole library first), so lists don't jump.
   const all = useMemo(() => {
     const out = {} as Record<FilterKind, Option[]>;
@@ -88,12 +110,14 @@ export default function Filters({
   }, [facets]);
 
   const kinds = filterKinds(facets ?? [], value);
-  // Hidden while loading, and when there's nothing to choose between.
-  if (!kinds.length) return null;
+  // Without a search, hidden while loading and when there's nothing to choose between.
+  if (!search && (!facets?.length || !kinds.length)) return null;
 
   const chosen = FILTER_KINDS.flatMap((kind) => value[kind].map((name) => ({ kind, name })));
+  const searched = search?.value.trim() ?? '';
+  const needle = artistQuery.trim().toLowerCase();
   const matching = (facets ?? []).filter(songFilter(value)).reduce((n, row) => n + row.songs, 0);
-  const needle = query.trim().toLowerCase();
+  const count = `${matching} song${matching === 1 ? '' : 's'}`;
 
   function toggle(kind: FilterKind, name: string) {
     const key = artistKey(name);
@@ -103,6 +127,19 @@ export default function Filters({
 
   return (
     <div className="artist-picker">
+      {search && (
+        <input
+          type="search"
+          className="song-search"
+          placeholder="Search songs, artists, genres or languages"
+          aria-label="Search songs, artists, genres or languages"
+          value={search.value}
+          onChange={(e) => {
+            search.onChange(e.target.value);
+            if (e.target.value.trim()) setOpen(true);
+          }}
+        />
+      )}
       {chosen.length > 0 && (
         <div className="filter-chips" aria-label="Chosen filters">
           {chosen.map(({ kind, name }) => (
@@ -116,18 +153,21 @@ export default function Filters({
           </button>
         </div>
       )}
-      <button className="artist-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="muted">Filters</span>
-        {facets && (
-          <b>
-            ({matching} song{matching === 1 ? '' : 's'})
-          </b>
-        )}
-        <span className="artist-caret" aria-hidden>
-          {open ? '▴' : '▾'}
-        </span>
-      </button>
-      {open && (
+      {facets && kinds.length > 0 && (
+        <button className="artist-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <span className="muted">Filters</span>
+          <b>({count})</b>
+          <span className="artist-caret" aria-hidden>
+            {open ? '▴' : '▾'}
+          </span>
+        </button>
+      )}
+      {facets && !kinds.length && searched && (
+        <p className="muted small">
+          {count} match "{searched}".
+        </p>
+      )}
+      {open && facets && kinds.length > 0 && (
         <div className="artist-panel">
           {kinds.map((kind) => {
             // Counts follow the other lists' ticks, as in a shop's filters; options with no songs are hidden.
@@ -143,14 +183,14 @@ export default function Filters({
             return (
               <fieldset key={kind} className="facet">
                 <legend>{LABELS[kind]}</legend>
-                {kind === 'artists' && (
+                {kind === 'artists' && !search && (
                   <input
                     type="search"
                     className="song-search"
                     placeholder={`Search ${all.artists.length} artists`}
                     aria-label="Search artists"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    value={artistQuery}
+                    onChange={(e) => setArtistQuery(e.target.value)}
                   />
                 )}
                 <ul className={kind === 'artists' ? 'artist-list' : 'artist-list facet-grid'} aria-label={LABELS[kind]}>
@@ -159,15 +199,18 @@ export default function Filters({
                     const on = ticked.has(artistKey(o.name));
                     return (
                       <li key={o.name}>
-                        <label>
-                          <input type="checkbox" checked={on} onChange={() => toggle(kind, o.name)} />
+                        <button
+                          className={on ? 'facet-option on' : 'facet-option'}
+                          aria-pressed={on}
+                          onClick={() => toggle(kind, o.name)}
+                        >
                           <span className="artist-name">{o.name}</span>
-                          <span className="muted small">{songs}</span>
-                        </label>
+                          <span className="facet-count">{songs}</span>
+                        </button>
                       </li>
                     );
                   })}
-                  {!options.length && <li className="muted small">No artists match{needle && ` "${query}"`}.</li>}
+                  {!options.length && <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>}
                 </ul>
               </fieldset>
             );

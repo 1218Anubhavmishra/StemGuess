@@ -125,7 +125,8 @@ async def library_artists(_sid, data=None):
 
 @sio.on("library_facets")
 async def library_facets(_sid, data=None):
-    return await games.library_facets((data or {}).get("library"))
+    data = data or {}
+    return await games.library_facets(data.get("library"), data.get("search"))
 
 
 @sio.on("song_clip")

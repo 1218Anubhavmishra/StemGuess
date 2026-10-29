@@ -370,6 +370,23 @@ DEMOS = {
     "Coconut Breeze": "calypso",
 }
 
+# Each style's filter genre, named like the hits library's genres so the filters read the same.
+FILTER_GENRES = {
+    "Pop": ["pop", "k_pop"],
+    "Rock": ["rock", "metal", "punk"],
+    "Hip-Hop/Rap": ["hip_hop", "trap", "lofi"],
+    "Dance/Electronic": ["house", "synthwave", "drum_and_bass", "disco", "techno", "dubstep", "trance",
+                         "chiptune", "ambient"],
+    "R&B/Soul": ["rnb", "soul", "gospel", "funk", "blues"],
+    "Jazz/Classical": ["jazz", "swing", "classical_waltz", "baroque", "march"],
+    "Latin": ["reggaeton", "bossa_nova", "samba", "salsa", "tango", "flamenco"],
+    "Reggae/Afro": ["reggae", "ska", "dancehall", "afrobeats", "calypso"],
+    "Country": ["country", "bluegrass", "folk"],
+    "Indian": ["indian_classical", "bhangra"],
+    "World": ["celtic", "arabic", "polka", "gamelan"],
+}
+GENRE_OF = {style: genre for genre, styles in FILTER_GENRES.items() for style in styles}
+
 # ---------------------------------------------------------------- instruments
 
 SAW = [1 / k for k in range(1, 17)]
@@ -923,6 +940,7 @@ def register_songs() -> None:
             song.stems = [Stem(name=name, path=f"{folder}/{name}.wav") for name in STEM_NAMES
                           if (folders[title] / f"{name}.wav").exists()]
             song.duration = song_seconds(GENRES[genre])
+            song.genre = GENRE_OF[genre]
         db.commit()
 
 

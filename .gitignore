@@ -24,3 +24,5 @@ server/server.log
 server/hits_genres.log
 # Apple's raw answers for hits_genres (re-created on demand).
 server/scripts/hits_itunes.json
+# What Whisper heard in each hit's clip (song lyrics), written by vocables_hits.
+server/scripts/hits_words.json

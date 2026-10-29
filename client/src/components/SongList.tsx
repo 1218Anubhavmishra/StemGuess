@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
-import { songFilter, type SongFilters } from '../filters';
+import { matchesSearch, songFilter, type SongFilters } from '../filters';
 import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
@@ -24,16 +24,18 @@ export default function SongList({
   library,
   connected,
   filters,
+  query,
 }: {
   library: Library;
   connected: boolean;
   /** Only songs matching these are listed. */
   filters: SongFilters;
+  /** Only songs whose title, artist, genre or language contains this are listed. */
+  query: string;
 }) {
   const [songs, setSongs] = useState<Item[] | null>(null);
   const [current, setCurrent] = useState<Item | null>(null);
   const [loading, setLoading] = useState(false);
-  const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const { playing } = usePlayback();
   const tracks = useLocalTracks();
@@ -84,9 +86,8 @@ export default function SongList({
     });
   }, [library, local, connected, tracks]);
 
-  const needle = query.trim().toLowerCase();
   const listed = (songs ?? []).filter(songFilter(filters));
-  const shown = listed.filter((s) => !needle || `${s.title} ${s.artist}`.toLowerCase().includes(needle));
+  const shown = listed.filter((s) => matchesSearch(query, s.title, s.artist, s.genre, s.language));
 
   async function play(item: Item) {
     unlockAudio();
@@ -181,14 +182,6 @@ export default function SongList({
           <ProgressBar seekable />
         </div>
       )}
-      <input
-        className="song-search"
-        type="search"
-        placeholder={`Search ${listed.length} songs`}
-        aria-label="Search songs"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
       <ul>
         {shown.map((s) => (
           <li key={s.key} className={isCurrent(s) ? 'playing' : ''}>
@@ -215,7 +208,7 @@ export default function SongList({
             )}
           </li>
         ))}
-        {!shown.length && <li className="muted small">No songs match "{query}".</li>}
+        {!shown.length && <li className="muted small">No songs match{query.trim() && ` "${query.trim()}"`}.</li>}
       </ul>
       {error && <p className="error small">{error}</p>}
     </div>

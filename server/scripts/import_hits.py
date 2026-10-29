@@ -3,7 +3,10 @@
 From server/:  python -m scripts.import_hits [--sync-only]
 
 Songs are listed in scripts/hits.csv (title, artist, genre, language, youtube, file; file is empty
-when there's no audio yet; genre and language choose songs for a game, see hits_genres). The youtube column holds the song's official YouTube video, or another official link
+when there's no audio yet; genre and language choose songs for a game, see hits_genres). A song can
+have several artists, genres and languages, comma-separated ("Pop, Rock"); songs are also tagged with
+the genres their languages imply (app.filters.tagged_genres: Hindi songs are also Indian), so hits.csv
+needn't list those. The youtube column holds the song's official YouTube video, or another official link
 (e.g. Apple Music) when no YouTube upload plays; the link identifies a song, so titles and artists
 can be edited there and re-synced. Each run:
 1. updates the title, artist, genre, language and credit of songs already in the database (DATABASE_URL) to match
@@ -30,6 +33,7 @@ from sqlalchemy import select
 
 from app import config
 from app.db import SessionLocal, init_db
+from app.filters import tagged_genres
 from app.models import Song, Stem
 from scripts.process_songs import FFMPEG, clip_start, duration_of, export_stem, is_silent
 from scripts.progress import Progress
@@ -70,6 +74,10 @@ def credit_of(hit: dict) -> dict:
     return {"text": f"\u201c{hit['title']}\u201d{by} on {site_of(hit['youtube'])}", "url": hit["youtube"]}
 
 
+def genres_of(hit: dict) -> str | None:
+    return tagged_genres(hit.get("genre"), hit.get("language"))
+
+
 def read_hits(path: Path = HITS) -> list[dict]:
     # utf-8-sig: spreadsheet apps add a byte-order mark when saving.
     with path.open(encoding="utf-8-sig", newline="") as f:
@@ -84,7 +92,7 @@ def sync(hits: list[dict]) -> None:
             hit = by_source.get(song.source_file)
             if not hit:
                 continue
-            want = (hit["title"], hit["artist"], credit_of(hit), hit.get("genre") or None, hit.get("language") or None)
+            want = (hit["title"], hit["artist"], credit_of(hit), genres_of(hit), hit.get("language") or None)
             if (song.title, song.artist, song.credit, song.genre, song.language) != want:
                 print(f"update: {song.title} - {song.artist}  ->  {hit['title']} - {hit['artist']}"
                       f"  [{want[3] or '-'}, {want[4] or '-'}]")
@@ -148,7 +156,7 @@ def add_song(hit: dict, stems_dir: Path) -> int:
     with SessionLocal() as db:
         song = Song(title=hit["title"], artist=hit["artist"], aliases=[],
                     source_file=source_of(hit), duration=duration_of(stems[0]),
-                    credit=credit_of(hit), genre=hit.get("genre") or None, language=hit.get("language") or None)
+                    credit=credit_of(hit), genre=genres_of(hit), language=hit.get("language") or None)
         song.stems = [Stem(name=p.stem, path=p.relative_to(config.MEDIA_DIR).as_posix()) for p in stems]
         db.add(song)
         db.commit()

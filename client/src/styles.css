@@ -249,8 +249,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 }
 
 /* Song library picker (lobby) */
-.song-source { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px 12px; margin: 4px 0 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.song-source legend { padding: 0 6px; font-size: 0.85rem; color: var(--muted); }
+.song-source { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--panel-2); border-radius: 10px; padding: 4px; }
 @media (max-width: 440px) { .segmented { grid-template-columns: repeat(2, 1fr); } }
 .segmented button { border: 1px solid transparent; background: transparent; padding: 8px 6px; font-size: 0.85rem; line-height: 1.2; display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -261,11 +260,9 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .notice p + p { margin-top: 6px; }
 .source-chip { margin: 0; display: inline-block; align-self: center; font-size: 0.8rem; font-weight: 600; color: var(--accent); background: var(--winner-bg); border-radius: 999px; padding: 3px 10px; }
 .local-songs { display: flex; flex-direction: column; gap: 8px; }
-.local-pick { flex-wrap: wrap; align-items: center; gap: 4px 10px; }
-.local-pick > button.ghost { color: var(--accent); }
-.local-pick > button.link { background: none; border: none; padding: 2px 0; color: var(--muted); text-decoration: underline; font-weight: 400; }
-.consent { display: flex; gap: 8px; align-items: flex-start; font-size: 0.85rem; line-height: 1.35; cursor: pointer; }
-.consent input { margin-top: 2px; accent-color: var(--accent); }
+.facet-option.consent { align-self: flex-start; }
+.local-pickers button { flex: 1; }
+.mode-details { display: flex; flex-direction: column; gap: 6px; }
 .prepare-detail { margin: 0; text-align: center; }
 .chosen-folder { margin: 0; font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
 .error.small { font-size: 0.8rem; }
@@ -279,7 +276,6 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .practice .round-winners { margin: 0 0 4px; }
 .practice-actions { justify-content: flex-end; align-items: center; gap: 10px; }
 .practice-actions [role='status'] { margin-right: auto; }
-button.back { color: var(--muted); }
 .spectators { margin-top: 6px; }
 .segmented.two { grid-template-columns: repeat(2, 1fr); }
 .song-list { display: flex; flex-direction: column; gap: 8px; }
@@ -315,16 +311,21 @@ button.back { color: var(--muted); }
 .artist-tools { display: flex; gap: 6px; }
 .artist-tools .song-search { flex: 1; min-width: 0; }
 .artist-tools button { flex: none; font-size: 0.8rem; padding: 6px 10px; }
-.artist-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
-.artist-list label { display: flex; align-items: center; gap: 8px; padding: 5px 4px; font-size: 0.9rem; cursor: pointer; border-radius: 6px; }
-.artist-list label:hover { background: var(--panel-2); }
-.artist-list input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); flex: none; }
-.artist-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.artist-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; }
+.facet-option {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px;
+  font-size: 0.85rem; font-weight: 500; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+}
+.facet-option:hover { background: var(--panel-2); }
+.facet-option.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.facet-count { font-size: 0.75rem; opacity: 0.65; }
+.facet-option.on .facet-count { opacity: 0.85; }
+.artist-name { min-width: 0; overflow-wrap: anywhere; }
 .filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
 .chip { padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; background: var(--winner-bg); border-color: var(--accent); color: var(--text); }
 .facet { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 4px 6px 6px; border: 1px solid var(--border); border-radius: 8px; }
 .facet legend { padding: 0 4px; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
-.facet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); max-height: none; }
+.facet-grid { max-height: none; }
 .about { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; gap: 8px; line-height: 1.45; }
 .about p, .about ul, .about ol { margin: 0; }
 .about ul, .about ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }

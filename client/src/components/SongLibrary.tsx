@@ -3,11 +3,12 @@ import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import { SONG_LIMITS, type Library, type ServerLibrary } from '../types';
 import { NO_FILTERS, type SongFilters } from '../filters';
+import { getFolders } from '../localLibrary';
 import Brand from './Brand';
 import Filters, { useLibraryFacets } from './Filters';
 import Practice from './Practice';
 import SongList from './SongList';
-import { LibraryTabs, LocalPicker, OPTIONS } from './SongSource';
+import { LibraryTabs, LocalPicker, ModeDetails, OPTIONS } from './SongSource';
 
 export type LibraryMode = 'songs' | 'practice';
 
@@ -25,7 +26,10 @@ export default function SongLibrary({
   const [mode, setMode] = useState<LibraryMode>(initialMode);
   const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
   const [filters, setFilters] = useState<SongFilters>(NO_FILTERS);
-  const facets = useLibraryFacets(library, connected);
+  const [query, setQuery] = useState('');
+  // Practice hides the titles, and songs picked one by one are already known, so neither needs a search.
+  const searchable = mode === 'songs' && (library !== 'local' || getFolders().length > 0);
+  const facets = useLibraryFacets(library, connected, searchable ? query : '');
 
   useEffect(() => {
     if (!connected) return;
@@ -41,6 +45,7 @@ export default function SongLibrary({
     stemPlayer.stop();
     setLibrary(next);
     setFilters(NO_FILTERS);
+    setQuery('');
   }
 
   const selected = OPTIONS.find((o) => o.id === library) ?? OPTIONS[0];
@@ -57,14 +62,21 @@ export default function SongLibrary({
             </button>
           </header>
           <LibraryTabs value={library} libraries={libraries} minSongs={SONG_LIMITS.min} onChange={choose} />
-          <p className="notice small">{selected.notice}</p>
+          <ModeDetails key={`details-${library}`}>
+            <p>{selected.notice}</p>
+          </ModeDetails>
           {library === 'local' && <LocalPicker />}
-          <Filters facets={facets} value={filters} onChange={setFilters} />
+          <Filters
+            facets={facets}
+            value={filters}
+            onChange={setFilters}
+            search={searchable ? { value: query, onChange: setQuery } : undefined}
+          />
 
           <div className="segmented two" role="radiogroup" aria-label="Mode">
             {(
               [
-                ['songs', 'All songs'],
+                ['songs', 'Play'],
                 ['practice', 'Practice'],
               ] as const
             ).map(([id, label]) => (
@@ -84,17 +96,16 @@ export default function SongLibrary({
           </div>
 
           {mode === 'songs' ? (
-            <SongList key={library} library={library} connected={connected} filters={filters} />
+            <SongList
+              key={library}
+              library={library}
+              connected={connected}
+              filters={filters}
+              query={searchable ? query : ''}
+            />
           ) : (
             <Practice key={`${library}|${JSON.stringify(filters)}`} library={library} connected={connected} filters={filters} />
           )}
-
-          <button className="ghost leave-room back" onClick={onBack}>
-            <span className="arrow" aria-hidden>
-              ←
-            </span>
-            Back
-          </button>
         </div>
       </div>
     </main>

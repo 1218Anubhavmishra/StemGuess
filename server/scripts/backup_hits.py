@@ -1,6 +1,6 @@
 """Copy the "Preview of hits" stems out of server/media into a readable backup folder.
 
-From server/:  python -m scripts.backup_hits ["D:/StemGuess backup/hits"]
+From server/:  python -m scripts.backup_hits ["D:/projects/stem-guess-env/StemGuess backup/hits"]
 
 Uses the database in DATABASE_URL (the local one, where the stem files are). Writes one folder per
 song, "<artist> - <title>", holding its stems, plus songs.json with every song's title, artist,
@@ -20,7 +20,7 @@ from app.db import SessionLocal
 from app.models import Song
 from scripts.progress import Progress
 
-DEFAULT_DEST = Path("D:/StemGuess backup/hits")
+DEFAULT_DEST = Path("D:/projects/stem-guess-env/StemGuess backup/hits")
 
 
 def folder_name(song: Song) -> str:

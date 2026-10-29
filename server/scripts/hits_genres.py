@@ -19,7 +19,7 @@ from collections import Counter
 import httpx
 
 from app.artists import artist_key, split_artists
-from app.filters import split_languages
+from app.filters import INDIAN_LANGUAGES, split_languages
 from scripts.import_hits import HITS, read_hits, source_of
 from scripts.progress import Progress
 
@@ -56,7 +56,6 @@ GENRES = {
                    "Children's Music", "Disney"],
 }
 BROAD = {apple.casefold(): broad for broad, apples in GENRES.items() for apple in apples}
-INDIAN_LANGUAGES = {"Hindi", "Punjabi", "Haryanvi"}
 
 
 def broad_genre(apple: str) -> str:

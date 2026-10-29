@@ -14,7 +14,9 @@ export type RoomState = {
   artists: string[];
   genres: string[];
   languages: string[];
-  /** Songs in the library matching the filters (null until counted). */
+  /** Only songs whose title, artist, genre or language contains this play; empty means any. */
+  search: string;
+  /** Songs in the library matching the filters and search (null until counted). */
   poolSize: number | null;
   localTracks: number;
   players: Player[];

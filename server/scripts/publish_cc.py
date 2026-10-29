@@ -5,7 +5,9 @@ From server/:  python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db [-
 The target is DATABASE_URL from server/.env (the live database). Only songs whose source starts with
 the prefix (default "cc:") are copied, so nothing else on the local machine is ever uploaded. Songs
 already in the target are skipped, unless their clips changed (e.g. after reseparate_hits): then the
-new clips are uploaded and replace the old ones.
+new clips are uploaded and replace the old ones. Every song goes live with its filter tags (genres,
+with those its languages imply, and languages; see app.filters.tagged_genres), and songs already live
+whose tags differ are re-tagged.
 """
 
 import mimetypes
@@ -17,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app import config
 from app.db import SessionLocal, init_db
+from app.filters import tagged_genres
 from app.models import Song, Stem
 from scripts.progress import Progress
 
@@ -49,6 +52,9 @@ def main() -> None:
     def live_path(path: str) -> str:
         return path if path.startswith("http") else f"{config.R2_PUBLIC_URL}/{path}"
 
+    def tags_of(song: Song) -> tuple[str | None, str | None]:
+        return tagged_genres(song.genre, song.language), song.language or None
+
     init_db()
     with SessionLocal() as live:
         existing = {s.source_file: {st.path for st in s.stems}
@@ -57,6 +63,16 @@ def main() -> None:
         songs = local.scalars(select(Song).where(Song.source_file.startswith(prefix))).all()
         todo = [s for s in songs
                 if existing.get(s.source_file) != {live_path(st.path) for st in s.stems}]
+        publishing = {s.source_file for s in todo}
+        tags = {s.source_file: tags_of(s) for s in songs if s.source_file in existing and s.source_file not in publishing}
+        retagged = 0
+        with SessionLocal() as live:
+            for old in live.scalars(select(Song).where(Song.source_file.in_(tags))):
+                if (old.genre, old.language) != tags[old.source_file]:
+                    old.genre, old.language = tags[old.source_file]
+                    retagged += 1
+            live.commit()
+        print(f"{retagged} live songs re-tagged")
         progress = Progress(len(todo), "songs to publish")
         for song in todo:
             stems = []
@@ -76,10 +92,12 @@ def main() -> None:
                                              Key=path.removeprefix(f"{config.R2_PUBLIC_URL}/"))
                     old.stems = stems
                     old.duration = song.duration
+                    old.genre, old.language = tags_of(song)
                 else:
+                    genre, language = tags_of(song)
                     live.add(Song(title=song.title, artist=song.artist, aliases=list(song.aliases or []),
                                   source_file=song.source_file, duration=song.duration, credit=song.credit,
-                                  stems=stems))
+                                  genre=genre, language=language, stems=stems))
                 live.commit()
             progress.step(f"{'updated' if old else 'published'}: {song.title} - {song.artist}")
     print(f"done, {len(todo)} songs published or updated ({len(songs) - len(todo)} already live)")

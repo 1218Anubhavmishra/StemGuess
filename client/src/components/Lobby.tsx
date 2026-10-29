@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { request, socket } from '../socket';
 import { LOCAL_POOL_FACTOR, SONG_LIMITS, type Library, type RoomState, type ServerLibrary } from '../types';
-import { FILTER_KINDS, FILTER_LABELS, hasFilters, type SongFilters } from '../filters';
+import { FILTER_KINDS, FILTER_LABELS, hasFilters, tidySearch, type SongFilters } from '../filters';
 import Brand from './Brand';
-import Filters, { showsFilters, useLibraryFacets } from './Filters';
+import Filters, { SEARCH_DELAY_MS, showsFilters, useLibraryFacets } from './Filters';
 import Invite from './Invite';
 import Scoreboard from './Scoreboard';
-import SongSource, { GUEST_NOTICES, LIBRARY_LABELS } from './SongSource';
+import SongSource, { GUEST_NOTICES, LIBRARY_LABELS, ModeDetails } from './SongSource';
 import Stepper from './Stepper';
 
 export default function Lobby({
@@ -27,8 +27,21 @@ export default function Lobby({
     void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
   }, []);
 
-  const facets = useLibraryFacets(room.library, true);
+  // What the host is typing, per library (changing library clears the room's search).
+  const [typed, setTyped] = useState({ library: room.library, text: room.search });
+  const search = typed.library === room.library ? typed.text : room.search;
+  const facets = useLibraryFacets(room.library, true, isHost ? search : '');
   const filters: SongFilters = { genres: room.genres, languages: room.languages, artists: room.artists };
+
+  useEffect(() => {
+    if (!isHost || tidySearch(search) === room.search) return;
+    const timer = setTimeout(() => {
+      void request('update_settings', { search }).then((ack) => {
+        if (!ack.ok) setError(ack.error ?? 'Could not update settings');
+      });
+    }, SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isHost, search, room.search]);
   const local = room.library === 'local';
   // Songs (matching the filters) the game can draw from.
   const poolSize = room.poolSize ?? (local ? room.localTracks : (libraries?.[room.library as ServerLibrary] ?? null));
@@ -76,10 +89,15 @@ export default function Lobby({
                 libraries={libraries}
                 minSongs={SONG_LIMITS.min}
                 rounds={room.totalRounds}
-                showCount={showsFilters(facets, filters) === false}
+                showCount={showsFilters(facets, filters, search) === false}
                 onChange={(library) => void update({ library })}
               />
-              <Filters facets={facets} value={filters} onChange={(next) => void update(next)} />
+              <Filters
+                facets={facets}
+                value={filters}
+                onChange={(next) => void update(next)}
+                search={{ value: search, onChange: (text) => setTyped({ library: room.library, text }) }}
+              />
               <div className="row create-row">
                 <Stepper
                   label="Songs"
@@ -95,21 +113,25 @@ export default function Lobby({
               </div>
               {notEnoughSongs && !local && (
                 <p className="muted small">
-                  {hasFilters(filters) ? 'The chosen filters match' : 'This library has'} {librarySize} song
-                  {librarySize === 1 ? '' : 's'}. A game needs at least {SONG_LIMITS.min}.
+                  {hasFilters(filters) || room.search ? 'The chosen filters match' : 'This library has'}{' '}
+                  {librarySize} song{librarySize === 1 ? '' : 's'}. A game needs at least {SONG_LIMITS.min}.
                 </p>
               )}
-              {notEnoughSongs && local && room.artists.length > 0 && (
+              {notEnoughSongs && local && (room.artists.length > 0 || room.search) && (
                 <p className="muted small">
-                  The chosen artists have {poolSize} of your songs. A {room.totalRounds}-song game needs at least{' '}
-                  {room.totalRounds * LOCAL_POOL_FACTOR}.
+                  {room.search ? 'The chosen filters match' : 'The chosen artists have'} {poolSize} of your songs. A{' '}
+                  {room.totalRounds}-song game needs at least {room.totalRounds * LOCAL_POOL_FACTOR}.
                 </p>
               )}
             </>
           ) : (
             <>
               <p className="source-chip">{LIBRARY_LABELS[room.library]}</p>
-              {GUEST_NOTICES[room.library] && <p className="notice small">{GUEST_NOTICES[room.library]}</p>}
+              {GUEST_NOTICES[room.library] && (
+                <ModeDetails key={room.library}>
+                  <p>{GUEST_NOTICES[room.library]}</p>
+                </ModeDetails>
+              )}
               {FILTER_KINDS.map(
                 (kind) =>
                   filters[kind].length > 0 && (
@@ -118,6 +140,7 @@ export default function Lobby({
                     </p>
                   ),
               )}
+              {room.search && <p className="muted">Search: "{room.search}"</p>}
               <p className="muted">{room.totalRounds} songs</p>
               <p className="muted">Waiting for the host to start…</p>
             </>

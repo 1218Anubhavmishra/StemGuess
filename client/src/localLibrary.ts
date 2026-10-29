@@ -15,16 +15,16 @@ const CLIP_PEAK = 0.9;
 
 let nextId = 1;
 let tracks: LocalTrack[] = [];
-// Name of the folder the songs came from ('' when picked as loose files).
-let folder = '';
+// Names of the folders the songs came from (none when picked as loose files).
+let folders: string[] = [];
 const listeners = new Set<() => void>();
 
 export const getTracks = () => tracks;
-export const getFolder = () => folder;
+export const getFolders = () => folders;
 
-export function setTracks(next: LocalTrack[], from = '') {
+export function setTracks(next: LocalTrack[], from: string[] = []) {
   tracks = next;
-  folder = from;
+  folders = from;
   listeners.forEach((fn) => fn());
 }
 

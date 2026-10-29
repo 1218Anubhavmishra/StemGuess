@@ -75,7 +75,7 @@ export default function About({ onClose }: { onClose: () => void }) {
             official YouTube video, or to Apple Music when no YouTube upload is available.
           </li>
           <li>
-            <b>My music</b>: the host picks a folder of songs on their device. Their browser cuts a clip of each and
+            <b>My music</b>: the host chooses a folder, or individual songs, on their device. Their browser cuts a clip of each and
             cancels the vocals mixed in the centre (some backing vocals and effects can remain; mono files keep
             theirs). The clips go straight to the other players and are never stored by StemGuess.
           </li>
@@ -87,10 +87,10 @@ export default function About({ onClose }: { onClose: () => void }) {
         <h3>Song filters</h3>
         <p>
           Song filters are available both in the game (the host sets them in the room) and in the Song Library and
-          Practice. Choose genres, languages or artists: ticks in one list widen the pick (Pop or Rock), ticks in
-          different lists narrow it (Pop or Rock, and in Hindi). Each option shows how many songs it would match,
-          and the Filters button shows how many songs are available. A song by several artists or in several
-          languages counts under each of them.
+          Practice. Choose genres, languages or artists: options picked in one list widen the pick (Pop or Rock),
+          options in different lists narrow it (Pop or Rock, and in Hindi). Each option shows how many songs it
+          would match, and the Filters button shows how many songs are available. A song with several genres,
+          languages or artists counts under each of them; Hindi, Punjabi and Haryanvi songs are also Indian.
         </p>
 
         <h3>Song Library and Practice</h3>

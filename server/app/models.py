@@ -22,9 +22,9 @@ class Song(Base):
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Attribution for licensed songs: {"text", "url", "license", "licenseUrl"}.
     credit: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # Broad genre ("Pop") and language ("Hindi") for choosing songs; empty when unknown.
-    genre: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    language: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Broad genres ("Indian, Pop") and languages ("Hindi, English") for choosing songs; empty when unknown.
+    genre: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    language: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     stems: Mapped[list["Stem"]] = relationship(
