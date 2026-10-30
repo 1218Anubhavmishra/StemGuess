@@ -1,0 +1,13 @@
+env/cache/
+env/stem-sep/
+env/ytdl/
+env/pylibs/
+env/StemGuess backup/
+env/tmp/
+env/scripts/*.html
+env/scripts/*.pdf
+env/scripts/*.png
+env/scripts/*.json
+env/scripts/roformer/
+transcript of chat in C drive.md
+env/android-avd/

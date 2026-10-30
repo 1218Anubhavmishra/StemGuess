@@ -4,6 +4,7 @@ import { matchesSearch, songFilter, type SongFilters } from '../filters';
 import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
+import { sourceName } from './CreditLine';
 import { ProgressBar, usePlayback } from './Playback';
 import { useLocalTracks } from './SongSource';
 
@@ -199,11 +200,7 @@ export default function SongList({
             </span>
             {s.credit?.url && (
               <a className="song-source-link small" href={s.credit.url} target="_blank" rel="noreferrer">
-                {s.credit.url.includes('youtube.com')
-                  ? 'YouTube'
-                  : s.credit.url.includes('music.apple.com')
-                    ? 'Apple Music'
-                    : 'Source'}
+                {sourceName(s.credit.url)}
               </a>
             )}
           </li>

@@ -20,6 +20,9 @@ server/demo_index.json
 client/android/
 client/electron/
 
+# Local work area: helper scripts, logs, notes, scratch, separation venvs, model cache, backups
+/env/
+
 server/server.log
 server/hits_genres.log
 # Apple's raw answers for hits_genres (re-created on demand).

@@ -79,7 +79,7 @@ listed as pending. `python -m scripts.add_folder_hits "D:/music"` adds every new
 when they have none, so titles can be shortened in `hits.csv`: run
 `import_hits` again locally and `import_hits --sync-only` against the live database to rename them
 without re-importing. Publish with `publish_cc ... --prefix hits:`. `python -m scripts.backup_hits [folder]`
-copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/projects/stem-guess-env/StemGuess backup/hits`).
+copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/projects/stem-guess/env/StemGuess backup/hits`).
 `python -m scripts.remove_hits <YouTube id or hits:file:... source> ...` deletes songs (e.g. ones where vocals leak through)
 with their stem files, and moves their rows to `hits_rejected.csv`; run it locally and against live.
 
