@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { request, socket } from '../socket';
-import { LOCAL_POOL_FACTOR, SONG_LIMITS, type Library, type RoomState, type ServerLibrary } from '../types';
+import { SONG_LIMITS, type RoomState, type ServerLibrary } from '../types';
 import { FILTER_KINDS, FILTER_LABELS, hasFilters, tidySearch, type SongFilters } from '../filters';
 import Brand from './Brand';
 import Filters, { SEARCH_DELAY_MS, showsFilters, useLibraryFacets } from './Filters';
 import Invite from './Invite';
 import Scoreboard from './Scoreboard';
-import SongSource, { GUEST_NOTICES, LIBRARY_LABELS, ModeDetails } from './SongSource';
+import SongSource from './SongSource';
 import Stepper from './Stepper';
 
 export default function Lobby({
@@ -42,17 +42,12 @@ export default function Lobby({
     }, SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [isHost, search, room.search]);
-  const local = room.library === 'local';
   // Songs (matching the filters) the game can draw from.
-  const poolSize = room.poolSize ?? (local ? room.localTracks : (libraries?.[room.library as ServerLibrary] ?? null));
-  // Songs per game the library can supply (the host's own songs are drawn from a bigger pool).
-  const librarySize = local && poolSize !== null ? Math.floor(poolSize / LOCAL_POOL_FACTOR) : poolSize;
+  const librarySize = room.poolSize ?? libraries?.[room.library] ?? null;
   const maxSongs = Math.min(SONG_LIMITS.max, librarySize ?? SONG_LIMITS.max);
-  const notEnoughSongs = local
-    ? (poolSize ?? 0) < room.totalRounds * LOCAL_POOL_FACTOR
-    : librarySize !== null && librarySize < SONG_LIMITS.min;
+  const notEnoughSongs = librarySize !== null && librarySize < SONG_LIMITS.min;
 
-  async function update(settings: { rounds?: number; library?: Library } & Partial<SongFilters>) {
+  async function update(settings: { rounds?: number } & Partial<SongFilters>) {
     setError('');
     const ack = await request('update_settings', settings);
     if (!ack.ok) setError(ack.error ?? 'Could not update settings');
@@ -87,10 +82,8 @@ export default function Lobby({
               <SongSource
                 room={room}
                 libraries={libraries}
-                minSongs={SONG_LIMITS.min}
                 rounds={room.totalRounds}
                 showCount={showsFilters(facets, filters, search) === false}
-                onChange={(library) => void update({ library })}
               />
               <Filters
                 facets={facets}
@@ -111,27 +104,15 @@ export default function Lobby({
                   Start game
                 </button>
               </div>
-              {notEnoughSongs && !local && (
+              {notEnoughSongs && (
                 <p className="muted small">
                   {hasFilters(filters) || room.search ? 'The chosen filters match' : 'This library has'}{' '}
                   {librarySize} song{librarySize === 1 ? '' : 's'}. A game needs at least {SONG_LIMITS.min}.
                 </p>
               )}
-              {notEnoughSongs && local && (room.artists.length > 0 || room.search) && (
-                <p className="muted small">
-                  {room.search ? 'The chosen filters match' : 'The chosen artists have'} {poolSize} of your songs. A{' '}
-                  {room.totalRounds}-song game needs at least {room.totalRounds * LOCAL_POOL_FACTOR}.
-                </p>
-              )}
             </>
           ) : (
             <>
-              <p className="source-chip">{LIBRARY_LABELS[room.library]}</p>
-              {GUEST_NOTICES[room.library] && (
-                <ModeDetails key={room.library}>
-                  <p>{GUEST_NOTICES[room.library]}</p>
-                </ModeDetails>
-              )}
               {FILTER_KINDS.map(
                 (kind) =>
                   filters[kind].length > 0 && (

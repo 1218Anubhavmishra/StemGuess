@@ -9,7 +9,7 @@ import socketio
 from sqlalchemy import select
 
 from . import config
-from .artists import artist_key, count_artists, matches
+from .artists import count_artists
 from .db import SessionLocal
 from .filters import Filters, clean_filters, clean_search, no_filters, search_test, song_filter
 from .models import GameResult, Song, Stem
@@ -31,22 +31,11 @@ REMOVE_MULTIPLIERS = (1.0, 0.5, 0.2)
 # Slack for the client's clock when it unlocks the button at halfway.
 REMOVE_CLOCK_SLACK = 1.0
 
-# Where a room's songs come from. Server libraries are told apart by their Song.source_file prefix;
-# songs without one (e.g. processed from a personal collection) are never served to games.
-# Only the hits library is played for now. The demo ("demo:") and Creative Commons ("cc:") songs stay in
-# the database, and the host's own songs ("local") stay in the code, but games no longer offer them.
+# Where a room's songs come from. Libraries are told apart by their Song.source_file prefix; the game has
+# one, previews of popular hits. Songs of any other source (or hidden) are never served to games.
 SERVER_LIBRARIES = {"hits": "hits:"}
 LIBRARIES = tuple(SERVER_LIBRARIES)
-DEFAULT_LIBRARY = FALLBACK_LIBRARY = "hits"
-# Host-supplied songs: the host's device cuts clips and sends them straight to the other players.
-# The server only ever sees titles, never audio (apart from relaying chunks between players whose
-# network blocks a direct connection; nothing is stored).
-MAX_LOCAL_TRACKS = 1000
-# The game draws its songs at random from a pool at least this many times its length, so the host
-# can't know which of their songs will come up.
-LOCAL_POOL_FACTOR = 2
-LOCAL_TRANSFER_TIMEOUT = 90
-MAX_RELAY_CHUNK = 256 * 1024
+DEFAULT_LIBRARY = "hits"
 # Players (connected or holding a seat) plus spectators.
 MAX_PEOPLE = MAX_PLAYER_LIMIT
 
@@ -99,7 +88,7 @@ class Spectator:
 class Round:
     title: str
     artist: str
-    urls: list[str]  # stem files, all played together; empty for the host's own songs
+    urls: list[str]  # stem files, all played together
     credit: dict | None = None
     options: list[str] = field(default_factory=list)
     correct: int = 0
@@ -130,7 +119,7 @@ class Room:
     # Last round_prepare / round_end payloads, replayed to players who rejoin mid-game.
     prepare_payload: dict | None = None
     end_payload: dict | None = None
-    # Songs played this game ({"title", "artist", "credit", "urls", "track"?}), revealed with the final scores.
+    # Songs played this game ({"title", "artist", "credit", "urls"}), revealed with the final scores.
     played: list[dict] = field(default_factory=list)
     library: str = DEFAULT_LIBRARY
     # Only songs by these artists, in these genres and languages play (any when empty).
@@ -141,12 +130,6 @@ class Room:
     search: str = ""
     # Songs in the library matching the filters; None until counted.
     pool_size: int | None = None
-    # Host's own songs: titles only ({"title", "artist"}), indexed like the host's local clip list.
-    local_tracks: list[dict] = field(default_factory=list)
-    # Indices into local_tracks for this game; round N plays clip local_order[N - 1].
-    local_order: list[int] = field(default_factory=list)
-    local_ready: set[str] = field(default_factory=set)
-    transfer_done: asyncio.Event = field(default_factory=asyncio.Event)
 
     def filters(self) -> Filters:
         return {"artists": self.artists, "genres": self.genres, "languages": self.languages}
@@ -167,8 +150,6 @@ class Room:
             **self.filters(),
             "search": self.search,
             "poolSize": self.pool_size,
-            # A count only: titles would give the answers away.
-            "localTracks": len(self.local_tracks),
             "players": [
                 {
                     "id": p.sid,
@@ -328,12 +309,6 @@ class GameManager:
     async def _send_round_snapshot(self, room: Room, sid: str) -> None:
         if room.state != "playing":
             return
-        if room.library == "local" and room.local_order:
-            # A reloaded page has lost its clips: ask the host's device to send them again.
-            await self.sio.emit("local_order", {"order": room.local_order, "host": room.host_sid}, to=sid)
-            if sid != room.host_sid:
-                room.local_ready.discard(sid)
-                await self.sio.emit("local_send", {"to": [sid]}, to=room.host_sid)
         if not room.prepare_payload:
             return
         await self.sio.emit("round_prepare", {**room.prepare_payload, "resume": True}, to=sid)
@@ -356,7 +331,6 @@ class GameManager:
             return
         if room.spectators.pop(sid, None):
             await self.sio.leave_room(sid, room.code)
-            room.local_ready.discard(sid)
             await self._broadcast_state(room)
             return
         player = room.players.get(sid)
@@ -378,16 +352,6 @@ class GameManager:
             if room.state != "playing":
                 # The old host left for good (not a mid-game drop they can rejoin from).
                 room.host_token = room.players[room.host_sid].token
-                # The songs were on the old host's device.
-                room.local_tracks = []
-                if room.library == "local":
-                    room.set_filters(no_filters())
-                    room.search = ""
-                    await self._use_default_library(room)
-                else:
-                    await self._count_pool(room)
-        room.local_ready.discard(sid)
-        self._check_transfer(room)
         self._check_all_guessed(room)
         await self._broadcast_state(room)
 
@@ -440,47 +404,11 @@ class GameManager:
     async def _use_default_library(self, room: Room) -> None:
         room.library = DEFAULT_LIBRARY
         await self._count_pool(room)
-        if (room.pool_size or 0) < MIN_ROUNDS:
-            room.library = FALLBACK_LIBRARY
-            await self._count_pool(room)
 
     async def _count_pool(self, room: Room) -> None:
-        if room.library == "local":
-            room.pool_size = len(self._local_song_ids(room))
-        else:
-            room.pool_size = len(
-                await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
-            )
-
-    @staticmethod
-    def _local_song_ids(room: Room) -> list[int]:
-        """The host's songs by the chosen artists and matching the search."""
-        chosen = {artist_key(a) for a in room.artists}
-        found = search_test(room.search)
-        return [i for i, t in enumerate(room.local_tracks)
-                if matches(t["artist"], chosen) and found(t["title"], t["artist"])]
-
-    async def set_local_tracks(self, sid: str, tracks: object) -> dict:
-        room = self._room_of(sid)
-        if not room:
-            return _error("You are not in a room")
-        if room.host_sid != sid:
-            return _error("Only the host can choose songs")
-        if room.state == "playing":
-            return _error("Can't change songs during a game")
-        if not isinstance(tracks, list) or len(tracks) > MAX_LOCAL_TRACKS:
-            return _error(f"Pick up to {MAX_LOCAL_TRACKS} songs")
-        cleaned = []
-        for track in tracks:
-            track = track if isinstance(track, dict) else {}
-            title = " ".join(str(track.get("title") or "").split())[:150]
-            if not title:
-                return _error("Every song needs a title")
-            cleaned.append({"title": title, "artist": " ".join(str(track.get("artist") or "").split())[:150]})
-        room.local_tracks = cleaned
-        await self._count_pool(room)
-        await self._broadcast_state(room)
-        return {"ok": True}
+        room.pool_size = len(
+            await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
+        )
 
     @staticmethod
     def _with_options(rnd: Round, pool: list[str]) -> Round:
@@ -496,68 +424,6 @@ class GameManager:
         rnd.options = options
         rnd.correct = options.index(rnd.title)
         return rnd
-
-    # ----- clip transfer between players (host's own songs) -----
-
-    def _same_room(self, sid: str, other: object) -> Room | None:
-        room = self._room_of(sid)
-        if room and isinstance(other, str) and (other in room.players or other in room.spectators):
-            return room
-        return None
-
-    async def rtc_signal(self, sid: str, to: object, data: object) -> dict:
-        """Relays WebRTC connection setup messages so two players can connect directly."""
-        if not self._same_room(sid, to):
-            return _error("Player not found")
-        await self.sio.emit("rtc_signal", {"from": sid, "data": data}, to=to)
-        return {"ok": True}
-
-    async def relay_clip(self, sid: str, data: dict) -> dict:
-        """Fallback when a direct connection fails: forwards one chunk, keeping nothing."""
-        to, chunk = data.get("to"), data.get("chunk")
-        room = self._same_room(sid, to)
-        if not room or room.host_sid != sid or room.library != "local":
-            return _error("Not allowed")
-        if not isinstance(chunk, (bytes, bytearray)) or len(chunk) > MAX_RELAY_CHUNK:
-            return _error("Bad chunk")
-        meta = {k: data.get(k) for k in ("pos", "seq", "total", "size")}
-        await self.sio.emit("clip_chunk", {**meta, "chunk": chunk}, to=to)
-        return {"ok": True}
-
-    async def local_ready(self, sid: str) -> dict:
-        room = self._room_of(sid)
-        if not room or room.library != "local":
-            return _error("Nothing to load")
-        room.local_ready.add(sid)
-        self._check_transfer(room)
-        await self._emit_transfer_status(room)
-        return {"ok": True}
-
-    def _waiting_for(self, room: Room) -> list[Player]:
-        return [p for p in room.active() if p.sid != room.host_sid and p.sid not in room.local_ready]
-
-    def _check_transfer(self, room: Room) -> None:
-        if room.library == "local" and not self._waiting_for(room):
-            room.transfer_done.set()
-
-    async def _emit_transfer_status(self, room: Room) -> None:
-        receivers = [p for p in room.active() if p.sid != room.host_sid]
-        ready = sum(p.sid in room.local_ready for p in receivers)
-        await self.sio.emit("local_status", {"ready": ready, "total": len(receivers)}, room=room.code)
-
-    async def _transfer_local_clips(self, room: Room) -> None:
-        room.local_ready.clear()
-        room.transfer_done.clear()
-        # Switch everyone to the game screen so they see the transfer progress.
-        await self._broadcast_state(room)
-        await self.sio.emit("local_order", {"order": room.local_order, "host": room.host_sid}, room=room.code)
-        receivers = [p.sid for p in room.active() if p.sid != room.host_sid]
-        if receivers:
-            await self.sio.emit("local_send", {"to": receivers}, to=room.host_sid)
-        self._check_transfer(room)
-        await self._emit_transfer_status(room)
-        # Players whose clips haven't arrived in time still play; they just may not hear the song.
-        await _wait_event(room.transfer_done, LOCAL_TRANSFER_TIMEOUT)
 
     # ----- game flow -----
 
@@ -651,7 +517,7 @@ class GameManager:
         rnd = GameManager._load_round(song_id)
         if not rnd:
             return _error("Could not load a song")
-        rnd = GameManager._with_options(rnd, GameManager._option_titles(library, song_ids))
+        rnd = GameManager._with_options(rnd, GameManager._option_titles(library, song_ids, filters))
         return {
             "ok": True,
             "round": {
@@ -674,31 +540,19 @@ class GameManager:
         if room.state == "playing":
             return _error("Game already running")
 
-        local = room.library == "local"
-        filtered = room.search or (room.artists if local else any(room.filters().values()))
-        by_artists = (" by the chosen artists" if local and not room.search else " matching the filters") if filtered else ""
-        if local:
-            song_ids = self._local_song_ids(room)
-            needed = room.total_rounds * LOCAL_POOL_FACTOR
-            if len(song_ids) < needed:
-                return _error(
-                    f"Add at least {needed} songs{by_artists} for a {room.total_rounds}-song game "
-                    f"({len(song_ids)} so far), so the game can pick them at random."
-                )
-            titles = [room.local_tracks[i]["title"] for i in song_ids]
-            room.title_pool = titles if len(set(titles)) >= OPTION_COUNT else [t["title"] for t in room.local_tracks]
-        else:
-            song_ids = await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
-            if len(song_ids) < MIN_ROUNDS:
-                return _error(f"Games need at least {MIN_ROUNDS} songs{by_artists or ' in the library'} "
-                              f"(there are {len(song_ids)}).")
-            room.title_pool = await asyncio.to_thread(self._option_titles, room.library, song_ids)
+        filtered = room.search or any(room.filters().values())
+        by_filters = " matching the filters" if filtered else " in the library"
+        song_ids = await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
+        if len(song_ids) < MIN_ROUNDS:
+            return _error(f"Games need at least {MIN_ROUNDS} songs{by_filters} (there are {len(song_ids)}).")
+        room.title_pool = await asyncio.to_thread(
+            self._option_titles, room.library, song_ids, room.filters(), room.search
+        )
         if len(song_ids) < room.total_rounds:
             return _error(f"Only {len(song_ids)} songs available. Pick {len(song_ids)} or fewer.")
 
         random.shuffle(song_ids)
         room.playlist = song_ids[: room.total_rounds]
-        room.local_order = room.playlist if room.library == "local" else []
         room.round_number = 0
         room.played = []
         for p in room.players.values():
@@ -727,9 +581,22 @@ class GameManager:
             return list(db.scalars(select(Song.title).where(Song.id.in_(song_ids))))
 
     @staticmethod
-    def _option_titles(library: str, song_ids: list[int]) -> list[str]:
-        """Wrong options come from the songs matching the filters, or the whole library if they have too few."""
+    def _option_titles(library: str, song_ids: list[int], filters: Filters | None = None, search: str = "") -> list[str]:
+        """Titles the wrong options are drawn from: the songs matching the game's filters (and search), so the
+        options share the chosen languages, genres and artists. When those have fewer than OPTION_COUNT titles,
+        the pick widens one step at a time, keeping what matters most for telling songs apart: first the search
+        goes, then the artists, then the genres, and the languages only last (then it's the whole library)."""
         titles = GameManager._titles(song_ids)
+        filters = dict(filters or no_filters())
+        steps = [] if not search else [dict(filters)]
+        for kind in ("artists", "genres", "languages"):
+            if filters.get(kind):
+                filters[kind] = []
+                steps.append(dict(filters))
+        for wider in steps:
+            if len({t.casefold() for t in titles}) >= OPTION_COUNT:
+                break
+            titles = GameManager._titles(GameManager._playable_song_ids(library, wider))
         if len({t.casefold() for t in titles}) >= OPTION_COUNT:
             return titles
         return GameManager._titles(GameManager._playable_song_ids(library))
@@ -750,17 +617,9 @@ class GameManager:
 
     async def _run_game(self, room: Room) -> None:
         try:
-            local = room.library == "local"
-            if local:
-                await self._transfer_local_clips(room)
-            for position, song_id in enumerate(room.playlist):
+            for song_id in room.playlist:
                 if not room.active():
                     return
-                if local:
-                    track = room.local_tracks[song_id]
-                    rnd = Round(title=track["title"], artist=track["artist"], urls=[])
-                    await self._play_round(room, self._with_options(rnd, room.title_pool), track=position)
-                    continue
                 rnd = await asyncio.to_thread(self._load_round, song_id)
                 if rnd:
                     await self._play_round(room, self._with_options(rnd, room.title_pool))
@@ -774,7 +633,7 @@ class GameManager:
             room.drop_disconnected()
             await self._broadcast_state(room)
 
-    async def _play_round(self, room: Room, rnd: Round, track: int | None = None) -> None:
+    async def _play_round(self, room: Room, rnd: Round) -> None:
         room.round_number += 1
         room.all_guessed.clear()
         for p in room.players.values():
@@ -786,9 +645,6 @@ class GameManager:
 
         room.end_payload = None
         room.prepare_payload = {"round": room.round_number, "totalRounds": room.total_rounds, "urls": rnd.urls}
-        if track is not None:
-            # Position in local_order of the clip each player already holds.
-            room.prepare_payload["track"] = track
         await self.sio.emit("round_prepare", room.prepare_payload, room=room.code)
         await asyncio.sleep(config.PREPARE_SECONDS)
 
@@ -812,8 +668,7 @@ class GameManager:
             "winners": [p.name for p in winners],
             "points": {p.name: p.round_points for p in winners},
         }
-        room.played.append({"title": rnd.title, "artist": rnd.artist, "credit": rnd.credit, "urls": rnd.urls,
-                            **({"track": track} if track is not None else {})})
+        room.played.append({"title": rnd.title, "artist": rnd.artist, "credit": rnd.credit, "urls": rnd.urls})
         room.next_at = time.monotonic() + config.RESULT_SECONDS
         await self.sio.emit("round_end", {**room.end_payload, "nextIn": config.RESULT_SECONDS}, room=room.code)
         await asyncio.sleep(config.RESULT_SECONDS)

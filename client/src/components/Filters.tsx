@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { artistKey } from '../artists';
 import {
   FILTER_KINDS,
-  matchesSearch,
   NO_FILTERS,
   songFilter,
   valuesOf,
@@ -13,7 +12,6 @@ import {
 import { request } from '../socket';
 import type { Library } from '../types';
 import { ScrollList } from './ScrollHints';
-import { useLocalTracks } from './SongSource';
 
 const LABELS: Record<FilterKind, string> = { genres: 'Genre', languages: 'Language', artists: 'Artist' };
 
@@ -22,18 +20,10 @@ export const SEARCH_DELAY_MS = 300;
 
 /** Song counts per artist, genre and language in a library, of the songs matching a search (null while loading). */
 export function useLibraryFacets(library: Library, connected: boolean, search = ''): FacetRow[] | null {
-  const tracks = useLocalTracks();
   const [server, setServer] = useState<{ library: Library; facets: FacetRow[] } | null>(null);
-  const local = useMemo(
-    () =>
-      tracks
-        .filter((t) => matchesSearch(search, t.title, t.artist))
-        .map((t) => ({ artist: t.artist, genre: '', language: '', songs: 1 })),
-    [tracks, search],
-  );
 
   useEffect(() => {
-    if (library === 'local' || !connected) return;
+    if (!connected) return;
     let live = true;
     // The last counts stay up while typing; they're replaced once the typing pauses.
     const timer = setTimeout(
@@ -49,7 +39,6 @@ export function useLibraryFacets(library: Library, connected: boolean, search = 
     };
   }, [library, connected, search]);
 
-  if (library === 'local') return local;
   return server?.library === library ? server.facets : null;
 }
 

@@ -1,9 +1,9 @@
-"""Copy a server library's songs from a local database to the live one, uploading their clips to R2.
+"""Copy the game's songs (the hits library) from a local database to the live one, uploading their clips to R2.
 
-From server/:  python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db [--prefix hits:]
+From server/:  python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db
 
 The target is DATABASE_URL from server/.env (the live database). Only songs whose source starts with
-the prefix (default "cc:") are copied, so nothing else on the local machine is ever uploaded. Songs
+"hits:" are copied, so nothing else on the local machine is ever uploaded. Songs
 already in the target are skipped, unless their clips changed (e.g. after reseparate_hits): then the
 new clips are uploaded and replace the old ones. Every song goes live with its filter tags (genres,
 with those its languages imply, and languages; see app.filters.tagged_genres), and songs already live
@@ -23,16 +23,16 @@ from app.filters import tagged_genres
 from app.models import Song, Stem
 from scripts.progress import Progress
 
-PUBLISHABLE = ("cc:", "hits:")
+PUBLISHABLE = ("hits:",)
 
 
 def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    prefix = sys.argv[sys.argv.index("--prefix") + 1] if "--prefix" in sys.argv else "cc:"
+    prefix = sys.argv[sys.argv.index("--prefix") + 1] if "--prefix" in sys.argv else "hits:"
     if prefix in args:
         args.remove(prefix)
     if not args:
-        sys.exit("Usage: python -m scripts.publish_cc <source database URL> [--prefix hits:]")
+        sys.exit("Usage: python -m scripts.publish_cc <source database URL>")
     if prefix not in PUBLISHABLE:
         sys.exit(f"--prefix must be one of {', '.join(PUBLISHABLE)}")
     source_url = args[0]

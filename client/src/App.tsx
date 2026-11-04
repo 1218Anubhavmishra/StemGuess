@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { bgMusic, stemPlayer } from './audio';
-import { getClip } from './clipTransfer';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
 import type { FeedItem, GameSong, Phase, Player, RoomState, RoundAnswer } from './types';
 import Home from './components/Home';
@@ -27,8 +26,6 @@ export default function App() {
   const [ranking, setRanking] = useState<Player[]>([]);
   const [songs, setSongs] = useState<GameSong[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  // Host's own songs: how many players have received the clips, shown before the first round.
-  const [transfer, setTransfer] = useState<{ ready: number; total: number } | null>(null);
   // Remounts the game view per game so in-game settings (volume, mute) start from their defaults.
   const [gameKey, setGameKey] = useState(0);
   const [libraryMode, setLibraryMode] = useState<LibraryMode | null>(null);
@@ -61,15 +58,7 @@ export default function App() {
       if (!loadSession()) exitRoom();
     };
     const onRoomState = (state: RoomState) => setRoom(state);
-    const onLocalOrder = () => {
-      stemPlayer.stop();
-      setPhase('prepare');
-      setOptions([]);
-      setAnswer(null);
-    };
-    const onLocalStatus = (p: { ready: number; total: number }) => setTransfer(p);
-    const onPrepare = (p: { round: number; totalRounds: number; urls: string[]; resume?: boolean; track?: number }) => {
-      setTransfer(null);
+    const onPrepare = (p: { round: number; totalRounds: number; urls: string[]; resume?: boolean }) => {
       setPhase('prepare');
       setOptions([]);
       setChoice(null);
@@ -85,8 +74,7 @@ export default function App() {
         setGameKey((k) => k + 1);
       }
       pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
-      if (p.track !== undefined) stemPlayer.prepareClip(getClip(p.track));
-      else stemPlayer.prepare(p.urls.map(serverUrl));
+      stemPlayer.prepare(p.urls.map(serverUrl));
     };
     const onStart = (p: {
       duration: number;
@@ -136,8 +124,6 @@ export default function App() {
     socket.on('round_start', onStart);
     socket.on('round_end', onRoundEnd);
     socket.on('game_over', onGameOver);
-    socket.on('local_order', onLocalOrder);
-    socket.on('local_status', onLocalStatus);
     socket.on('room_closed', exitRoom);
     if (socket.connected) void tryRejoin();
     return () => {
@@ -148,8 +134,6 @@ export default function App() {
       socket.off('round_start', onStart);
       socket.off('round_end', onRoundEnd);
       socket.off('game_over', onGameOver);
-      socket.off('local_order', onLocalOrder);
-      socket.off('local_status', onLocalStatus);
       socket.off('room_closed', exitRoom);
     };
   }, []);
@@ -254,7 +238,6 @@ export default function App() {
           nextAt={nextAt}
           answer={answer}
           feed={feed}
-          transfer={transfer}
           onLeave={leave}
         />
       </div>

@@ -5,11 +5,10 @@ services:
     plan: free
     # Same region as the database, so its internal URL resolves.
     region: singapore
-    # Builds the React client, installs the server and generates the demo songs' audio.
-    buildCommand: cd client && npm ci && npm run build && cd ../server && pip install -r requirements.txt && python -m scripts.seed_demo --files-only
-    # Registers the demo songs, then serves the client and the game.
-    # Game rooms live in memory: keep a single worker/instance.
-    startCommand: cd server && python -m scripts.seed_demo && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Builds the React client and installs the server.
+    buildCommand: cd client && npm ci && npm run build && cd ../server && pip install -r requirements.txt
+    # Serves the client and the game. Game rooms live in memory: keep a single worker/instance.
+    startCommand: cd server && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION

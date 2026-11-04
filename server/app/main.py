@@ -140,27 +140,6 @@ async def practice_round(_sid, data=None):
     return await games.practice_round(data.get("library"), data.get("exclude"), data)
 
 
-@sio.on("set_local_tracks")
-async def set_local_tracks(sid, data=None):
-    return await games.set_local_tracks(sid, (data or {}).get("tracks"))
-
-
-@sio.on("rtc_signal")
-async def rtc_signal(sid, data=None):
-    data = data or {}
-    return await games.rtc_signal(sid, data.get("to"), data.get("data"))
-
-
-@sio.on("relay_clip")
-async def relay_clip(sid, data=None):
-    return await games.relay_clip(sid, data if isinstance(data, dict) else {})
-
-
-@sio.on("local_ready")
-async def local_ready(sid, _data=None):
-    return await games.local_ready(sid)
-
-
 @sio.on("start_game")
 async def start_game(sid, _data=None):
     return await games.start_game(sid)

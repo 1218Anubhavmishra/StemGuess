@@ -48,14 +48,6 @@ class StemPlayer {
     return this.master;
   }
 
-  /** One clip already on this device (the host's own song). */
-  prepareClip(clip: Promise<ArrayBuffer>) {
-    this.stop();
-    // decodeAudioData detaches its input, and the host may still need to send this clip to others.
-    this.buffers = clip.then((data) => audioContext().decodeAudioData(data.slice(0))).then((b) => [b]);
-    this.buffers.catch((err) => console.error(err));
-  }
-
   prepare(urls: string[]) {
     this.stop();
     const ctx = audioContext();

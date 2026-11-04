@@ -10,7 +10,6 @@ export default function Brand({ music = true }: { music?: boolean }) {
         </h1>
         {music && <MusicToggle />}
       </header>
-      <p className="tagline">Guess the song from its first 15 seconds.</p>
     </div>
   );
 }

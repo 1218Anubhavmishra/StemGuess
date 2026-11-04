@@ -21,7 +21,6 @@ type Props = {
   nextAt: number | null;
   answer: RoundAnswer | null;
   feed: FeedItem[];
-  transfer: { ready: number; total: number } | null;
   onLeave: () => void;
 };
 
@@ -57,7 +56,6 @@ export default function Game({
   nextAt,
   answer,
   feed,
-  transfer,
   onLeave,
 }: Props) {
   const [hint, setHint] = useState('');
@@ -153,17 +151,7 @@ export default function Game({
         <h2 className="stage-room">
           Room <span>{room.code}</span>
         </h2>
-        {room.library === 'local' && <p className="source-chip">🎵 Host's music</p>}
-        {phase === 'prepare' && (
-          <>
-            <p className="status">Get ready…</p>
-            {transfer && (
-              <p className="muted small prepare-detail">
-                Loading songs: {transfer.ready}/{transfer.total} players ready
-              </p>
-            )}
-          </>
-        )}
+        {phase === 'prepare' && <p className="status">Get ready…</p>}
         {phase === 'playing' && secondsLeft !== null && (
           <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
             {formatTime(secondsLeft)}

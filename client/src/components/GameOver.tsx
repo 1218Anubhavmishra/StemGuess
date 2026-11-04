@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { stemPlayer } from '../audio';
-import { getClip } from '../clipTransfer';
 import { request, serverUrl } from '../socket';
 import type { GameSong, Player, RoomState } from '../types';
 import CreditLine from './CreditLine';
@@ -36,8 +35,7 @@ export default function GameOver({ room, ranking, songs, isHost, onLeave }: Prop
       return;
     }
     const song = songs[index];
-    if (song.track !== undefined) stemPlayer.prepareClip(getClip(song.track));
-    else stemPlayer.prepare(song.urls.map(serverUrl));
+    stemPlayer.prepare(song.urls.map(serverUrl));
     setReplaying({ index, loading: true });
     await stemPlayer.start({ loop: false });
     setReplaying((r) => (r?.index === index && stemPlayer.isPlaying() ? { index, loading: false } : r));

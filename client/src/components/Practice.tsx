@@ -1,25 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
-import { songFilter, type SongFilters } from '../filters';
-import { clipOf } from '../localLibrary';
+import { type SongFilters } from '../filters';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
+import Cover from './Cover';
 import CreditLine from './CreditLine';
 import { ProgressBar } from './Playback';
-import { useLocalTracks } from './SongSource';
 
-type Round = { options: string[]; correct: number; title: string; artist: string; credit?: Credit | null };
-
-const OPTION_COUNT = 4;
-
-function shuffled<T>(items: T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
+type Round = { title: string; artist: string; options: string[]; correct: number; credit?: Credit | null };
 
 /** Solo practice: one random song at a time from a library; pick its title. Remount per library. */
 export default function Practice({
@@ -38,35 +26,9 @@ export default function Practice({
   const [error, setError] = useState('');
   const [score, setScore] = useState({ right: 0, played: 0 });
   // Songs already played, so they don't come up again until the library runs out.
-  const seen = useRef<(number | string)[]>([]);
-  const tracks = useLocalTracks();
-  const local = library === 'local';
+  const seen = useRef<number[]>([]);
 
   useEffect(() => () => stemPlayer.stop(), []);
-
-  async function nextLocal(): Promise<Round | null> {
-    if (tracks.length < 2) {
-      setError('Pick at least 2 songs to practise with.');
-      return null;
-    }
-    const chosen = tracks.filter(songFilter(filters));
-    if (!chosen.length) {
-      setError('None of your songs are by these artists.');
-      return null;
-    }
-    const fresh = chosen.filter((t) => !seen.current.includes(t.id));
-    if (!fresh.length) seen.current = [];
-    const pool = fresh.length ? fresh : chosen;
-    const track = pool[Math.floor(Math.random() * pool.length)];
-    seen.current.push(track.id);
-    // Wrong options from the chosen artists' songs, or all songs if they have too few.
-    const titles = (from: typeof tracks) =>
-      [...new Set(from.map((t) => t.title).filter((t) => t.toLowerCase() !== track.title.toLowerCase()))];
-    const others = titles(chosen).length >= OPTION_COUNT - 1 ? titles(chosen) : titles(tracks);
-    const options = shuffled([track.title, ...shuffled(others).slice(0, OPTION_COUNT - 1)]);
-    stemPlayer.prepareClip(clipOf(track));
-    return { options, correct: options.indexOf(track.title), title: track.title, artist: track.artist };
-  }
 
   async function nextServer(): Promise<Round | null> {
     const ack = await request('practice_round', { library, exclude: seen.current, ...filters });
@@ -86,7 +48,7 @@ export default function Practice({
     setLoading(true);
     setError('');
     setChoice(null);
-    const r = await (local ? nextLocal() : nextServer());
+    const r = await nextServer();
     setRound(r);
     setLoading(false);
     if (r) void stemPlayer.start();
@@ -109,9 +71,6 @@ export default function Practice({
 
   return (
     <>
-      <p className="muted small">
-        Listen to a random song and pick its title, then go to the next one. Scores here don't count in games.
-      </p>
       {round && (
         <>
           {choice === null ? (
@@ -134,10 +93,19 @@ export default function Practice({
               {round.credit && <CreditLine credit={round.credit} />}
             </div>
           )}
-          <ProgressBar />
+          {/* The cover stays a "?" until you answer, so it doesn't give the song away. */}
+          <div className="practice-player">
+            <Cover credit={round.credit} hidden={choice === null} />
+            <ProgressBar />
+          </div>
           <div className="options" role="group" aria-label="Answer options">
             {round.options.map((title, i) => (
-              <button key={`${i}-${title}`} className={optionClass(i)} disabled={choice !== null} onClick={() => pick(i)}>
+              <button
+                key={`${i}-${title}`}
+                className={optionClass(i)}
+                disabled={choice !== null}
+                onClick={() => pick(i)}
+              >
                 {title}
               </button>
             ))}
@@ -145,18 +113,19 @@ export default function Practice({
         </>
       )}
       {error && <p className="error small">{error}</p>}
-      <div className="row practice-actions">
+      {/* The button centred, with the score under it. */}
+      <div className="practice-actions">
+        {round && choice === null && !loading ? (
+          <button onClick={() => void next()}>Skip</button>
+        ) : (
+          <button className="primary" disabled={loading || !connected} onClick={() => void next()}>
+            {loading ? 'Loading…' : round ? 'Next' : 'Play'}
+          </button>
+        )}
         {score.played > 0 && (
           <span className="muted small" role="status">
             {score.right}/{score.played} correct
           </span>
-        )}
-        {round && choice === null && !loading ? (
-          <button onClick={() => void next()}>Skip</button>
-        ) : (
-          <button className="primary" disabled={loading || (!local && !connected)} onClick={() => void next()}>
-            {loading ? 'Loading…' : round ? 'Next song' : 'Play a song'}
-          </button>
         )}
       </div>
     </>

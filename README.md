@@ -1,6 +1,6 @@
 # Stem Guess
 
-Multiplayer "name that song" game: each round plays a song clip (all its stems together, looped)
+Multiplayer "name that song" game: each round plays the first 15 seconds of a popular hit (looped)
 and shows four titles. Every player gets one pick; a correct pick scores 10 points at the start of
 the round, falling to 1 point at the buzzer. From halfway through a round, each player may remove up to two
 wrong options for themselves only; their correct pick then scores ×0.5 (one removed) or ×0.2 (two removed),
@@ -34,9 +34,6 @@ This builds the client, sets up the Python environment on first run and serves t
 http://localhost:8000. Open it in two browser windows to play against yourself. Phones on the same
 Wi-Fi can join via `http://<your-PC-IP>:8000` (allow Python through the Windows firewall).
 
-For quick testing without Music.ai, add 47 synthetic demo songs, one per genre (pop, rock, jazz, hip-hop, reggae, Indian classical and more), from `server/`:
-`.\.venv\Scripts\python -m scripts.seed_demo`
-
 Without `DATABASE_URL` the server uses `server/stemguess.db` (SQLite). For Postgres:
 `docker compose up -d` in the repo root and set
 `DATABASE_URL=postgresql://stemguess:stemguess@localhost:5432/stemguess` in `server/.env`.
@@ -54,18 +51,9 @@ Optional hot-reload while editing the UI: keep the server running and run `npm r
    with doubtful ones marked `check`):
    `.\.venv\Scripts\python -m scripts.import_library "D:/music"` (add `--dry-run` to only list them).
 3. Run `.\.venv\Scripts\python -m scripts.process_songs` from `server/`. Already processed files are skipped.
-   Add `--cc` for Creative Commons tracks so they land in the lobby's Creative Commons library
-   (only use `--cc` for songs whose licence allows it, and fill in the artist for the credit).
+   (Songs processed this way aren't in the game's library; the game only plays the hits below.)
 
-To fill the Creative Commons library without Music.ai or any account, run
-`.\.venv\Scripts\python -m scripts.import_cc` (add `--per-genre N`, default 2). It picks CC BY tracks
-across genres from Incompetech (Kevin MacLeod) and ccMixter, stores each as one 15 s "mix" clip, and
-keeps the attribution (title, author, source link, licence) that the game shows after each round.
-After testing them locally (with a SQLite `DATABASE_URL`), put exactly those songs live with
-`.\.venv\Scripts\python -m scripts.publish_cc sqlite:///C:/path/to/stemguess.db`: it copies only the
-`cc:` songs into the database from `server/.env` and uploads only their clips to R2.
-
-The "Preview of hits" library comes from `scripts/hits.csv` (title, artist, genre, language, YouTube link, local file), a table you can edit in Cursor or a spreadsheet app.
+The game's songs, the "Preview of hits" library, come from `scripts/hits.csv` (title, artist, genre, language, YouTube link, local file), a table you can edit in Cursor or a spreadsheet app.
 `.\.venv\Scripts\python -m scripts.import_hits` cuts each song's loudest 15 s and splits it with
 [Demucs](https://github.com/facebookresearch/demucs) (free, runs locally) into drums, bass and other,
 dropping the vocals; each song is credited with its YouTube link (the `youtube` column can also hold
@@ -78,49 +66,40 @@ listed as pending. `python -m scripts.add_folder_hits "D:/music"` adds every new
 `--tidy` fills in artists that are part of a title). Songs are matched by YouTube link, or by file name
 when they have none, so titles can be shortened in `hits.csv`: run
 `import_hits` again locally and `import_hits --sync-only` against the live database to rename them
-without re-importing. Publish with `publish_cc ... --prefix hits:`. `python -m scripts.backup_hits [folder]`
+without re-importing. Rounds play each song's first 15 s with everything in it (vocals included):
+`python -m scripts.full_mix_hits` re-cuts every hits clip that way from its audio file, and
+`python -m scripts.songs_folder` keeps only the songs whose audio is in `D:/songs` (plus a few chosen
+artists) in the game. Publish with `publish_cc sqlite:///D:/projects/stem-guess/server/stemguess.db`
+(it copies the `hits:` songs to the live database and uploads their clips to R2). `python -m scripts.backup_hits [folder]`
 copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/projects/stem-guess/env/StemGuess backup/hits`).
 `python -m scripts.remove_hits <YouTube id or hits:file:... source> ...` deletes songs (e.g. ones where vocals leak through)
 with their stem files, and moves their rows to `hits_rejected.csv`; run it locally and against live.
 
-## Song libraries
+## Songs
 
-The host picks the song source in the lobby:
+Every game plays songs from **Preview of hits** (`hits:` songs in the database), each linked to its
+YouTube video after the round. Songs from any other source, and hidden songs (`Song.hidden`), are never
+used in games.
 
-| Option | Where the audio comes from |
-| --- | --- |
-| StemGuess originals | Demo songs on the server (`seed_demo`) |
-| Creative Commons | Server songs from `import_cc` or processed with `--cc`, credited after each round; "Coming soon" until there are enough |
-| Preview of hits | Vocal-free stems of popular songs from `import_hits`, linked to their YouTube video (or Apple Music) |
-| My own music | Audio files picked on the host's device |
+**Play Library** shows every song in the game as a sideways row of cover cards, with a player (cover over
+a blurred copy of it, play/pause, 5 s back/forward, previous/next, seekable progress bar); a song stops
+when it ends. **Practice** plays random songs to
+guess solo, showing the cover once you've answered. No room needed.
 
-With **My own music**, the host's browser cuts a 15 s clip from each picked file and removes the
-vocals by centre-channel cancellation (left minus right, with the mix below 150 Hz added back for
-bass and kick). Vocals panned off-centre or with stereo reverb partly remain, and mono files are left
-as they are. The server only
-receives the titles. Clips go from the host to each player over a direct WebRTC connection, or
-through the server (forwarded, never stored) when a direct connection can't be made within 7 s.
-The wrong options come from the same library (the host's other titles in this mode).
-Songs on the server outside the demo (`demo:`), Creative Commons (`cc:`) and hits (`hits:`) libraries are never used in games.
-
-**Song Library** (home and lobby) lists every song in any of the four sources with a player (play/pause,
-5 s back/forward, previous/next, seekable progress bar, autoplay of the next song). **Practice** (its own button, or a tab
-in the Song Library) plays random songs to guess solo, with a progress bar. No room needed.
-
-**Filters**: in the lobby (host), Song Library and Practice, Filters narrow the songs by genre, language
+**Filters**: in the lobby (host), Play Library and Practice, Filters narrow the songs by genre, language
 and artist, like a shop's search filters: ticks in one list widen the pick (Pop or Dance), ticks in
 different lists narrow it (Pop or Dance, and Hindi), and each option shows how many songs it would match.
 A song counts for every artist it credits ("Dr. Dre ft. Eminem" is both), split the same way on the
 server (`app/artists.py`, `app/filters.py`) and client (`src/artists.ts`, `src/filters.ts`). In games,
-the wrong options come from the songs matching the filters when they have at least four titles.
+the wrong options come only from the songs matching the game's filters; when those have fewer than four
+titles, the pick widens step by step (search, then artists, then genres, languages last).
 Genres and languages come from the `genre` and `language` columns of `hits.csv`:
 `python -m scripts.hits_genres` fills empty genres from Apple's iTunes Search API (song metadata only),
 grouped into broad genres; languages are set by hand, comma-separated when a song has several
 ("English, Hindi" counts under both). Publish edits with `import_hits --sync-only`.
 
 Joining a game that has already started offers **Spectate**: spectators see and hear every round
-without answering and become players when the game ends. Players and spectators together are capped at 10. With My own music, each player's browser
-keeps the game's clips in IndexedDB, so a reload mid-game doesn't need them sent again.
+without answering and become players when the game ends. Players and spectators together are capped at 10.
 
 Cost is about $0.07 per minute of audio for standard stems (see [pricing](https://music.ai/pricing/)).
 
@@ -134,8 +113,8 @@ Regenerate it with `.\.venv\Scripts\python -m scripts.make_bg_audio` from `serve
 Create a Blueprint from `render.yaml` (Render dashboard > New > Blueprint > pick this repo): one free
 web service that builds the client and runs the server. It asks for `DATABASE_URL`: paste a Postgres
 connection string, e.g. from a free [Neon](https://neon.tech) project (doesn't expire) or an existing
-Render Postgres (Render allows one free database per workspace). The 25 demo songs are generated
-during the build, so a fresh deploy is playable right away.
+Render Postgres (Render allows one free database per workspace). Songs come from that database, with
+their clips on Cloudflare R2 (below).
 
 Render's filesystem is ephemeral, so real song stems go to Cloudflare R2 (below).
 
@@ -179,6 +158,3 @@ The server must be **https** for native builds; plain-http LAN servers get block
 Music.ai's terms make you responsible for having the rights to every track you upload and to how
 you use the output. Removing vocals does not change that. Commercial songs are fine for a private
 game with friends. A public release needs licensed or royalty-free music.
-
-With "My own music", the host chooses what plays from their own files and must confirm they are
-responsible for it. StemGuess doesn't store or distribute those clips.

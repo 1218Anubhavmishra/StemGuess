@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
 import { matchesSearch, songFilter, type SongFilters } from '../filters';
-import { clipOf } from '../localLibrary';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
+import Cover, { coverUrl } from './Cover';
 import { sourceName } from './CreditLine';
 import { ProgressBar, usePlayback } from './Playback';
 import { ScrollArrows, useScrollHints } from './ScrollHints';
-import { useLocalTracks } from './SongSource';
 
 const SKIP_SECONDS = 5;
 
@@ -40,8 +39,6 @@ export default function SongList({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { playing } = usePlayback();
-  const tracks = useLocalTracks();
-  const local = library === 'local';
 
   useEffect(
     () => () => {
@@ -52,20 +49,6 @@ export default function SongList({
   );
 
   useEffect(() => {
-    if (local) {
-      setSongs(
-        tracks.map((t) => ({
-          key: `local:${t.id}`,
-          title: t.title,
-          artist: t.artist,
-          load: async () => {
-            stemPlayer.prepareClip(clipOf(t));
-            return true;
-          },
-        })),
-      );
-      return;
-    }
     if (!connected) return;
     void request('library_songs', { library }).then((ack) => {
       if (!ack.ok) return setError(ack.error ?? 'Could not load the songs');
@@ -86,7 +69,7 @@ export default function SongList({
         })),
       );
     });
-  }, [library, local, connected, tracks]);
+  }, [library, connected]);
 
   const listed = (songs ?? []).filter(songFilter(filters));
   const shown = listed.filter((s) => matchesSearch(query, s.title, s.artist, s.genre, s.language));
@@ -114,10 +97,8 @@ export default function SongList({
   }
 
   function skip(seconds: number) {
-    const target = stemPlayer.position() + seconds;
-    // Skipping past the end moves on, like the song finishing.
-    if (target >= stemPlayer.duration()) return step(1);
-    stemPlayer.seek(target);
+    // Within the song: skipping past the end stops at the end, without moving to the next song.
+    stemPlayer.seek(Math.min(stemPlayer.position() + seconds, stemPlayer.duration()));
   }
 
   function step(by: number) {
@@ -127,18 +108,18 @@ export default function SongList({
     void play(list[(at + by + list.length) % list.length]);
   }
 
-  // Each song plays once, then the next one in the list starts.
-  const advance = useRef(() => {});
   // No scrollbar: grey lines (with arrows) above or below the list show there's more to scroll to.
-  const scroll = useScrollHints<HTMLUListElement>();
-  advance.current = () => step(1);
+  const scroll = useScrollHints<HTMLUListElement>('x');
+  // Previous / next bring the playing song's card into view in the row.
   useEffect(() => {
-    stemPlayer.onEnded = () => advance.current();
-  }, []);
+    const card = scroll.ref.current?.querySelector<HTMLElement>('.song-card.playing');
+    const row = scroll.ref.current;
+    if (card && row)
+      row.scrollTo({ left: card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2, behavior: 'smooth' });
+  }, [current?.key, scroll.ref]);
 
-  if (!songs) return <p className="muted small">{local ? '' : 'Loading songs…'}</p>;
-  if (!songs.length)
-    return <p className="muted small">{local ? 'Pick your songs above to see them here.' : 'No songs yet.'}</p>;
+  if (!songs) return <p className="muted small">Loading songs…</p>;
+  if (!songs.length) return <p className="muted small">No songs yet.</p>;
 
   const isCurrent = (s: Item) => current?.key === s.key;
 
@@ -146,73 +127,81 @@ export default function SongList({
     <div className="song-list">
       {current && (
         <div className="player" aria-label="Player">
-          <div className="player-head">
-            <span className="song-name">
-              <b>{current.title}</b>
-              {current.artist && <span className="muted"> {current.artist}</span>}
-            </span>
-            <div className="player-buttons">
-              <button className="player-step" aria-label="Previous song" disabled={loading} onClick={() => step(-1)}>
-                ⏮
-              </button>
-              <button
-                className="player-step player-skip"
-                aria-label={`Back ${SKIP_SECONDS} seconds`}
-                disabled={loading}
-                onClick={() => skip(-SKIP_SECONDS)}
-              >
-                -{SKIP_SECONDS}
-              </button>
-              <button
-                className="play-song"
-                aria-label={playing ? 'Pause' : 'Play'}
-                disabled={loading}
-                onClick={() => toggle(current)}
-              >
-                {loading ? '…' : playing ? '❚❚' : '▶'}
-              </button>
-              <button
-                className="player-step player-skip"
-                aria-label={`Forward ${SKIP_SECONDS} seconds`}
-                disabled={loading}
-                onClick={() => skip(SKIP_SECONDS)}
-              >
-                +{SKIP_SECONDS}
-              </button>
-              <button className="player-step" aria-label="Next song" disabled={loading} onClick={() => step(1)}>
-                ⏭
-              </button>
-            </div>
+          {/* The cover, blurred, fills the player behind everything. */}
+          {coverUrl(current.credit) && (
+            <div
+              className="player-backdrop"
+              aria-hidden
+              style={{ backgroundImage: `url(${coverUrl(current.credit)})` }}
+            />
+          )}
+          <Cover credit={current.credit} />
+          <span className="song-name player-name">
+            <b>{current.title}</b>
+            {current.artist && <span className="muted"> {current.artist}</span>}
+          </span>
+          <div className="player-buttons">
+            <button className="player-step" aria-label="Previous song" disabled={loading} onClick={() => step(-1)}>
+              ⏮
+            </button>
+            <button
+              className="player-step player-skip"
+              aria-label={`Back ${SKIP_SECONDS} seconds`}
+              disabled={loading}
+              onClick={() => skip(-SKIP_SECONDS)}
+            >
+              -{SKIP_SECONDS}
+            </button>
+            <button
+              className="play-song"
+              aria-label={playing ? 'Pause' : 'Play'}
+              disabled={loading}
+              onClick={() => toggle(current)}
+            >
+              {loading ? '…' : playing ? '❚❚' : '▶'}
+            </button>
+            <button
+              className="player-step player-skip"
+              aria-label={`Forward ${SKIP_SECONDS} seconds`}
+              disabled={loading}
+              onClick={() => skip(SKIP_SECONDS)}
+            >
+              +{SKIP_SECONDS}
+            </button>
+            <button className="player-step" aria-label="Next song" disabled={loading} onClick={() => step(1)}>
+              ⏭
+            </button>
           </div>
           <ProgressBar seekable />
         </div>
       )}
+      {/* The songs as a sideways row of cover cards. */}
       <div className={scroll.wrapClassName}>
-        <ul ref={scroll.ref} className={scroll.className} onScroll={scroll.onScroll}>
+        <ul ref={scroll.ref} className={`song-cards ${scroll.className}`} onScroll={scroll.onScroll}>
           {shown.map((s) => (
-            <li key={s.key} className={isCurrent(s) ? 'playing' : ''}>
+            <li key={s.key} className={isCurrent(s) ? 'song-card playing' : 'song-card'}>
+              {/* The card plays the song (or pauses / resumes the one playing). */}
               <button
-                className="play-song"
+                className="song-card-play"
                 aria-label={isCurrent(s) && playing ? `Pause ${s.title}` : `Play ${s.title}`}
+                aria-current={isCurrent(s) || undefined}
                 disabled={loading}
                 onClick={() => toggle(s)}
               >
-                {isCurrent(s) && loading ? '…' : isCurrent(s) && playing ? '❚❚' : '▶'}
+                <Cover credit={s.credit} lazy />
+                <b className="song-card-title">{s.title}</b>
+                {s.artist && <span className="song-card-artist muted">{s.artist}</span>}
               </button>
-              <span className="song-name">
-                <b>{s.title}</b>
-                {s.artist && <span className="muted"> {s.artist}</span>}
-              </span>
               {s.credit?.url && (
                 <a className="song-source-link small" href={s.credit.url} target="_blank" rel="noreferrer">
-                  {sourceName(s.credit.url)}
+                  Listen on {sourceName(s.credit.url)}
                 </a>
               )}
             </li>
           ))}
           {!shown.length && <li className="muted small">No songs match{query.trim() && ` "${query.trim()}"`}.</li>}
         </ul>
-        <ScrollArrows more={scroll.more} scrollBy={scroll.scrollBy} />
+        <ScrollArrows more={scroll.more} scrollBy={scroll.scrollBy} axis="x" />
       </div>
       {error && <p className="error small">{error}</p>}
     </div>

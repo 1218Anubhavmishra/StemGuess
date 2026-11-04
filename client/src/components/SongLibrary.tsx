@@ -1,15 +1,11 @@
-import { useEffect, useState } from 'react';
-import { stemPlayer } from '../audio';
-import { request } from '../socket';
-import { SONG_LIMITS, type Library, type ServerLibrary } from '../types';
+import { useState } from 'react';
 import { NO_FILTERS, type SongFilters } from '../filters';
-import { getFolders } from '../localLibrary';
+import type { Library } from '../types';
 import Brand from './Brand';
 import Filters, { useLibraryFacets } from './Filters';
 import Practice from './Practice';
 import SongList from './SongList';
 import SectionNav, { type Section } from './SectionNav';
-import { LibraryTabs, LocalPicker, ModeDetails, OPTIONS } from './SongSource';
 
 export type LibraryMode = 'songs' | 'practice';
 
@@ -23,30 +19,12 @@ export default function SongLibrary({
   mode: LibraryMode;
   onNavigate: (section: Section) => void;
 }) {
-  const [library, setLibrary] = useState<Library>('hits');
-  const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
+  const library: Library = 'hits';
   const [filters, setFilters] = useState<SongFilters>(NO_FILTERS);
   const [query, setQuery] = useState('');
-  // Practice hides the titles, and songs picked one by one are already known, so neither needs a search.
-  const searchable = mode === 'songs' && (library !== 'local' || getFolders().length > 0);
+  // Practice hides the titles, so it has no search.
+  const searchable = mode === 'songs';
   const facets = useLibraryFacets(library, connected, searchable ? query : '');
-
-  useEffect(() => {
-    if (!connected) return;
-    void request('library').then((ack) => {
-      if (!ack.ok || !ack.libraries) return;
-      setLibraries(ack.libraries);
-    });
-  }, [connected]);
-
-  function choose(next: Library) {
-    stemPlayer.stop();
-    setLibrary(next);
-    setFilters(NO_FILTERS);
-    setQuery('');
-  }
-
-  const selected = OPTIONS.find((o) => o.id === library) ?? OPTIONS[0];
 
   return (
     <main className="screen center">
@@ -56,11 +34,6 @@ export default function SongLibrary({
           <header className="about-head">
             <h2 className="practice-head">{mode === 'songs' ? 'Play Library' : 'Practice'}</h2>
           </header>
-          <LibraryTabs value={library} libraries={libraries} minSongs={SONG_LIMITS.min} onChange={choose} />
-          <ModeDetails key={`details-${library}`}>
-            <p>{selected.notice}</p>
-          </ModeDetails>
-          {library === 'local' && <LocalPicker />}
           <Filters
             facets={facets}
             value={filters}

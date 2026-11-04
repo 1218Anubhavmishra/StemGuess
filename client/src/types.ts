@@ -18,13 +18,13 @@ export type RoomState = {
   search: string;
   /** Songs in the library matching the filters and search (null until counted). */
   poolSize: number | null;
-  localTracks: number;
   players: Player[];
   spectators: { id: string; name: string }[];
 };
 
-export type ServerLibrary = 'demo' | 'cc' | 'hits';
-export type Library = ServerLibrary | 'local';
+/** The game's only song library: previews of popular hits. */
+export type ServerLibrary = 'hits';
+export type Library = ServerLibrary;
 
 export type PracticeRound = {
   id: number;
@@ -45,8 +45,8 @@ export type FeedItem = {
   text?: string;
 };
 
-/** A song played in the game, revealed with the final scores. `track` is set for the host's own songs. */
-export type GameSong = { title: string; artist: string; credit?: Credit | null; urls: string[]; track?: number };
+/** A song played in the game, revealed with the final scores. */
+export type GameSong = { title: string; artist: string; credit?: Credit | null; urls: string[] };
 
 export type Credit = { text: string; url?: string; license?: string; licenseUrl?: string };
 
@@ -90,5 +90,3 @@ export const GITHUB_URL = 'https://github.com/1218Anubhavmishra';
 
 export const SONG_LIMITS = { min: 3, max: 10 };
 export const PLAYER_LIMITS = { min: 2, max: 10 };
-/** The host's own songs: the game draws at random from at least this many times its length. */
-export const LOCAL_POOL_FACTOR = 2;
