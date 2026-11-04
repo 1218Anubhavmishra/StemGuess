@@ -6,6 +6,7 @@ import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
 import { sourceName } from './CreditLine';
 import { ProgressBar, usePlayback } from './Playback';
+import { ScrollArrows, useScrollHints } from './ScrollHints';
 import { useLocalTracks } from './SongSource';
 
 const SKIP_SECONDS = 5;
@@ -128,13 +129,16 @@ export default function SongList({
 
   // Each song plays once, then the next one in the list starts.
   const advance = useRef(() => {});
+  // No scrollbar: grey lines (with arrows) above or below the list show there's more to scroll to.
+  const scroll = useScrollHints<HTMLUListElement>();
   advance.current = () => step(1);
   useEffect(() => {
     stemPlayer.onEnded = () => advance.current();
   }, []);
 
   if (!songs) return <p className="muted small">{local ? '' : 'Loading songs…'}</p>;
-  if (!songs.length) return <p className="muted small">{local ? 'Pick your songs above to see them here.' : 'No songs yet.'}</p>;
+  if (!songs.length)
+    return <p className="muted small">{local ? 'Pick your songs above to see them here.' : 'No songs yet.'}</p>;
 
   const isCurrent = (s: Item) => current?.key === s.key;
 
@@ -183,30 +187,33 @@ export default function SongList({
           <ProgressBar seekable />
         </div>
       )}
-      <ul>
-        {shown.map((s) => (
-          <li key={s.key} className={isCurrent(s) ? 'playing' : ''}>
-            <button
-              className="play-song"
-              aria-label={isCurrent(s) && playing ? `Pause ${s.title}` : `Play ${s.title}`}
-              disabled={loading}
-              onClick={() => toggle(s)}
-            >
-              {isCurrent(s) && loading ? '…' : isCurrent(s) && playing ? '❚❚' : '▶'}
-            </button>
-            <span className="song-name">
-              <b>{s.title}</b>
-              {s.artist && <span className="muted"> {s.artist}</span>}
-            </span>
-            {s.credit?.url && (
-              <a className="song-source-link small" href={s.credit.url} target="_blank" rel="noreferrer">
-                {sourceName(s.credit.url)}
-              </a>
-            )}
-          </li>
-        ))}
-        {!shown.length && <li className="muted small">No songs match{query.trim() && ` "${query.trim()}"`}.</li>}
-      </ul>
+      <div className={scroll.wrapClassName}>
+        <ul ref={scroll.ref} className={scroll.className} onScroll={scroll.onScroll}>
+          {shown.map((s) => (
+            <li key={s.key} className={isCurrent(s) ? 'playing' : ''}>
+              <button
+                className="play-song"
+                aria-label={isCurrent(s) && playing ? `Pause ${s.title}` : `Play ${s.title}`}
+                disabled={loading}
+                onClick={() => toggle(s)}
+              >
+                {isCurrent(s) && loading ? '…' : isCurrent(s) && playing ? '❚❚' : '▶'}
+              </button>
+              <span className="song-name">
+                <b>{s.title}</b>
+                {s.artist && <span className="muted"> {s.artist}</span>}
+              </span>
+              {s.credit?.url && (
+                <a className="song-source-link small" href={s.credit.url} target="_blank" rel="noreferrer">
+                  {sourceName(s.credit.url)}
+                </a>
+              )}
+            </li>
+          ))}
+          {!shown.length && <li className="muted small">No songs match{query.trim() && ` "${query.trim()}"`}.</li>}
+        </ul>
+        <ScrollArrows more={scroll.more} scrollBy={scroll.scrollBy} />
+      </div>
       {error && <p className="error small">{error}</p>}
     </div>
   );

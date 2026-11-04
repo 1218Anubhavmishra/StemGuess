@@ -12,6 +12,7 @@ import {
 } from '../filters';
 import { request } from '../socket';
 import type { Library } from '../types';
+import { ScrollList } from './ScrollHints';
 import { useLocalTracks } from './SongSource';
 
 const LABELS: Record<FilterKind, string> = { genres: 'Genre', languages: 'Language', artists: 'Artist' };
@@ -143,7 +144,12 @@ export default function Filters({
       {chosen.length > 0 && (
         <div className="filter-chips" aria-label="Chosen filters">
           {chosen.map(({ kind, name }) => (
-            <button key={`${kind}:${name}`} className="chip" aria-label={`Remove ${name}`} onClick={() => toggle(kind, name)}>
+            <button
+              key={`${kind}:${name}`}
+              className="chip"
+              aria-label={`Remove ${name}`}
+              onClick={() => toggle(kind, name)}
+            >
               {name}
               <span aria-hidden> ×</span>
             </button>
@@ -193,25 +199,41 @@ export default function Filters({
                     onChange={(e) => setArtistQuery(e.target.value)}
                   />
                 )}
-                <ul className={kind === 'artists' ? 'artist-list' : 'artist-list facet-grid'} aria-label={LABELS[kind]}>
-                  {options.map((o) => {
-                    const songs = counts.get(artistKey(o.name))?.songs ?? 0;
-                    const on = ticked.has(artistKey(o.name));
-                    return (
-                      <li key={o.name}>
-                        <button
-                          className={on ? 'facet-option on' : 'facet-option'}
-                          aria-pressed={on}
-                          onClick={() => toggle(kind, o.name)}
-                        >
-                          <span className="artist-name">{o.name}</span>
-                          <span className="facet-count">{songs}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                  {!options.length && <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>}
-                </ul>
+                {(() => {
+                  const items = (
+                    <>
+                      {options.map((o) => {
+                        const songs = counts.get(artistKey(o.name))?.songs ?? 0;
+                        const on = ticked.has(artistKey(o.name));
+                        return (
+                          <li key={o.name}>
+                            <button
+                              className={on ? 'facet-option on' : 'facet-option'}
+                              aria-pressed={on}
+                              onClick={() => toggle(kind, o.name)}
+                            >
+                              <span className="artist-name">{o.name}</span>
+                              <span className="facet-count">{songs}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {!options.length && (
+                        <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>
+                      )}
+                    </>
+                  );
+                  // The artist list is long: it scrolls with grey lines and tiny arrows instead of a scrollbar.
+                  return kind === 'artists' ? (
+                    <ScrollList className="artist-list" label={LABELS[kind]} tiny>
+                      {items}
+                    </ScrollList>
+                  ) : (
+                    <ul className="artist-list facet-grid" aria-label={LABELS[kind]}>
+                      {items}
+                    </ul>
+                  );
+                })()}
               </fieldset>
             );
           })}

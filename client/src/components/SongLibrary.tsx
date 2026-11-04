@@ -17,12 +17,10 @@ export type LibraryMode = 'songs' | 'practice';
 export default function SongLibrary({
   connected,
   mode,
-  onBack,
   onNavigate,
 }: {
   connected: boolean;
   mode: LibraryMode;
-  onBack: () => void;
   onNavigate: (section: Section) => void;
 }) {
   const [library, setLibrary] = useState<Library>('hits');
@@ -57,9 +55,6 @@ export default function SongLibrary({
         <div className="card narrow">
           <header className="about-head">
             <h2 className="practice-head">{mode === 'songs' ? 'Play Library' : 'Practice'}</h2>
-            <button className="back-button" aria-label="Back" title="Back" onClick={onBack}>
-              &lt;
-            </button>
           </header>
           <LibraryTabs value={library} libraries={libraries} minSongs={SONG_LIMITS.min} onChange={choose} />
           <ModeDetails key={`details-${library}`}>

@@ -198,14 +198,22 @@ class BgMusic {
   private muted = localStorage.getItem(MUTE_KEY) === '1';
   private buffer?: Promise<AudioBuffer>;
   private current?: Track;
+  private listeners = new Set<() => void>();
 
   isMuted() {
     return this.muted;
   }
 
+  /** Called when the music is muted or unmuted, so every music button shows the same state. */
+  subscribe(fn: () => void) {
+    this.listeners.add(fn);
+    return () => void this.listeners.delete(fn);
+  }
+
   setMuted(muted: boolean) {
     this.muted = muted;
     localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+    this.listeners.forEach((fn) => fn());
     void this.sync();
   }
 

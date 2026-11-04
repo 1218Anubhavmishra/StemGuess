@@ -3,6 +3,8 @@
   --panel-2: #f1eee6;
   --border: #e4e0d5;
   --border-strong: #d3cdbf;
+  /* Grey for lines meant to be noticed: the About scroll lines and the section strip's border. */
+  --line: #a9a6b4;
   --text: #24233a;
   --muted: #6e6c86;
   --accent: #6a4bff;
@@ -10,7 +12,7 @@
   --accent-2: #0e9a77;
   --danger: #d93a5a;
   --winner-bg: #e8e1ff;
-  --page: #f6f4ee;
+  --page: #ffffff;
   --on-page: #3a3955;
   --radius: 14px;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -30,9 +32,8 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .center { display: grid; place-items: center; }
 
 .card {
-  box-shadow: 0 8px 24px rgba(30, 28, 60, 0.08);
   background: var(--panel);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
   padding: 20px;
   display: flex;
@@ -107,7 +108,7 @@ input:disabled { opacity: 0.5; }
 button {
   background: var(--panel-2);
   color: var(--text);
-  border: 1px solid var(--border-strong);
+  border: 1px solid transparent;
   padding: 12px 18px;
   border-radius: 10px;
   font-size: 1rem;
@@ -169,7 +170,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .overlay {
   position: fixed; inset: 0; z-index: 20;
   display: grid; place-items: center; padding: 16px;
-  background: rgba(246, 244, 238, 0.7);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(3px);
 }
 .tag { margin-left: 8px; font-size: 0.7rem; color: var(--muted); border: 1px solid var(--border-strong); padding: 1px 6px; border-radius: 99px; }
@@ -256,7 +257,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--panel-2); border-radius: 10px; padding: 4px; }
 @media (max-width: 440px) { .segmented { grid-template-columns: repeat(2, 1fr); } }
 .segmented button { border: 1px solid transparent; background: transparent; padding: 8px 6px; font-size: 0.85rem; line-height: 1.2; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.segmented button.on { background: var(--panel); border-color: var(--border-strong); color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 6%); }
+.segmented button.on { background: var(--panel); color: var(--accent); font-weight: 600; }
 .segmented small { font-size: 0.7rem; color: var(--muted); font-weight: 400; }
 .notice { margin: 0; color: var(--on-page); background: var(--panel-2); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 10px; line-height: 1.4; }
 .notice p { margin: 0; }
@@ -273,8 +274,11 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 
 /* Song Library / About */
 .menu-links { display: flex; gap: 10px; justify-content: center; margin-top: 16px; width: 100%; }
-.menu-links button { flex: 1; background: var(--panel); white-space: nowrap; padding-inline: 8px; }
+.menu-links button { flex: 1; white-space: nowrap; padding-inline: 8px; }
 .practice-head { margin: 0; text-align: center; font-size: 1.4rem; }
+/* Play Library and Practice: windows 50% wider than the home screen's (420px). */
+.home-stack.practice { width: min(630px, 100%); }
+.home-stack.practice > .card.narrow { width: 100%; }
 .practice .options { margin: 4px 0; }
 .practice .answer h2 { font-size: 1.3rem; }
 .practice .round-winners { margin: 0 0 4px; }
@@ -284,7 +288,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .segmented.two { grid-template-columns: repeat(2, 1fr); }
 .song-list { display: flex; flex-direction: column; gap: 8px; }
 .song-search { padding: 8px 12px; font-size: 0.9rem; }
-.song-list ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
+.song-list ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
 .song-list li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 .song-list li:last-child { border-bottom: none; }
 .song-list li.playing { background: var(--winner-bg); }
@@ -308,24 +312,29 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .progress.seek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
 .progress.seek::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
 .artist-picker { display: flex; flex-direction: column; gap: 6px; }
-.artist-toggle { display: flex; align-items: center; gap: 4px; width: 100%; text-align: left; background: var(--panel); font-size: 0.9rem; padding: 8px 12px; }
+.artist-toggle { display: flex; align-items: center; gap: 4px; width: 100%; text-align: left; background: var(--panel); font-size: 0.9rem; padding: 8px 12px; border: 1px solid var(--line); }
 .artist-toggle b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .artist-caret { margin-left: auto; color: var(--muted); }
 .artist-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
+/* Open, the Filters button and its panel are one box: same grey border, no gap, shared edge. */
+.artist-toggle[aria-expanded='true'] { border-bottom-color: var(--border); border-radius: 10px 10px 0 0; }
+.artist-toggle[aria-expanded='true'] + .artist-panel {
+  margin-top: -6px; border: 1px solid var(--line); border-top: none; border-radius: 0 0 10px 10px;
+}
 .artist-tools { display: flex; gap: 6px; }
 .artist-tools .song-search { flex: 1; min-width: 0; }
 .artist-tools button { flex: none; font-size: 0.8rem; padding: 6px 10px; }
 .artist-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; }
 .facet-option {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px;
-  font-size: 0.85rem; font-weight: 500; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  font-size: 0.85rem; font-weight: 500; background: var(--panel-2); border: 1px solid transparent; color: var(--text);
 }
-.facet-option:hover { background: var(--panel-2); }
+.facet-option:hover { background: var(--border); }
 .facet-option.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .facet-count { font-size: 0.75rem; opacity: 0.65; }
 .facet-option.on .facet-count { opacity: 0.85; }
 .artist-name { min-width: 0; overflow-wrap: anywhere; }
-.filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .chip { padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; background: var(--winner-bg); border-color: var(--accent); color: var(--text); }
 .facet { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 4px 6px 6px; border: 1px solid var(--border); border-radius: 8px; }
 .facet legend { padding: 0 4px; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
@@ -335,18 +344,95 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .about ul, .about ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 .about h3 { margin: 8px 0 0; }
 .about-head { display: flex; align-items: center; gap: 12px; }
-.back-button {
-    width: 36px; height: 36px; padding: 0; flex: none; margin-left: auto; border-radius: 10px;
-  background: var(--me); border-color: var(--me); color: #fff; font-size: 1.3rem; line-height: 1;
-}
 .about-head h2 { margin: 0; }
-/* About: the title, Back and the credit stay put; only .about-body scrolls between them. */
-.about-body {
-  flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
-  margin: 0 -20px; padding: 10px 20px; border-block: 1px solid var(--border);
+/* About: the title and the credit stay put; only .about-body scrolls between them. */
+.about-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0 -20px; }
+.about-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 20px; }
+/* Scrolling without a scrollbar (ScrollHints.tsx): grey lines mark the side(s) with more to scroll to,
+   each with an arrow tab centred on it. */
+.scroll-wrap { position: relative; }
+.scroll-lines { scrollbar-width: none; }
+.scroll-lines::-webkit-scrollbar { display: none; }
+/* The lines sit over the edges of the scrolled content, in a wide white band (8px each side) so they
+   stand clearly apart from whatever scrolls under them. The band stays within the box's width. */
+.scroll-wrap::before, .scroll-wrap::after {
+  content: ''; position: absolute; left: 0; right: 0; z-index: 1; height: 3px; pointer-events: none;
+  background: var(--line); box-shadow: 0 0 0 8px var(--panel); clip-path: inset(-8px 0);
+  opacity: 0; transition: opacity 0.2s;
 }
+.scroll-wrap::before { top: 0; }
+.scroll-wrap::after { bottom: 0; }
+.scroll-wrap.more-above::before, .scroll-wrap.more-below::after { opacity: 1; }
+.scroll-hint {
+  position: absolute; left: 50%; z-index: 2; transform: translate(-50%, -50%);
+  width: 52px; height: 26px; padding: 0; border: none; border-radius: 99px;
+  background: var(--line); color: #fff; font-size: 0.95rem; line-height: 26px;
+  /* A wide white ring parts the arrow from the content under it. */
+  box-shadow: 0 0 0 6px var(--panel);
+}
+.scroll-hint.up { top: 1.5px; }
+.scroll-hint.down { top: calc(100% - 1.5px); }
+.scroll-hint.tiny { width: 26px; height: 12px; font-size: 0.45rem; line-height: 12px; box-shadow: 0 0 0 4px var(--panel); }
+.scroll-hint:hover { background: var(--muted); }
+/* About is a page of its own: the app header on top, the window and section strip under it. */
+.overlay.about-page {
+  place-items: start center; background: var(--page); backdrop-filter: none;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+.about-page .about-stack { max-height: calc(100vh - 32px); }
+.about-page .brand-block { align-self: stretch; margin-bottom: 12px; }
+.about-page .brand-block .tagline { margin-bottom: 0; }
+.about-page .about { flex: 1; max-height: none; }
 .about-stack { display: flex; flex-direction: column; align-items: center; width: min(560px, 100%); max-height: calc(100vh - 32px); }
 .about-stack .about { width: 100%; min-height: 0; }
-.section-nav button.on { border-color: var(--accent); color: var(--accent); opacity: 1; }
+/* The section buttons: a submenu strip joined to the bottom of the window above it. */
+.section-nav {
+  gap: 4px; margin-top: 0; padding: 0 4px 4px;
+  background: var(--panel); border-radius: 0 0 var(--radius) var(--radius);
+  border: 2px solid var(--line); border-top: none;
+}
+.section-nav button { background: transparent; padding: 9px 6px; font-size: 0.9rem; border-radius: 0 0 10px 10px; color: var(--on-page); }
+/* Hover: a grey box whose square top meets the window above. */
+.section-nav button:not(:disabled):hover { background: #ebeaef; }
+.section-nav button.on { color: var(--accent); font-weight: 700; opacity: 1; cursor: default; }
+.card:has(+ .section-nav) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .about-github { font-weight: 600; }
 .about-github a { color: var(--accent); }
+
+/* ----- Floating header: pinned to the top of every screen, the content scrolls under it ----- */
+.screen.center { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+.home-stack > .brand-block, .topbar {
+  position: sticky; top: 0; z-index: 10;
+  margin-top: calc(-1 * max(16px, env(safe-area-inset-top)));
+  padding-top: max(16px, env(safe-area-inset-top));
+  background: var(--page);
+  /* Full-width background without widening the page. */
+  box-shadow: 0 0 0 100vmax var(--page);
+  clip-path: inset(0 -100vmax);
+}
+.home-stack > .brand-block { align-self: stretch; padding-bottom: 4px; margin-bottom: 12px; }
+.home-stack > .brand-block .tagline { margin-bottom: 0; }
+.topbar { padding-bottom: 8px; }
+
+/* ----- Starting screen ----- */
+.splash {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  background: #fff;
+  transition: background-color var(--move-ms) ease;
+}
+.splash-header { transform-origin: center; transition: transform var(--move-ms) cubic-bezier(0.65, 0, 0.35, 1); }
+.splash-header .tagline { margin: 0; }
+.splash.move { background-color: transparent; pointer-events: none; }
+/* While the starting screen shows, the screen underneath is laid out but not seen. */
+body.splashing main { visibility: hidden; }
+/* Then each section's content floats in under the header. */
+@keyframes float-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+body.entering .home-stack > :not(.brand-block),
+body.entering .game > :not(.topbar) { animation: float-in 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+body.entering .home-stack > :nth-child(3), body.entering .game > :nth-child(3) { animation-delay: 0.08s; }
+body.entering .home-stack > :nth-child(n + 4), body.entering .game > :nth-child(n + 4) { animation-delay: 0.16s; }
+@media (prefers-reduced-motion: reduce) {
+  .splash-header { transition: none; }
+  body.entering .home-stack > *, body.entering .game > * { animation: none; }
+}
