@@ -3,7 +3,7 @@ import { stemPlayer, unlockAudio } from '../audio';
 import { type SongFilters } from '../filters';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
-import Cover from './Cover';
+import Cover, { CoverBackdrop } from './Cover';
 import CreditLine from './CreditLine';
 import { ProgressBar } from './Playback';
 
@@ -72,7 +72,9 @@ export default function Practice({
   return (
     <>
       {round && (
-        <>
+        // Once answered, the song's cover, blurred, fills the round's area.
+        <div className={`practice-stage has-backdrop${choice !== null ? ' revealed' : ''}`}>
+          {choice !== null && <CoverBackdrop credit={round.credit} />}
           {choice === null ? (
             <span className="now-playing" aria-hidden>
               <i />
@@ -110,7 +112,7 @@ export default function Practice({
               </button>
             ))}
           </div>
-        </>
+        </div>
       )}
       {error && <p className="error small">{error}</p>}
       {/* The button centred, with the score under it. */}

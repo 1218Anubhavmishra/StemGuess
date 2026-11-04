@@ -61,3 +61,12 @@ export default function Cover({
     />
   );
 }
+
+/**
+ * The song's cover, blurred, filling its box behind the content (with a pale wash so text stays readable).
+ * The box needs the `has-backdrop` class. Renders nothing for a song without a cover.
+ */
+export function CoverBackdrop({ credit }: { credit?: Credit | null }) {
+  const url = coverUrl(credit);
+  return url ? <div className="cover-backdrop" aria-hidden style={{ backgroundImage: `url(${url})` }} /> : null;
+}

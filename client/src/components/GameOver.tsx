@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react';
 import { stemPlayer } from '../audio';
 import { request, serverUrl } from '../socket';
 import type { GameSong, Player, RoomState } from '../types';
+import Cover from './Cover';
 import CreditLine from './CreditLine';
 import DisconnectedIcon from './DisconnectedIcon';
+import { ScrollArrows, useScrollHints } from './ScrollHints';
 
 type Props = { room: RoomState; ranking: Player[]; songs: GameSong[]; isHost: boolean; onLeave: () => void };
 
 export default function GameOver({ room, ranking, songs, isHost, onLeave }: Props) {
   const [error, setError] = useState('');
+  // The game's songs, as a sideways row of cover cards.
+  const scroll = useScrollHints<HTMLOListElement>('x');
   // Song being replayed, and whether its clip is still loading.
   const [replaying, setReplaying] = useState<{ index: number; loading: boolean } | null>(null);
   const top = ranking[0]?.score ?? 0;
@@ -47,7 +51,10 @@ export default function GameOver({ room, ranking, songs, isHost, onLeave }: Prop
         <h1>Final scores</h1>
         <ol className="ranking">
           {ranking.map((p, i) => (
-            <li key={p.id} className={[p.score === top && top > 0 && 'winner', !p.connected && 'gone'].filter(Boolean).join(' ')}>
+            <li
+              key={p.id}
+              className={[p.score === top && top > 0 && 'winner', !p.connected && 'gone'].filter(Boolean).join(' ')}
+            >
               <span className="place">{i + 1}</span>
               <span className="name">
                 {p.name}
@@ -62,28 +69,35 @@ export default function GameOver({ room, ranking, songs, isHost, onLeave }: Prop
         {songs.length > 0 && (
           <>
             <h3 className="answers-head">The songs were</h3>
-            <ol className="answers">
-              {songs.map((song, i) => {
-                const current = replaying?.index === i;
-                return (
-                  <li key={i} className={current ? 'playing' : ''}>
-                    <span className="place">{i + 1}</span>
-                    <span className="song-name">
-                      <b>{song.title}</b>
-                      {song.artist && <span className="muted"> {song.artist}</span>}
+            <div className={`${scroll.wrapClassName} quiet`}>
+              <ol ref={scroll.ref} className={`song-cards answer-cards ${scroll.className}`} onScroll={scroll.onScroll}>
+                {songs.map((song, i) => {
+                  const current = replaying?.index === i;
+                  return (
+                    <li key={i} className={current ? 'song-card playing' : 'song-card'}>
+                      {/* The card replays the song, or stops the one replaying. */}
+                      <button
+                        className="song-card-play"
+                        aria-label={current ? `Stop ${song.title}` : `Replay ${song.title}`}
+                        onClick={() => void replay(i)}
+                      >
+                        <span className="song-card-cover">
+                          <Cover credit={song.credit} />
+                          <span className="song-card-place">{i + 1}</span>
+                          <span className="song-card-state" aria-hidden>
+                            {current ? (replaying.loading ? '…' : '■') : '▶'}
+                          </span>
+                        </span>
+                        <b className="song-card-title">{song.title}</b>
+                        {song.artist && <span className="song-card-artist muted">{song.artist}</span>}
+                      </button>
                       {song.credit && <CreditLine credit={song.credit} />}
-                    </span>
-                    <button
-                      className="play-song"
-                      aria-label={current ? `Stop ${song.title}` : `Replay ${song.title}`}
-                      onClick={() => void replay(i)}
-                    >
-                      {current ? (replaying.loading ? '…' : '■') : '▶'}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+                    </li>
+                  );
+                })}
+              </ol>
+              <ScrollArrows more={scroll.more} scrollBy={scroll.scrollBy} axis="x" />
+            </div>
           </>
         )}
         {isHost ? (

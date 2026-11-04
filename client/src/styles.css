@@ -279,23 +279,26 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .play-song { width: 34px; height: 34px; padding: 0; flex: none; border-radius: 50%; background: var(--accent); border-color: var(--accent); color: #fff; font-size: 0.8rem; }
 .song-source-link { color: var(--accent); flex: none; }
 .player {
-  position: relative; overflow: hidden; isolation: isolate;
   display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 12px;
   border: 1px solid var(--border); border-radius: 12px; background: var(--winner-bg); text-align: center;
 }
-/* The playing song's cover, blurred, behind the player; a pale wash keeps the text readable. */
-.player-backdrop {
+/* A song's cover, blurred, behind a box (CoverBackdrop): the player, and after the reveal the Practice
+   area and a game's round window. A pale wash keeps the text readable. */
+.has-backdrop { position: relative; overflow: hidden; isolation: isolate; }
+.cover-backdrop {
   position: absolute; inset: -40px; z-index: -2;
   background: center / cover no-repeat; filter: blur(28px) saturate(1.3);
+  animation: backdrop-in 0.6s ease both;
 }
-.player:has(.player-backdrop)::before {
+.has-backdrop:has(> .cover-backdrop)::before {
   content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(255, 255, 255, 0.55);
 }
+@keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 .player > .progress-row { align-self: stretch; }
 .player-name { flex: none; font-size: 0.95rem; }
 .player .player-buttons { justify-content: center; }
 /* The song list: a sideways row of cover cards. */
-.song-list ul.song-cards { display: flex; gap: 12px; max-height: none; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 6px; }
+.song-cards { list-style: none; margin: 0; display: flex; gap: 12px; max-height: none; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 6px; }
 .song-cards .song-card { flex: 0 0 132px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: none; border-radius: 12px; font-size: 0.85rem; }
 .song-cards .song-card.playing { background: var(--winner-bg); }
 .song-card-play {
@@ -309,6 +312,15 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 }
 .song-card-title { -webkit-line-clamp: 2; font-weight: 600; }
 .song-card-artist { -webkit-line-clamp: 1; font-size: 0.8rem; }
+/* Final scores: each card's cover shows the song's number and a replay / stop badge. */
+.song-card-cover { position: relative; display: block; }
+.song-card-place, .song-card-state {
+  position: absolute; display: grid; place-items: center; border-radius: 99px; font-size: 0.75rem; font-weight: 700;
+}
+.song-card-place { top: 6px; left: 6px; min-width: 22px; height: 22px; padding: 0 6px; background: rgba(255, 255, 255, 0.9); color: var(--text); }
+.song-card-state { right: 6px; bottom: 6px; width: 28px; height: 28px; background: var(--accent); color: #fff; }
+.answer-cards .credit { margin: 0; text-align: center; }
+.answer-cards .credit a { color: var(--accent); }
 /* In the player (and Practice), the cover sits centred above the controls. */
 .player > .cover, .practice-player > .cover { align-self: center; width: 160px; height: 160px; border-radius: 12px; }
 /* Song covers (Cover.tsx): a square tile, cropped from the video thumbnail. */
@@ -316,6 +328,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .cover-hidden, .cover-none { display: grid; place-items: center; }
 .cover-hidden { font-size: 1.8rem; font-weight: 800; color: var(--muted); }
 .cover-none img { width: 70%; height: 70%; }
+.practice-stage { display: flex; flex-direction: column; gap: 12px; margin: 0 -8px; padding: 8px; border-radius: 12px; }
 .practice-player { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
 .practice-player > .cover-hidden { font-size: 3rem; }
 /* A song in the list: its name is the play button. */
@@ -408,11 +421,11 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .scroll-hint.left, .scroll-hint.right { top: 50%; width: 26px; height: 52px; line-height: 52px; }
 .scroll-hint.left { left: 1.5px; }
 .scroll-hint.right { left: calc(100% - 1.5px); }
-/* Play Library's row of cards: small arrows only, no lines. */
-.song-list .scroll-wrap.x::before, .song-list .scroll-wrap.x::after { display: none; }
-.song-list .scroll-hint.left, .song-list .scroll-hint.right { width: 18px; height: 34px; line-height: 34px; font-size: 0.6rem; box-shadow: 0 0 0 4px var(--panel); }
-.song-list .scroll-hint.left { left: 9px; }
-.song-list .scroll-hint.right { left: calc(100% - 9px); }
+/* Rows of song cards (Play Library, final scores): small arrows only, no lines. */
+.scroll-wrap.x.quiet::before, .scroll-wrap.x.quiet::after { display: none; }
+.quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 18px; height: 34px; line-height: 34px; font-size: 0.6rem; box-shadow: 0 0 0 4px var(--panel); }
+.quiet .scroll-hint.left { left: 9px; }
+.quiet .scroll-hint.right { left: calc(100% - 9px); }
 /* About is a page of its own: the app header on top, the window and section strip under it. */
 .overlay.about-page {
   place-items: start center; background: var(--page); backdrop-filter: none;

@@ -3,6 +3,7 @@ import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
 import Brand from './Brand';
+import { CoverBackdrop } from './Cover';
 import CreditLine from './CreditLine';
 import Scoreboard from './Scoreboard';
 import SpeakerIcon from './SpeakerIcon';
@@ -147,7 +148,9 @@ export default function Game({
         </button>
       </header>
 
-      <section className="stage card">
+      {/* After the reveal, the song's cover, blurred, fills the round window. */}
+      <section className="stage card has-backdrop">
+        {result && <CoverBackdrop credit={answer.credit} />}
         <h2 className="stage-room">
           Room <span>{room.code}</span>
         </h2>

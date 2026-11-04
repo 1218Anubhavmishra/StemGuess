@@ -3,7 +3,7 @@ import { stemPlayer, unlockAudio } from '../audio';
 import { matchesSearch, songFilter, type SongFilters } from '../filters';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
-import Cover, { coverUrl } from './Cover';
+import Cover, { CoverBackdrop } from './Cover';
 import { sourceName } from './CreditLine';
 import { ProgressBar, usePlayback } from './Playback';
 import { ScrollArrows, useScrollHints } from './ScrollHints';
@@ -126,15 +126,9 @@ export default function SongList({
   return (
     <div className="song-list">
       {current && (
-        <div className="player" aria-label="Player">
+        <div className="player has-backdrop" aria-label="Player">
           {/* The cover, blurred, fills the player behind everything. */}
-          {coverUrl(current.credit) && (
-            <div
-              className="player-backdrop"
-              aria-hidden
-              style={{ backgroundImage: `url(${coverUrl(current.credit)})` }}
-            />
-          )}
+          <CoverBackdrop credit={current.credit} />
           <Cover credit={current.credit} />
           <span className="song-name player-name">
             <b>{current.title}</b>
@@ -176,7 +170,7 @@ export default function SongList({
         </div>
       )}
       {/* The songs as a sideways row of cover cards. */}
-      <div className={scroll.wrapClassName}>
+      <div className={`${scroll.wrapClassName} quiet`}>
         <ul ref={scroll.ref} className={`song-cards ${scroll.className}`} onScroll={scroll.onScroll}>
           {shown.map((s) => (
             <li key={s.key} className={isCurrent(s) ? 'song-card playing' : 'song-card'}>
