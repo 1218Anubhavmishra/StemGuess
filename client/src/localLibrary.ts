@@ -6,11 +6,9 @@ export type LocalTrack = { id: number; title: string; artist: string; file: File
 export const CLIP_SECONDS = 15;
 // Mono 22.05 kHz 16-bit WAV: ~660 KB per clip, small enough to send to every player quickly.
 const CLIP_RATE = 22050;
-const EDGE_SKIP = 0.1;
-// Vocal removal keeps the mix below this frequency, where bass and kick live.
-const BASS_CUTOFF_HZ = 150;
-// Side energy below this share of the centre's means the file is (near) mono.
-const MIN_SIDE_RATIO = 0.01;
+// Samples below this level before the song starts count as silence (about -50 dB), searched up to MAX_LEAD_IN s.
+const SILENCE_LEVEL = 0.003;
+const MAX_LEAD_IN = 10;
 const CLIP_PEAK = 0.9;
 
 let nextId = 1;
@@ -53,28 +51,12 @@ export function guessName(fileName: string): { artist: string; title: string } {
   return { artist: rest.length ? artist.trim() : '', title: title.replace(/^[\s\-.,]+|[\s\-.,]+$/g, '') || fileName };
 }
 
-/** Start (s) of the loudest CLIP_SECONDS stretch, skipping intros and outros. */
-function loudestWindow(buffer: AudioBuffer): number {
-  if (buffer.duration <= CLIP_SECONDS) return 0;
+/** Start (s) of the song: the first sample above SILENCE_LEVEL, so a silent lead-in isn't part of the clip. */
+function songStart(buffer: AudioBuffer): number {
   const data = buffer.getChannelData(0);
-  const rate = buffer.sampleRate;
-  const energy: number[] = [];
-  for (let second = 0; (second + 1) * rate <= data.length; second++) {
-    let sum = 0;
-    for (let i = second * rate; i < (second + 1) * rate; i += 8) sum += data[i] * data[i];
-    energy.push(sum);
-  }
-  if (energy.length <= CLIP_SECONDS) return 0;
-  const first = Math.floor(energy.length * EDGE_SKIP);
-  const last = Math.max(first, Math.floor(energy.length * (1 - EDGE_SKIP)) - CLIP_SECONDS);
-  let best = first;
-  let bestSum = -1;
-  for (let start = first; start <= last; start++) {
-    let sum = 0;
-    for (let i = start; i < start + CLIP_SECONDS; i++) sum += energy[i];
-    if (sum > bestSum) [best, bestSum] = [start, sum];
-  }
-  return best;
+  const limit = Math.min(data.length, Math.floor(MAX_LEAD_IN * buffer.sampleRate));
+  for (let i = 0; i < limit; i++) if (Math.abs(data[i]) > SILENCE_LEVEL) return i / buffer.sampleRate;
+  return 0;
 }
 
 function encodeWav(samples: Float32Array, rate: number): ArrayBuffer {
@@ -101,55 +83,22 @@ export function makeTrack(file: File): LocalTrack {
   return { id: nextId++, ...guessName(file.name), file };
 }
 
-/** True when the left and right channels differ enough for centre cancellation to leave music behind. */
-function isStereo(buffer: AudioBuffer, start: number, length: number): boolean {
-  if (buffer.numberOfChannels < 2) return false;
-  const [left, right] = [buffer.getChannelData(0), buffer.getChannelData(1)];
-  const from = Math.floor(start * buffer.sampleRate);
-  const to = Math.min(left.length, from + Math.floor(length * buffer.sampleRate));
-  let mid = 0;
-  let side = 0;
-  for (let i = from; i < to; i += 16) {
-    mid += (left[i] + right[i]) ** 2;
-    side += (left[i] - right[i]) ** 2;
-  }
-  return side > mid * MIN_SIDE_RATIO;
-}
-
-/**
- * Lead vocals are almost always mixed dead centre, so left minus right cancels them. Bass and kick
- * sit in the centre too, so the low end of the normal mix is added back.
- */
-function connectWithoutVocals(offline: OfflineAudioContext, source: AudioBufferSourceNode) {
-  const splitter = offline.createChannelSplitter(2);
-  const right = offline.createGain();
-  right.gain.value = -1;
-  source.connect(splitter);
-  splitter.connect(offline.destination, 0);
-  splitter.connect(right, 1).connect(offline.destination);
-  const low = offline.createBiquadFilter();
-  low.type = 'lowpass';
-  low.frequency.value = BASS_CUTOFF_HZ;
-  source.connect(low).connect(offline.destination);
-}
-
 function normalize(samples: Float32Array) {
   let peak = 0;
   for (const s of samples) peak = Math.max(peak, Math.abs(s));
   if (peak > 0) samples.forEach((s, i) => (samples[i] = (s / peak) * CLIP_PEAK));
 }
 
-/** Decodes an audio file on this device and cuts its loudest 15 s, vocals removed, into a small WAV clip. */
+/** Decodes an audio file on this device and cuts its opening 15 s, everything in it, into a small WAV clip. */
 async function cutClip(file: File): Promise<ArrayBuffer> {
   const decoded = await audioContext().decodeAudioData(await file.arrayBuffer());
-  const start = loudestWindow(decoded);
+  const start = songStart(decoded);
   const length = Math.min(CLIP_SECONDS, decoded.duration - start);
   const offline = new OfflineAudioContext(1, Math.ceil(length * CLIP_RATE), CLIP_RATE);
   const source = offline.createBufferSource();
   source.buffer = decoded;
-  // A mono file has no side signal to keep, so it plays as it is.
-  if (isStereo(decoded, start, length)) connectWithoutVocals(offline, source);
-  else source.connect(offline.destination);
+  // The mono context mixes stereo files down, keeping all instruments and vocals.
+  source.connect(offline.destination);
   source.start(0, start, length);
   const samples = (await offline.startRendering()).getChannelData(0);
   normalize(samples);

@@ -18,7 +18,7 @@ for (const event of ['pointerdown', 'keydown', 'touchstart']) {
   window.addEventListener(event, unlockAudio, { passive: true });
 }
 
-const DEFAULT_VOLUME = 0.2;
+const DEFAULT_VOLUME = 0.5;
 
 /** Plays all stems of a song together and in sync: looped in rounds, or once with seeking in the Song Library. */
 class StemPlayer {

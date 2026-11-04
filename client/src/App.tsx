@@ -9,6 +9,7 @@ import Game from './components/Game';
 import GameOver from './components/GameOver';
 import About from './components/About';
 import MenuLinks from './components/MenuLinks';
+import type { Section } from './components/SectionNav';
 import SongLibrary, { type LibraryMode } from './components/SongLibrary';
 let feedId = 0;
 
@@ -181,10 +182,31 @@ export default function App() {
   }, [screen]);
 
   const menu = <MenuLinks onLibrary={setLibraryMode} onAbout={() => setAbout(true)} />;
-  const aboutDialog = about && <About onClose={() => setAbout(false)} />;
+  const navigate = (section: Section) => {
+    if (section === 'about') {
+      // Opens over the current section, so Back returns to it.
+      setAbout(true);
+      return;
+    }
+    stemPlayer.stop();
+    setAbout(false);
+    setLibraryMode(section === 'room' ? null : section);
+  };
+  const aboutDialog = about && <About onClose={() => setAbout(false)} onNavigate={navigate} />;
 
   if (libraryMode && practising) {
-    return <SongLibrary connected={connected} initialMode={libraryMode} onBack={() => setLibraryMode(null)} />;
+    return (
+      <>
+        <SongLibrary
+          key={libraryMode}
+          connected={connected}
+          mode={libraryMode}
+          onBack={() => setLibraryMode(null)}
+          onNavigate={navigate}
+        />
+        {aboutDialog}
+      </>
+    );
   }
 
   if (!room) {

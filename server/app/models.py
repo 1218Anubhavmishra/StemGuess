@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -25,6 +25,8 @@ class Song(Base):
     # Broad genres ("Indian, Pop") and languages ("Hindi, English") for choosing songs; empty when unknown.
     genre: Mapped[str | None] = mapped_column(String(100), nullable=True)
     language: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Kept in the database but never played or listed (e.g. songs taken out of the game for now).
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     stems: Mapped[list["Stem"]] = relationship(

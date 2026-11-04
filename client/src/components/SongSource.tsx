@@ -8,40 +8,15 @@ const CONSENT_KEY = 'stemguess:localMusicConsent';
 const MAX_TRACKS = 1000;
 const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|webm|wma|aiff?)$/i;
 
+// Only the hits previews are offered for now. The demo, Creative Commons and "My music" modes are kept in
+// the code (and their songs on the server) but games no longer offer them.
 export const OPTIONS: { id: Library; label: string; notice: string; howItWorks?: string }[] = [
-  {
-    id: 'demo',
-    label: 'StemGuess demos',
-    notice: 'Original & free to play demo tracks by StemGuess.',
-    howItWorks:
-      'In this mode, the game will randomly pick the chosen number of songs from the StemGuess demo tracks. ' +
-      'So no player (even us) will ever know the songs that will be picked for the game.',
-  },
-  {
-    id: 'cc',
-    label: 'Creative Commons',
-    notice: 'Songs their artists share under Creative Commons licences, credited after each round.',
-    howItWorks:
-      'In this mode, the game will randomly pick the chosen number of songs from the Creative Commons library. ' +
-      'So no player (even us) will ever know the songs that will be picked for the game.',
-  },
   {
     id: 'hits',
     label: 'Preview of hits',
-    notice: 'Short previews of popular hits, with the vocals taken out. Songs link to their YouTube video (or Apple Music) after the round.',
+    notice: 'The first 15 seconds of popular hits, vocals and all. Songs link to their YouTube video (or Apple Music) after the round.',
     howItWorks:
       'In this mode, the game will randomly pick the chosen number of songs from the hits previews. ' +
-      'So no player (even us) will ever know the songs that will be picked for the game.',
-  },
-  {
-    id: 'local',
-    label: 'My music',
-    notice:
-      "Songs stay on your device and are shared only with players in this room. StemGuess doesn't store them. " +
-      "You're responsible for the music you share: sharing commercial songs without permission may break " +
-      'copyright law where you live.',
-    howItWorks:
-      'In this mode, the game will randomly pick the chosen number of songs from the ones you choose. ' +
       'So no player (even us) will ever know the songs that will be picked for the game.',
   },
 ];
@@ -55,7 +30,7 @@ export const LIBRARY_LABELS: Record<Library, string> = {
 
 // Only these libraries show their notice in the room lobby.
 export const GUEST_NOTICES: Partial<Record<Library, string>> = {
-  hits: 'Short previews of popular hits, with the vocals taken out.',
+  hits: 'The first 15 seconds of popular hits, vocals and all.',
   local: "Songs come from the host's device and are shared only with this room. StemGuess doesn't store them.",
 };
 
@@ -63,20 +38,9 @@ export function hasLocalConsent() {
   return sessionStorage.getItem(CONSENT_KEY) === '1';
 }
 
-/** A mode's notice, behind a "Mode details" button. Give it a key per mode so it resets on a switch. */
+/** A mode's notice, always shown in a purple-bordered box. */
 export function ModeDetails({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mode-details">
-      <button className="artist-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="muted">Mode details</span>
-        <span className="artist-caret" aria-hidden>
-          {open ? '▴' : '▾'}
-        </span>
-      </button>
-      {open && <div className="notice small">{children}</div>}
-    </div>
-  );
+  return <div className="notice small mode-box">{children}</div>;
 }
 
 export function useLocalTracks(): LocalTrack[] {
@@ -221,6 +185,8 @@ export function LibraryTabs({
   minSongs: number;
   onChange: (library: Library) => void;
 }) {
+  // A single mode needs no tabs.
+  if (OPTIONS.length < 2) return null;
   return (
     <div className="segmented" role="radiogroup">
       {OPTIONS.map((o) => {

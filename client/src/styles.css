@@ -43,6 +43,9 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 
 .logo { font-size: 2.6rem; letter-spacing: -0.03em; }
 .logo span { color: var(--accent); }
+.logo { display: inline-flex; align-items: center; }
+/* Sized with the title's font, so it matches on every screen. */
+.logo-icon { width: 1.4em; height: 1.4em; margin: -0.2em 0.15em -0.2em 0; flex: none; }
 .muted { color: var(--muted); margin: 0; }
 .small { font-size: 0.85rem; }
 .error { color: var(--danger); margin: 0; }
@@ -263,6 +266,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .facet-option.consent { align-self: flex-start; }
 .local-pickers button { flex: 1; }
 .mode-details { display: flex; flex-direction: column; gap: 6px; }
+.notice.mode-box { border: 2px solid var(--accent); border-radius: 8px; }
 .prepare-detail { margin: 0; text-align: center; }
 .chosen-folder { margin: 0; font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
 .error.small { font-size: 0.8rem; }
@@ -326,7 +330,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .facet { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 4px 6px 6px; border: 1px solid var(--border); border-radius: 8px; }
 .facet legend { padding: 0 4px; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
 .facet-grid { max-height: none; }
-.about { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; gap: 8px; line-height: 1.45; }
+.about { width: min(560px, 100%); max-height: calc(100vh - 100px); overflow: hidden; gap: 8px; line-height: 1.45; }
 .about p, .about ul, .about ol { margin: 0; }
 .about ul, .about ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 .about h3 { margin: 8px 0 0; }
@@ -336,5 +340,13 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
   background: var(--me); border-color: var(--me); color: #fff; font-size: 1.3rem; line-height: 1;
 }
 .about-head h2 { margin: 0; }
-.about-github { margin-top: 8px !important; font-weight: 600; }
+/* About: the title, Back and the credit stay put; only .about-body scrolls between them. */
+.about-body {
+  flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  margin: 0 -20px; padding: 10px 20px; border-block: 1px solid var(--border);
+}
+.about-stack { display: flex; flex-direction: column; align-items: center; width: min(560px, 100%); max-height: calc(100vh - 32px); }
+.about-stack .about { width: 100%; min-height: 0; }
+.section-nav button.on { border-color: var(--accent); color: var(--accent); opacity: 1; }
+.about-github { font-weight: 600; }
 .about-github a { color: var(--accent); }

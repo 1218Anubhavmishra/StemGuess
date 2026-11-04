@@ -1,7 +1,14 @@
 import { useEffect } from 'react';
 import { GITHUB_URL, PLAYER_LIMITS, SONG_LIMITS } from '../types';
+import SectionNav, { type Section } from './SectionNav';
 
-export default function About({ onClose }: { onClose: () => void }) {
+export default function About({
+  onClose,
+  onNavigate,
+}: {
+  onClose: () => void;
+  onNavigate: (section: Section) => void;
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -10,111 +17,101 @@ export default function About({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="overlay" onClick={onClose}>
-      <section
-        className="card about"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="about-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="about-head">
-          <h2 id="about-title">About StemGuess</h2>
-          <button className="back-button" aria-label="Back" title="Back" onClick={onClose}>
-            &lt;
-          </button>
-        </header>
+      <div className="about-stack" onClick={(e) => e.stopPropagation()}>
+        <section className="card about" role="dialog" aria-modal="true" aria-labelledby="about-title">
+          <header className="about-head">
+            <h2 id="about-title">About StemGuess</h2>
+            <button className="back-button" aria-label="Back" title="Back" onClick={onClose}>
+              &lt;
+            </button>
+          </header>
+          {/* Only the text scrolls; the title, Back and the credit stay in place. */}
+          <div className="about-body">
+            <p>
+              StemGuess is a multiplayer "name that song" game. Each round plays the first 15 seconds of a song, and
+              everyone races to pick the right title.
+            </p>
 
-        <p>
-          StemGuess is a multiplayer "name that song" game. Each round plays a short clip of a song, built from its
-          instrument stems, and everyone races to pick the right title.
-        </p>
+            <h3>Play with friends</h3>
+            <ol>
+              <li>
+                Enter your name, choose the max players ({PLAYER_LIMITS.min}–{PLAYER_LIMITS.max}) and press Create Room.
+              </li>
+              <li>Share the 4-letter room code or copy the invite link. Friends join with the code.</li>
+              <li>
+                As the host, choose how many songs to play ({SONG_LIMITS.min}–{SONG_LIMITS.max}). Use Filters to play only
+                some genres, languages or artists (see Song filters below). Then press Start game. The game also starts by
+                itself once the room is full.
+              </li>
+            </ol>
 
-        <h3>Play with friends</h3>
-        <ol>
-          <li>Enter your name, choose the max players ({PLAYER_LIMITS.min}–{PLAYER_LIMITS.max}) and press Create Room.</li>
-          <li>Share the 4-letter room code or copy the invite link. Friends join with the code.</li>
-          <li>
-            As the host, pick where the songs come from and how many songs to play ({SONG_LIMITS.min}–{SONG_LIMITS.max}).
-            Use Filters to play only some genres, languages or artists (see Song filters below). Then press Start game. The game also starts by itself once the room is full.
-          </li>
-        </ol>
+            <h3>How a round works</h3>
+            <ul>
+              <li>The clip loops until the timer runs out. Pick one of the four titles; you only get one pick.</li>
+              <li>Faster right answers score more: 10 points at the start, falling to 1 point at the buzzer.</li>
+              <li>
+                Stuck? From halfway through the round you can remove a wrong option, and then one more. Only you see them
+                disappear. A right answer then scores ×0.5 its points after one removal, or ×0.2 after two.
+              </li>
+              <li>
+                After each round you see the answer and its credit. The highest score after the last song wins, and the
+                final scores list every song of the game with a button to replay it.
+              </li>
+              <li>Use the speaker button and slider to mute or change the game volume. End leaves the game.</li>
+              <li>If your connection drops, the game keeps your seat and puts you back in when you reconnect.</li>
+              <li>
+                Joining a game that has already started (for example after losing your seat) lets you spectate: you see
+                and hear every round but can't answer, and you join as a player when the game ends. A room holds at most
+                10 people, players and spectators together.
+              </li>
+            </ul>
 
-        <h3>How a round works</h3>
-        <ul>
-          <li>The clip loops until the timer runs out. Pick one of the four titles; you only get one pick.</li>
-          <li>Faster right answers score more: 10 points at the start, falling to 1 point at the buzzer.</li>
-          <li>
-            Stuck? From halfway through the round you can remove a wrong option, and then one more. Only you see
-            them disappear. A right answer then scores ×0.5 its points after one removal, or ×0.2 after two.
-          </li>
-          <li>
-            After each round you see the answer and its credit. The highest score after the last song wins, and the
-            final scores list every song of the game with a button to replay it.
-          </li>
-          <li>Use the speaker button and slider to mute or change the game volume. End leaves the game.</li>
-          <li>If your connection drops, the game keeps your seat and puts you back in when you reconnect.</li>
-          <li>
-            Joining a game that has already started (for example after losing your seat) lets you spectate: you
-            see and hear every round but can't answer, and you join as a player when the game ends. A room holds at
-            most 10 people, players and spectators together.
-          </li>
-          <li>With My music, everyone's clips are kept on their device for the game, so reloading the page doesn't lose them.</li>
-        </ul>
+            <h3>Songs</h3>
+            <p>
+              <b>Preview of hits</b>: the first 15 seconds of popular hits, vocals and all, linking to their official
+              YouTube video, or to Apple Music when no YouTube upload is available.
+            </p>
+            <p className="muted small">
+              The game picks the songs at random, so nobody (not even the host) knows what's coming.
+            </p>
 
-        <h3>Song sources</h3>
-        <ul>
-          <li>
-            <b>StemGuess demos</b>: original tracks made by StemGuess, one for each music genre.
-          </li>
-          <li>
-            <b>Creative Commons</b>: songs their artists share under Creative Commons licences, credited after each
-            round.
-          </li>
-          <li>
-            <b>Preview of hits</b>: short previews of popular hits with the vocals taken out, linking to their
-            official YouTube video, or to Apple Music when no YouTube upload is available.
-          </li>
-          <li>
-            <b>My music</b>: the host chooses a folder, or individual songs, on their device. Their browser cuts a clip of each and
-            cancels the vocals mixed in the centre (some backing vocals and effects can remain; mono files keep
-            theirs). The clips go straight to the other players and are never stored by StemGuess.
-          </li>
-        </ul>
-        <p className="muted small">
-          In every mode the game picks the songs at random, so nobody (not even the host) knows what's coming.
-        </p>
+            <h3>Song filters</h3>
+            <p>
+              Song filters are available both in the game (the host sets them in the room) and in Play Library and
+              Practice. Choose genres, languages or artists: options picked in one list widen the pick (Pop or Rock),
+              options in different lists narrow it (Pop or Rock, and in Hindi). Each option shows how many songs it would
+              match, and the Filters button shows how many songs are available. A song with several genres, languages or
+              artists counts under each of them; Hindi, Punjabi and Haryanvi songs are also Indian.
+            </p>
 
-        <h3>Song filters</h3>
-        <p>
-          Song filters are available both in the game (the host sets them in the room) and in the Song Library and
-          Practice. Choose genres, languages or artists: options picked in one list widen the pick (Pop or Rock),
-          options in different lists narrow it (Pop or Rock, and in Hindi). Each option shows how many songs it
-          would match, and the Filters button shows how many songs are available. A song with several genres,
-          languages or artists counts under each of them; Hindi, Punjabi and Haryanvi songs are also Indian.
-        </p>
+            <h3>Play Library and Practice</h3>
+            <p>
+              Play Library lists every song in the game. Pick one to play it, then pause, jump 5 seconds back or forward,
+              go to the previous or next song, or drag the progress bar to any point; the next song starts when one ends.
+              Practice plays random songs for you to guess on your own and counts how many you get right. No room needed.
+              In both, Filters narrows the songs by genre, language or artist.
+            </p>
+            <p>
+              The Practice, Play Library, Game room and About buttons under About, Play Library and Practice take you
+              straight to each of them.
+            </p>
 
-        <h3>Song Library and Practice</h3>
-        <p>
-          Song Library lists every song in any of the four song sources. Pick one to play it, then pause, jump 5 seconds
-          back or forward, go to the previous or next song, or drag the progress bar to any point; the next song
-          starts when one ends. Practice (also its
-          own button) plays random songs for you to guess on your own and counts how many you get right. No room
-          needed. In both, Filters narrows the songs by genre, language or artist.
-        </p>
+            <h3>Other options</h3>
+            <ul>
+              <li>The speaker next to the logo turns the menu music on or off.</li>
+              <li>Your name is remembered on this device for next time.</li>
+            </ul>
+          </div>
 
-        <h3>Other options</h3>
-        <ul>
-          <li>The speaker next to the logo turns the menu music on or off.</li>
-          <li>Your name is remembered on this device for next time.</li>
-        </ul>
-
-        <p className="about-github">
-          Made by{' '}
-          <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-            1218Anubhavmishra on GitHub
-          </a>
-        </p>
-      </section>
+          <p className="about-github">
+            Made by{' '}
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+              1218Anubhavmishra on GitHub
+            </a>
+          </p>
+        </section>
+        <SectionNav current="about" onGo={onNavigate} />
+      </div>
     </div>
   );
 }

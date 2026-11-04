@@ -7,7 +7,7 @@ the prefix (default "cc:") are copied, so nothing else on the local machine is e
 already in the target are skipped, unless their clips changed (e.g. after reseparate_hits): then the
 new clips are uploaded and replace the old ones. Every song goes live with its filter tags (genres,
 with those its languages imply, and languages; see app.filters.tagged_genres), and songs already live
-whose tags differ are re-tagged.
+whose tags differ are re-tagged. Songs hidden locally (Song.hidden) are hidden live too, before any upload.
 """
 
 import mimetypes
@@ -73,6 +73,15 @@ def main() -> None:
                     retagged += 1
             live.commit()
         print(f"{retagged} live songs re-tagged")
+        hidden = {s.source_file: s.hidden for s in songs}
+        with SessionLocal() as live:
+            changed = 0
+            for old in live.scalars(select(Song).where(Song.source_file.in_(hidden))):
+                if old.hidden != hidden[old.source_file]:
+                    old.hidden = hidden[old.source_file]
+                    changed += 1
+            live.commit()
+        print(f"{changed} live songs hidden or shown ({sum(hidden.values())} of {len(songs)} hidden)")
         progress = Progress(len(todo), "songs to publish")
         for song in todo:
             stems = []
@@ -97,7 +106,7 @@ def main() -> None:
                     genre, language = tags_of(song)
                     live.add(Song(title=song.title, artist=song.artist, aliases=list(song.aliases or []),
                                   source_file=song.source_file, duration=song.duration, credit=song.credit,
-                                  genre=genre, language=language, stems=stems))
+                                  genre=genre, language=language, hidden=song.hidden, stems=stems))
                 live.commit()
             progress.step(f"{'updated' if old else 'published'}: {song.title} - {song.artist}")
     print(f"done, {len(todo)} songs published or updated ({len(songs) - len(todo)} already live)")

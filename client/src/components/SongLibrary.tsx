@@ -8,22 +8,24 @@ import Brand from './Brand';
 import Filters, { useLibraryFacets } from './Filters';
 import Practice from './Practice';
 import SongList from './SongList';
+import SectionNav, { type Section } from './SectionNav';
 import { LibraryTabs, LocalPicker, ModeDetails, OPTIONS } from './SongSource';
 
 export type LibraryMode = 'songs' | 'practice';
 
-/** Browse and play any library's songs, or practise guessing them. No room needed. */
+/** Play Library (browse and play a library's songs) or Practice (guess them on your own). No room needed. */
 export default function SongLibrary({
   connected,
-  initialMode,
+  mode,
   onBack,
+  onNavigate,
 }: {
   connected: boolean;
-  initialMode: LibraryMode;
+  mode: LibraryMode;
   onBack: () => void;
+  onNavigate: (section: Section) => void;
 }) {
   const [library, setLibrary] = useState<Library>('hits');
-  const [mode, setMode] = useState<LibraryMode>(initialMode);
   const [libraries, setLibraries] = useState<Record<ServerLibrary, number> | null>(null);
   const [filters, setFilters] = useState<SongFilters>(NO_FILTERS);
   const [query, setQuery] = useState('');
@@ -36,8 +38,6 @@ export default function SongLibrary({
     void request('library').then((ack) => {
       if (!ack.ok || !ack.libraries) return;
       setLibraries(ack.libraries);
-      // Servers with too few hits for a game start on the demos, as rooms do.
-      if (ack.libraries.hits < SONG_LIMITS.min) setLibrary((current) => (current === 'hits' ? 'demo' : current));
     });
   }, [connected]);
 
@@ -56,7 +56,7 @@ export default function SongLibrary({
         <Brand music={false} />
         <div className="card narrow">
           <header className="about-head">
-            <h2 className="practice-head">Song Library</h2>
+            <h2 className="practice-head">{mode === 'songs' ? 'Play Library' : 'Practice'}</h2>
             <button className="back-button" aria-label="Back" title="Back" onClick={onBack}>
               &lt;
             </button>
@@ -73,28 +73,6 @@ export default function SongLibrary({
             search={searchable ? { value: query, onChange: setQuery } : undefined}
           />
 
-          <div className="segmented two" role="radiogroup" aria-label="Mode">
-            {(
-              [
-                ['songs', 'Play'],
-                ['practice', 'Practice'],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                role="radio"
-                aria-checked={mode === id}
-                className={mode === id ? 'on' : ''}
-                onClick={() => {
-                  stemPlayer.stop();
-                  setMode(id);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
           {mode === 'songs' ? (
             <SongList
               key={library}
@@ -104,9 +82,15 @@ export default function SongLibrary({
               query={searchable ? query : ''}
             />
           ) : (
-            <Practice key={`${library}|${JSON.stringify(filters)}`} library={library} connected={connected} filters={filters} />
+            <Practice
+              key={`${library}|${JSON.stringify(filters)}`}
+              library={library}
+              connected={connected}
+              filters={filters}
+            />
           )}
         </div>
+        <SectionNav current={mode} onGo={onNavigate} />
       </div>
     </main>
   );

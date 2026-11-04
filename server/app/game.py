@@ -33,10 +33,11 @@ REMOVE_CLOCK_SLACK = 1.0
 
 # Where a room's songs come from. Server libraries are told apart by their Song.source_file prefix;
 # songs without one (e.g. processed from a personal collection) are never served to games.
-SERVER_LIBRARIES = {"demo": "demo:", "cc": "cc:", "hits": "hits:"}
-LIBRARIES = (*SERVER_LIBRARIES, "local")
-# New rooms play the hits previews, or the demos on servers with too few hits for a game.
-DEFAULT_LIBRARY, FALLBACK_LIBRARY = "hits", "demo"
+# Only the hits library is played for now. The demo ("demo:") and Creative Commons ("cc:") songs stay in
+# the database, and the host's own songs ("local") stay in the code, but games no longer offer them.
+SERVER_LIBRARIES = {"hits": "hits:"}
+LIBRARIES = tuple(SERVER_LIBRARIES)
+DEFAULT_LIBRARY = FALLBACK_LIBRARY = "hits"
 # Host-supplied songs: the host's device cuts clips and sends them straight to the other players.
 # The server only ever sees titles, never audio (apart from relaying chunks between players whose
 # network blocks a direct connection; nothing is stored).
@@ -626,7 +627,7 @@ class GameManager:
     def _load_library_round(song_id: int) -> Round | None:
         with SessionLocal() as db:
             song = db.get(Song, song_id)
-            if not song or not song.source_file.startswith(tuple(SERVER_LIBRARIES.values())):
+            if not song or song.hidden or not song.source_file.startswith(tuple(SERVER_LIBRARIES.values())):
                 return None
         return GameManager._load_round(song_id)
 
@@ -716,7 +717,7 @@ class GameManager:
         found = search_test(search)
         with SessionLocal() as db:
             query = (select(Song.id, Song.title, Song.artist, Song.genre, Song.language).join(Stem)
-                     .where(Song.source_file.startswith(prefix)).distinct())
+                     .where(Song.source_file.startswith(prefix), Song.hidden.is_(False)).distinct())
             return [r.id for r in db.execute(query) if keep(r.artist, r.genre, r.language)
                     and found(r.title, r.artist, r.genre, r.language)]
 

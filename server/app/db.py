@@ -14,7 +14,8 @@ class Base(DeclarativeBase):
 
 # Columns added after the first release; create_all() doesn't alter existing tables.
 _ADDED_COLUMNS = {
-    "songs": {"duration": "FLOAT", "credit": "JSON", "genre": "VARCHAR(100)", "language": "VARCHAR(100)"}
+    "songs": {"duration": "FLOAT", "credit": "JSON", "genre": "VARCHAR(100)", "language": "VARCHAR(100)",
+              "hidden": "BOOLEAN NOT NULL DEFAULT FALSE"}
 }
 # Text columns made longer after the first release. Only Postgres enforces lengths.
 _WIDENED_COLUMNS = {"songs": {"genre": 100, "language": 100}}
