@@ -21,7 +21,13 @@ export default function EqualizerBackground() {
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+    // The bars take the browser theme's colour, and change with it.
+    const theme = matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--eq-bar').trim();
+    };
+    applyTheme();
+    theme.addEventListener('change', applyTheme);
 
     const analyser = audioAnalyser();
     const levels = new Uint8Array(analyser.frequencyBinCount);
@@ -47,7 +53,10 @@ export default function EqualizerBackground() {
       if (!still) frame = requestAnimationFrame(draw);
     };
     draw();
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      theme.removeEventListener('change', applyTheme);
+    };
   }, []);
 
   return (

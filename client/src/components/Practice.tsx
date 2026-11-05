@@ -97,7 +97,21 @@ export default function Practice({
           )}
           {/* The cover stays a "?" until you answer, so it doesn't give the song away. */}
           <div className="practice-player">
-            <Cover credit={round.credit} hidden={choice === null} />
+            {/* The cover stays centred, with the button for the next song to its right. */}
+            <div className="practice-cover-row">
+              <Cover credit={round.credit} hidden={choice === null} />
+              <button
+                className="practice-next"
+                aria-label={choice === null ? 'Skip this song' : 'Next song'}
+                title={choice === null ? 'Skip' : 'Next'}
+                disabled={loading || !connected}
+                onClick={() => void next()}
+              >
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M4 12h16M13 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
             <ProgressBar />
           </div>
           <div className="options" role="group" aria-label="Answer options">
@@ -112,24 +126,20 @@ export default function Practice({
               </button>
             ))}
           </div>
+          <p className="practice-score muted small" role="status">
+            {score.right}/{score.played} correct
+          </p>
         </div>
       )}
       {error && <p className="error small">{error}</p>}
-      {/* The button centred, with the score under it. */}
-      <div className="practice-actions">
-        {round && choice === null && !loading ? (
-          <button onClick={() => void next()}>Skip</button>
-        ) : (
+      {/* Starts the first song; after that, the button is beside the cover. */}
+      {!round && (
+        <div className="practice-actions">
           <button className="primary" disabled={loading || !connected} onClick={() => void next()}>
-            {loading ? 'Loading…' : round ? 'Next' : 'Play'}
+            {loading ? 'Loading…' : 'Play'}
           </button>
-        )}
-        {score.played > 0 && (
-          <span className="muted small" role="status">
-            {score.right}/{score.played} correct
-          </span>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }

@@ -200,8 +200,8 @@ class StemPlayer {
   }
 }
 
-const BG_URL = '/audio/bg-loop.wav';
-const BG_VOLUME = 0.35;
+const BG_URL = '/audio/bg-loop.flac';
+const BG_VOLUME = 0.5;
 
 /** Background loop. AudioBufferSourceNode.loop is sample-accurate, so there is no gap. */
 class BgMusic {
