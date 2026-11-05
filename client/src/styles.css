@@ -322,8 +322,25 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
   content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(255, 255, 255, 0.55);
 }
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
-.player > .progress-row { align-self: stretch; }
+/* Picking the first song: the controls slide down from the box's top edge, pushing the list down. They stay at
+   the bottom of the opening drawer (SongList.tsx), so they come out from behind the edge. */
+.player-reveal {
+  align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
+  margin: -14px -12px 4px;
+}
+.player-controls {
+  position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 14px 12px 0;
+}
+.player-controls > .progress-row { align-self: stretch; }
+/* The song list folds away and back. */
+.player-fold { align-self: stretch; min-width: 0; display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s cubic-bezier(0.3, 0.7, 0.3, 1); }
+.player-fold.closed { grid-template-rows: 0fr; }
+.player-fold > .player-list { min-height: 0; min-width: 0; overflow: hidden; }
 .player .progress-time { color: #000; }
+@property --fade-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@property --fade-from { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+@property --fade-to { syntax: '<percentage>'; inherits: false; initial-value: 100%; }
 /* The current song's cover, with the previous and next songs' covers beside it (they're the buttons for those
    songs). Each cover slides to its slot when the song changes; the ones in the far slots wait out of sight. */
 .player-covers { position: relative; align-self: stretch; height: 160px; margin: 0 -12px; }
@@ -331,13 +348,19 @@ button.player-cover {
   position: absolute; top: 0; left: 50%; width: 160px; height: 160px; padding: 0;
   background: transparent; border: none; border-radius: 12px;
   translate: calc(-50% + var(--slot) * 88%) 0;
-  transition: translate 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), scale 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.4s ease;
-  animation: cover-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1);
+  --fade-angle: calc(var(--slot) * 90deg); --fade-from: 0%; --fade-to: 100%;
+  -webkit-mask-image: linear-gradient(var(--fade-angle), #000 var(--fade-from), transparent var(--fade-to));
+  mask-image: linear-gradient(var(--fade-angle), #000 var(--fade-from), transparent var(--fade-to));
+  transition:
+    translate 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), scale 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.4s ease,
+    --fade-angle 0.4s ease, --fade-from 0.4s ease, --fade-to 0.4s ease;
 }
+button.player-cover.arriving { animation: cover-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1); }
 button.player-cover .cover { display: block; width: 100%; height: 100%; border-radius: 12px; }
-button.player-cover.current { z-index: 1; opacity: 1; cursor: default; }
-button.player-cover.side { scale: 0.68; opacity: 0.5; }
-button.player-cover.side:hover, button.player-cover.side:focus-visible { opacity: 0.9; }
+/* Each cover fades away from the current one: solid on its inner side, gone at its outer edge. */
+button.player-cover.current { z-index: 1; --fade-from: 100%; --fade-to: 200%; opacity: 1; cursor: default; }
+button.player-cover.side { scale: 0.68; opacity: 1; }
+button.player-cover.side:hover, button.player-cover.side:focus-visible { --fade-from: 50%; --fade-to: 150%; }
 button.player-cover.away { scale: 0.5; opacity: 0; }
 .player { --way: 1; }
 .player.back { --way: -1; }
@@ -356,7 +379,12 @@ button.player-cover.away { scale: 0.5; opacity: 0; }
 .player-tile .credit { margin: 0; }
 .player-tile .credit a { color: var(--accent); }
 .player .player-buttons { justify-content: center; }
-.player-list { align-self: stretch; min-width: 0; }
+/* The list runs to the box's sides, so its scroll arrows sit on the box's edges. */
+.player-list { margin: 0 -12px; }
+.player-list .song-cards { padding-inline: 12px; }
+/* Shows or hides the song list, in the box's top-right corner. */
+button.list-toggle { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; color: var(--on-page); }
+button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 /* The song list: a sideways row of cover cards. */
 .song-cards { list-style: none; margin: 0; display: flex; gap: 12px; max-height: none; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 6px; }
 .song-cards .song-card { flex: 0 0 132px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: none; border-radius: 12px; font-size: 0.85rem; }
@@ -399,7 +427,6 @@ button.player-cover.away { scale: 0.5; opacity: 0; }
 .song-row:not(:disabled):hover .song-name b { color: var(--accent); }
 .player-buttons { display: flex; align-items: center; gap: 6px; flex: none; }
 .player-step { width: 30px; height: 30px; padding: 0; border-radius: 50%; font-size: 0.75rem; background: var(--panel); }
-.player-skip { font-size: 0.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .progress-row { display: flex; align-items: center; gap: 8px; }
 .progress-time { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 2.4em; text-align: center; }
 .progress { flex: 1; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
@@ -470,7 +497,7 @@ button.player-cover.away { scale: 0.5; opacity: 0; }
 .about-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0 -20px; }
 .about-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 20px; }
 /* Scrolling without a scrollbar (ScrollHints.tsx): grey lines mark the side(s) with more to scroll to,
-   each with an arrow tab centred on it. */
+   each with a half-circle arrow button whose flat side lies on the edge. */
 .scroll-wrap { position: relative; }
 .scroll-lines { scrollbar-width: none; }
 .scroll-lines::-webkit-scrollbar { display: none; }
@@ -484,26 +511,26 @@ button.player-cover.away { scale: 0.5; opacity: 0; }
 .scroll-wrap::after { bottom: 0; }
 .scroll-wrap.more-above::before, .scroll-wrap.more-below::after { opacity: 1; }
 .scroll-hint {
-  position: absolute; left: 50%; z-index: 2; transform: translate(-50%, -50%);
-  width: 52px; height: 26px; padding: 0; border: none; border-radius: 99px;
+  position: absolute; left: 50%; z-index: 2; transform: translateX(-50%);
+  width: 52px; height: 26px; padding: 0; border: none;
   background: var(--line); color: #fff; font-size: 0.95rem; line-height: 26px;
 }
-.scroll-hint.up { top: 1.5px; }
-.scroll-hint.down { top: calc(100% - 1.5px); }
+.scroll-hint.up { top: 0; border-radius: 0 0 26px 26px; }
+.scroll-hint.down { bottom: 0; border-radius: 26px 26px 0 0; }
 .scroll-hint:hover { background: var(--muted); }
 /* Sideways (axis 'x'): the lines run down the box's left and right edges, the arrows sit on their middle. */
 .scroll-wrap.x::before, .scroll-wrap.x::after { top: 0; bottom: 0; height: auto; width: 3px; }
 .scroll-wrap.x::before { left: 0; right: auto; }
 .scroll-wrap.x::after { right: 0; left: auto; }
 .scroll-wrap.x.more-above::before, .scroll-wrap.x.more-below::after { opacity: 1; }
-.scroll-hint.left, .scroll-hint.right { top: 50%; width: 26px; height: 52px; line-height: 52px; }
-.scroll-hint.left { left: 1.5px; }
-.scroll-hint.right { left: calc(100% - 1.5px); }
+.scroll-hint.left, .scroll-hint.right { top: 50%; transform: translateY(-50%); width: 26px; height: 52px; line-height: 52px; }
+.scroll-hint.left { left: 0; border-radius: 0 26px 26px 0; }
+.scroll-hint.right { left: auto; right: 0; border-radius: 26px 0 0 26px; }
 /* Rows of song cards (Play Library, final scores): small arrows only, no lines. */
 .scroll-wrap.x.quiet::before, .scroll-wrap.x.quiet::after { display: none; }
-.quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 18px; height: 34px; line-height: 34px; font-size: 0.6rem; }
-.quiet .scroll-hint.left { left: 9px; }
-.quiet .scroll-hint.right { left: calc(100% - 9px); }
+.quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 17px; height: 34px; line-height: 34px; font-size: 0.6rem; }
+.quiet .scroll-hint.left { border-radius: 0 17px 17px 0; }
+.quiet .scroll-hint.right { border-radius: 17px 0 0 17px; }
 /* About is a page of its own: the app header on top, the window and section strip under it. */
 .overlay.about-page {
   place-items: start center; background: transparent; backdrop-filter: none;
@@ -561,6 +588,8 @@ body.entering .game > :not(.topbar) { animation: float-in 0.7s cubic-bezier(0.2,
 body.entering .home-stack > :nth-child(3), body.entering .game > :nth-child(3) { animation-delay: 0.08s; }
 body.entering .home-stack > :nth-child(n + 4), body.entering .game > :nth-child(n + 4) { animation-delay: 0.16s; }
 @media (prefers-reduced-motion: reduce) {
+  button.player-cover.arriving { animation: none; }
+  .player-fold, button.player-cover { transition: none; }
   .splash-header { transition: none; }
   body.entering .home-stack > *, body.entering .game > * { animation: none; }
 }
