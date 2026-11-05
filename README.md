@@ -82,7 +82,7 @@ YouTube video after the round. Songs from any other source, and hidden songs (`S
 used in games.
 
 **Play Library** shows every song in the game as a sideways row of cover cards, with a player (cover over
-a blurred copy of it, play/pause, 5 s back/forward, previous/next, seekable progress bar); a song stops
+a blurred copy of it, play/pause, 5 s back/forward, the faded covers either side for previous/next, seekable progress bar); a song stops
 when it ends. **Practice** plays random songs to
 guess solo, showing the cover once you've answered. No room needed.
 

@@ -307,7 +307,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .play-song { width: 34px; height: 34px; padding: 0; flex: none; border-radius: 50%; background: var(--accent); border-color: var(--accent); color: #fff; font-size: 0.8rem; }
 .song-source-link { color: var(--accent); flex: none; }
 .player {
-  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 14px 12px;
   border: 1px solid var(--box-line); border-radius: 12px; background: var(--window); text-align: center;
 }
 /* A song's cover, blurred, behind a box (CoverBackdrop): the player, and after the reveal the Practice
@@ -324,18 +324,30 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 .player > .progress-row { align-self: stretch; }
 .player .progress-time { color: #000; }
-/* The player's song tile, with the cover blurred behind it. Room is kept for a two-line title, an artist and
-   a credit link, so changing song never moves the controls under it. */
-.player-tiles { position: relative; align-self: stretch; margin: -14px -12px 0; overflow: hidden; border-radius: 11px 11px 0 0; }
-.player-tile {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 14px 12px 10px; font-size: 0.95rem;
+/* The current song's cover, with the previous and next songs' covers beside it (they're the buttons for those
+   songs). Each cover slides to its slot when the song changes; the ones in the far slots wait out of sight. */
+.player-covers { position: relative; align-self: stretch; height: 160px; margin: 0 -12px; }
+button.player-cover {
+  position: absolute; top: 0; left: 50%; width: 160px; height: 160px; padding: 0;
+  background: transparent; border: none; border-radius: 12px;
+  translate: calc(-50% + var(--slot) * 88%) 0;
+  transition: translate 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), scale 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.4s ease;
+  animation: cover-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1);
 }
+button.player-cover .cover { display: block; width: 100%; height: 100%; border-radius: 12px; }
+button.player-cover.current { z-index: 1; opacity: 1; cursor: default; }
+button.player-cover.side { scale: 0.68; opacity: 0.5; }
+button.player-cover.side:hover, button.player-cover.side:focus-visible { opacity: 0.9; }
+button.player-cover.away { scale: 0.5; opacity: 0; }
+.player { --way: 1; }
+.player.back { --way: -1; }
+@keyframes cover-in { from { translate: calc(-50% + var(--way) * 176%) 0; opacity: 0; } }
+/* Room is kept for a two-line title, an artist and a credit link, so changing song never moves what's under it. */
+.player-tiles { position: relative; align-self: stretch; margin: 0 -12px; overflow: hidden; }
+.player-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 12px; font-size: 0.95rem; }
 /* Changing song: the old tile scrolls out as the new one scrolls in beside it. */
 .player-tile.leaving { position: absolute; inset: 0; animation: tile-out 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
 .player-tile.entering { animation: tile-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
-.player-tiles { --way: 1; }
-.player-tiles.back { --way: -1; }
 @keyframes tile-out { from { transform: translateX(0); } to { transform: translateX(calc(var(--way) * -100%)); } }
 @keyframes tile-in { from { transform: translateX(calc(var(--way) * 100%)); } to { transform: translateX(0); } }
 .player-tile-text { height: 3.75em; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; width: 100%; }
@@ -344,9 +356,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .player-tile .credit { margin: 0; }
 .player-tile .credit a { color: var(--accent); }
 .player .player-buttons { justify-content: center; }
-/* Shows or hides the row of song cards. */
-button.list-toggle { display: grid; place-items: center; color: var(--on-page); }
-button.list-toggle[aria-expanded='true'] { color: var(--accent); }
+.player-list { align-self: stretch; min-width: 0; }
 /* The song list: a sideways row of cover cards. */
 .song-cards { list-style: none; margin: 0; display: flex; gap: 12px; max-height: none; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 6px; }
 .song-cards .song-card { flex: 0 0 132px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: none; border-radius: 12px; font-size: 0.85rem; }
@@ -371,8 +381,8 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 .song-card-state { right: 6px; bottom: 6px; width: 28px; height: 28px; background: var(--accent); color: #fff; }
 .answer-cards .credit { margin: 0; text-align: center; }
 .answer-cards .credit a { color: var(--accent); }
-/* In the player (and Practice), the cover sits centred above the controls. */
-.player-tile > .cover, .practice-player > .cover { align-self: center; width: 160px; height: 160px; border-radius: 12px; }
+/* In Practice, the cover sits centred above the controls. */
+.practice-player > .cover { align-self: center; width: 160px; height: 160px; border-radius: 12px; }
 /* Song covers (Cover.tsx): a square tile, cropped from the video thumbnail. */
 .cover { width: 64px; height: 64px; flex: none; border-radius: 8px; object-fit: cover; background: var(--panel-2); }
 .cover-hidden, .cover-none { display: grid; place-items: center; }

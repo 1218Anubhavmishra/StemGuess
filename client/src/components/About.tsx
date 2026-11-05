@@ -88,8 +88,8 @@ export default function About({
               <h3>Play Library and Practice</h3>
               <p>
                 Play Library lists every song in the game. Tap a song to play it and see its cover, then pause, jump 5
-                seconds back or forward, go to the previous or next song, or drag the progress bar to any point; a song
-                stops when it ends. Practice plays random songs for you to guess on your own, shows the cover once you've
+                seconds back or forward, tap the faded cover on either side for the previous or next song, or drag the
+                progress bar to any point; a song stops when it ends. Practice plays random songs for you to guess on your own, shows the cover once you've
                 answered and counts how many you get right. No room needed. In both, Filters narrows the songs by genre,
                 language or artist.
               </p>
