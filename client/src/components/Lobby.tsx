@@ -5,7 +5,7 @@ import { FILTER_KINDS, FILTER_LABELS, hasFilters, tidySearch, type SongFilters }
 import Brand from './Brand';
 import Filters, { SEARCH_DELAY_MS, showsFilters, useLibraryFacets } from './Filters';
 import Invite from './Invite';
-import Scoreboard from './Scoreboard';
+import { PlayerSlots, Spectators } from './Scoreboard';
 import SongSource from './SongSource';
 import Stepper from './Stepper';
 
@@ -65,17 +65,12 @@ export default function Lobby({
         <Brand />
 
         <div className="card narrow">
-          <div className="room-code-row">
-            <span className="muted small">Room code</span>
-            <h1 className="room-code">{room.code}</h1>
-            <span className="muted small">Share this code with your friends.</span>
-          </div>
           <Invite code={room.code} />
 
-          <h3 className="players-head">
-            Players in the room : {room.players.length}/{room.maxPlayers}
-          </h3>
-          <Scoreboard room={room} meId={socket.id ?? ''} />
+          <div className="players-box">
+            <PlayerSlots room={room} meId={socket.id ?? ''} />
+          </div>
+          <Spectators room={room} meId={socket.id ?? ''} className="players-box" />
 
           {isHost ? (
             <>

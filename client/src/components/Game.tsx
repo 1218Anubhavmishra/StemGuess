@@ -5,7 +5,7 @@ import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
 import Brand from './Brand';
 import { CoverBackdrop } from './Cover';
 import CreditLine from './CreditLine';
-import Scoreboard from './Scoreboard';
+import Scoreboard, { Spectators } from './Scoreboard';
 import SpeakerIcon from './SpeakerIcon';
 
 type Props = {
@@ -109,6 +109,9 @@ export default function Game({
   return (
     <main className="screen game">
       <header className="topbar">
+        <p className="topbar-room">
+          Room <span>{room.code}</span>
+        </p>
         <div className="topbar-center">
           <Brand music={false} />
           <div className="sound">
@@ -151,9 +154,6 @@ export default function Game({
       {/* After the reveal, the song's cover, blurred, fills the round window. */}
       <section className="stage card has-backdrop">
         {result && <CoverBackdrop credit={answer.credit} />}
-        <h2 className="stage-room">
-          Room <span>{room.code}</span>
-        </h2>
         {phase === 'prepare' && <p className="status">Get ready…</p>}
         {phase === 'playing' && secondsLeft !== null && (
           <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
@@ -238,6 +238,7 @@ export default function Game({
           <h3>Players</h3>
           <Scoreboard room={room} meId={meId} />
         </div>
+        <Spectators room={room} meId={meId} className="card" />
         <div className="card">
           <h3>Guesses</h3>
           <ul className="feed">

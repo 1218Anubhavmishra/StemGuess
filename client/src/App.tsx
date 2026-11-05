@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { bgMusic, stemPlayer } from './audio';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
 import type { FeedItem, GameSong, Phase, Player, RoomState, RoundAnswer } from './types';
@@ -157,8 +157,12 @@ export default function App() {
         : 'lobby';
   const practising = libraryMode !== null && (screen === 'home' || screen === 'lobby');
   const menuMusic = (screen === 'home' || screen === 'lobby') && !practising;
+  // In a game (and on its final scores) the music fills every moment a song isn't playing.
+  const songPlaying = useSyncExternalStore(stemPlayer.subscribe, stemPlayer.isPlaying);
+  const gameMusic = (screen === 'game' || screen === 'gameOver') && !songPlaying;
+  const music = menuMusic || gameMusic;
 
-  useEffect(() => bgMusic.setWanted(menuMusic), [menuMusic]);
+  useEffect(() => bgMusic.setWanted(music), [music]);
   // A game starting (e.g. the room filled up) takes over from the Song Library.
   useEffect(() => {
     if (screen === 'game') setLibraryMode(null);

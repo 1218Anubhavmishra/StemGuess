@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { stemPlayer, unlockAudio } from '../audio';
 import { matchesSearch, songFilter, type SongFilters } from '../filters';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
 import Cover, { CoverBackdrop } from './Cover';
-import { sourceName } from './CreditLine';
+import CreditLine, { sourceName } from './CreditLine';
 import { ProgressBar, usePlayback } from './Playback';
 import { ScrollArrows, useScrollHints } from './ScrollHints';
 
@@ -17,8 +17,64 @@ type Item = {
   genre?: string;
   language?: string;
   credit?: Credit | null;
-  load: () => Promise<boolean>;
+  /** The song's audio files, or null if they can't be had. */
+  urls: () => Promise<string[] | null>;
 };
+
+/**
+ * The player's song tile: cover, name, artist and credit link. When the song changes, the old tile scrolls
+ * out and the new one scrolls in, onward for the next song (direction 1) and back for the previous one (-1).
+ * The blurred cover behind them stays still, and fades to the new song once the tile has arrived.
+ */
+function PlayerTile({ item, direction }: { item: Item; direction: number }) {
+  const [shown, setShown] = useState(item);
+  const [leaving, setLeaving] = useState<Item | null>(null);
+  const [backdrop, setBackdrop] = useState(item);
+  // The last backdrop stays underneath while the new one fades in over it.
+  const [underBackdrop, setUnderBackdrop] = useState<Item | null>(null);
+
+  function settle() {
+    setLeaving(null);
+    if (item.key === backdrop.key) return;
+    setUnderBackdrop(backdrop);
+    setBackdrop(item);
+  }
+
+  if (item.key !== shown.key) {
+    setShown(item);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) settle();
+    else setLeaving(shown);
+  }
+
+  return (
+    <div className={direction < 0 ? 'player-tiles back has-backdrop' : 'player-tiles has-backdrop'}>
+      {(underBackdrop && underBackdrop.key !== backdrop.key ? [underBackdrop, backdrop] : [backdrop]).map((song) => (
+        <CoverBackdrop key={song.key} credit={song.credit} />
+      ))}
+      {/* Keyed in one list, so a tile keeps its loaded cover when it goes from entering to leaving. */}
+      {(leaving ? [leaving, item] : [item]).map((song) => {
+        const isLeaving = song === leaving;
+        return (
+          <div
+            key={song.key}
+            className={`player-tile${isLeaving ? ' leaving' : leaving ? ' entering' : ''}`}
+            inert={isLeaving}
+            onAnimationEnd={(e) => {
+              if (e.target === e.currentTarget && isLeaving) settle();
+            }}
+          >
+            <Cover credit={song.credit} />
+            <div className="player-tile-text">
+              <b className="song-card-title">{song.title}</b>
+              <span className="song-card-artist">{song.artist}</span>
+            </div>
+            <div className="player-tile-credit">{song.credit && <CreditLine credit={song.credit} />}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Every song in a library, with a player: pick a song, pause, seek, skip. Remount per library. */
 export default function SongList({
@@ -38,7 +94,14 @@ export default function SongList({
   const [current, setCurrent] = useState<Item | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { playing } = usePlayback();
+  const [listOpen, setListOpen] = useState(true);
+  // Which way the player's tile scrolls to the current song: 1 onward, -1 back.
+  const [direction, setDirection] = useState(1);
+  // Re-renders as playback moves; asking the player itself means the buttons are never a frame behind.
+  usePlayback();
+  const playing = stemPlayer.isPlaying();
+  // The latest song asked for. The controls stay live while it loads, so a quick next-next can overtake a load.
+  const latestPlay = useRef(0);
 
   useEffect(
     () => () => {
@@ -60,11 +123,9 @@ export default function SongList({
           genre: s.genre,
           language: s.language,
           credit: s.credit,
-          load: async () => {
+          urls: async () => {
             const clip = await request('song_clip', { id: s.id });
-            if (!clip.ok || !clip.urls) return false;
-            stemPlayer.prepare(clip.urls.map(serverUrl));
-            return true;
+            return clip.ok && clip.urls ? clip.urls.map(serverUrl) : null;
           },
         })),
       );
@@ -74,23 +135,34 @@ export default function SongList({
   const listed = (songs ?? []).filter(songFilter(filters));
   const shown = listed.filter((s) => matchesSearch(query, s.title, s.artist, s.genre, s.language));
 
-  async function play(item: Item) {
+  async function play(item: Item, way: number) {
     unlockAudio();
     stemPlayer.stop();
     setError('');
+    setDirection(way);
     setCurrent(item);
     setLoading(true);
-    const ok = await item.load();
-    setLoading(false);
-    if (!ok) {
+    const thisPlay = ++latestPlay.current;
+    const urls = await item.urls();
+    if (thisPlay !== latestPlay.current) return;
+    if (urls) {
+      stemPlayer.prepare(urls);
+      await stemPlayer.start({ loop: false });
+      if (thisPlay !== latestPlay.current) return;
+    } else {
       setError(`Could not load "${item.title}"`);
-      return;
     }
-    void stemPlayer.start({ loop: false });
+    setLoading(false);
   }
 
   function toggle(item: Item) {
-    if (current?.key !== item.key) return void play(item);
+    if (current?.key !== item.key) {
+      // A card earlier in the list scrolls back to it, a later one onward.
+      const way = current && listed.indexOf(item) < listed.indexOf(current) ? -1 : 1;
+      return void play(item, way);
+    }
+    // Already on its way.
+    if (loading) return;
     unlockAudio();
     if (playing) stemPlayer.pause();
     else stemPlayer.resume();
@@ -105,7 +177,7 @@ export default function SongList({
     const list = shown.length ? shown : listed;
     if (!list.length) return;
     const at = list.findIndex((s) => s.key === current?.key);
-    void play(list[(at + by + list.length) % list.length]);
+    void play(list[(at + by + list.length) % list.length], by);
   }
 
   // No scrollbar: grey lines (with arrows) above or below the list show there's more to scroll to.
@@ -116,7 +188,7 @@ export default function SongList({
     const row = scroll.ref.current;
     if (card && row)
       row.scrollTo({ left: card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2, behavior: 'smooth' });
-  }, [current?.key, scroll.ref]);
+  }, [current?.key, listOpen, scroll.ref]);
 
   if (!songs) return <p className="muted small">Loading songs…</p>;
   if (!songs.length) return <p className="muted small">No songs yet.</p>;
@@ -126,51 +198,56 @@ export default function SongList({
   return (
     <div className="song-list">
       {current && (
-        <div className="player has-backdrop" aria-label="Player">
-          {/* The cover, blurred, fills the player behind everything. */}
-          <CoverBackdrop credit={current.credit} />
-          <Cover credit={current.credit} />
-          <span className="song-name player-name">
-            <b>{current.title}</b>
-            {current.artist && <span className="muted"> {current.artist}</span>}
-          </span>
+        <div className="player" aria-label="Player">
+          {/* Next / previous only change this tile: it keeps its size, and the controls under it stay put. */}
+          <PlayerTile item={current} direction={direction} />
           <div className="player-buttons">
-            <button className="player-step" aria-label="Previous song" disabled={loading} onClick={() => step(-1)}>
+            <button className="player-step" aria-label="Previous song" onClick={() => step(-1)}>
               ⏮
             </button>
             <button
               className="player-step player-skip"
               aria-label={`Back ${SKIP_SECONDS} seconds`}
-              disabled={loading}
               onClick={() => skip(-SKIP_SECONDS)}
             >
               -{SKIP_SECONDS}
             </button>
             <button
               className="play-song"
-              aria-label={playing ? 'Pause' : 'Play'}
-              disabled={loading}
+              aria-label={playing || loading ? 'Pause' : 'Play'}
               onClick={() => toggle(current)}
             >
-              {loading ? '…' : playing ? '❚❚' : '▶'}
+              {playing || loading ? '❚❚' : '▶'}
             </button>
             <button
               className="player-step player-skip"
               aria-label={`Forward ${SKIP_SECONDS} seconds`}
-              disabled={loading}
               onClick={() => skip(SKIP_SECONDS)}
             >
               +{SKIP_SECONDS}
             </button>
-            <button className="player-step" aria-label="Next song" disabled={loading} onClick={() => step(1)}>
+            <button className="player-step" aria-label="Next song" onClick={() => step(1)}>
               ⏭
             </button>
           </div>
           <ProgressBar seekable />
         </div>
       )}
-      {/* The songs as a sideways row of cover cards. */}
-      <div className={`${scroll.wrapClassName} quiet`}>
+      <button
+        className="ghost list-toggle"
+        aria-expanded={listOpen}
+        aria-label={listOpen ? 'Hide song list' : 'Show song list'}
+        title={listOpen ? 'Hide song list' : 'Show song list'}
+        onClick={() => setListOpen((open) => !open)}
+      >
+        <svg viewBox="0 0 18 18" width="18" height="18" fill="currentColor" aria-hidden>
+          <rect x="2" y="2" width="2.5" height="14" rx="1.25" />
+          <rect x="7.75" y="2" width="2.5" height="14" rx="1.25" />
+          <rect x="13.5" y="2" width="2.5" height="14" rx="1.25" />
+        </svg>
+      </button>
+      {/* The songs as a sideways row of cover cards. Hidden rather than removed, so it keeps its scroll place. */}
+      <div className={`${scroll.wrapClassName} quiet`} hidden={!listOpen}>
         <ul ref={scroll.ref} className={`song-cards ${scroll.className}`} onScroll={scroll.onScroll}>
           {shown.map((s) => (
             <li key={s.key} className={isCurrent(s) ? 'song-card playing' : 'song-card'}>
@@ -179,7 +256,6 @@ export default function SongList({
                 className="song-card-play"
                 aria-label={isCurrent(s) && playing ? `Pause ${s.title}` : `Play ${s.title}`}
                 aria-current={isCurrent(s) || undefined}
-                disabled={loading}
                 onClick={() => toggle(s)}
               >
                 <Cover credit={s.credit} lazy />

@@ -7,6 +7,39 @@ export function audioContext(): AudioContext {
   return sharedContext;
 }
 
+let sharedTap: { input: DelayNode; analyser: AnalyserNode } | undefined;
+
+/** Everything the game plays (menu music and songs) also goes here, for the equalizer background. */
+function levelsTap() {
+  if (!sharedTap) {
+    const ctx = audioContext();
+    const input = ctx.createDelay(1);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.minDecibels = -100;
+    analyser.maxDecibels = -10;
+    analyser.smoothingTimeConstant = 0.6;
+    input.connect(analyser);
+    sharedTap = { input, analyser };
+  }
+  return sharedTap;
+}
+
+export function audioAnalyser(): AnalyserNode {
+  return levelsTap().analyser;
+}
+
+/**
+ * The analyser hears the sound before the speakers play it (by 200 ms or more on Bluetooth). Holding it back
+ * by that latency keeps the bars on what you hear. Output devices can change, so this is called every frame.
+ */
+export function alignLevelsToSpeakers() {
+  const { input } = levelsTap();
+  const ctx = audioContext();
+  const latency = Math.min(1, (ctx.baseLatency || 0) + (ctx.outputLatency || 0));
+  if (Math.abs(input.delayTime.value - latency) > 0.01) input.delayTime.value = latency;
+}
+
 /** Browsers (and Capacitor webviews) only start audio after a user gesture. */
 export function unlockAudio() {
   void audioContext()
@@ -35,8 +68,26 @@ class StemPlayer {
   private offset = 0;
   private playing = false;
   private endTimer?: number;
+  private listeners = new Set<() => void>();
   /** Called when a song played with loop off reaches its end. */
   onEnded?: () => void;
+
+  /** Called when a song starts or stops playing. */
+  subscribe = (fn: () => void) => {
+    this.listeners.add(fn);
+    return () => void this.listeners.delete(fn);
+  };
+
+  private setPlaying(playing: boolean) {
+    if (this.playing === playing) return;
+    this.playing = playing;
+    this.listeners.forEach((fn) => fn());
+  }
+
+  /** The background music between a game's songs follows the game's volume and mute. */
+  private applyVolumeToMusic() {
+    bgMusic.setLevel(this.muted ? 0 : this.volume / DEFAULT_VOLUME);
+  }
 
   private output(): GainNode {
     if (!this.master) {
@@ -78,10 +129,12 @@ class StemPlayer {
     const startAt = ctx.currentTime + 0.1;
     this.origin = startAt - offset;
     this.offset = offset;
-    this.playing = true;
+    this.setPlaying(true);
     this.tracks = this.loaded.map((buffer) => {
       const gain = ctx.createGain();
       gain.connect(this.output());
+      // Taken before the volume, so the equalizer follows the song however low it's turned down, or muted.
+      gain.connect(levelsTap().input);
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.loop = this.loop;
@@ -92,7 +145,7 @@ class StemPlayer {
     if (!this.loop) {
       this.endTimer = window.setTimeout(() => {
         this.release();
-        this.playing = false;
+        this.setPlaying(false);
         this.offset = 0;
         this.onEnded?.();
       }, (this.duration() - offset + 0.1) * 1000);
@@ -112,15 +165,13 @@ class StemPlayer {
     return this.loop ? t % length : Math.min(t, length);
   }
 
-  isPlaying() {
-    return this.playing;
-  }
+  isPlaying = () => this.playing;
 
   pause() {
     if (!this.playing) return;
     const at = this.position();
     this.release();
-    this.playing = false;
+    this.setPlaying(false);
     this.offset = at;
   }
 
@@ -137,6 +188,7 @@ class StemPlayer {
   setVolume(value: number) {
     this.volume = value;
     if (this.master && !this.muted) this.master.gain.value = value;
+    this.applyVolumeToMusic();
   }
 
   getVolume() {
@@ -146,6 +198,7 @@ class StemPlayer {
   setMuted(muted: boolean) {
     this.muted = muted;
     if (this.master) this.master.gain.value = muted ? 0 : this.volume;
+    this.applyVolumeToMusic();
   }
 
   isMuted() {
@@ -161,7 +214,7 @@ class StemPlayer {
     this.generation++;
     this.release();
     this.loaded = undefined;
-    this.playing = false;
+    this.setPlaying(false);
     this.offset = 0;
   }
 
@@ -190,7 +243,22 @@ class BgMusic {
   private muted = localStorage.getItem(MUTE_KEY) === '1';
   private buffer?: Promise<AudioBuffer>;
   private current?: Track;
+  private level?: GainNode;
   private listeners = new Set<() => void>();
+
+  /** Scales the music's volume, on top of its own fade in and out. */
+  setLevel(level: number) {
+    this.output().gain.value = level;
+  }
+
+  private output(): GainNode {
+    if (!this.level) {
+      const ctx = audioContext();
+      this.level = ctx.createGain();
+      this.level.connect(ctx.destination);
+    }
+    return this.level;
+  }
 
   isMuted() {
     return this.muted;
@@ -231,7 +299,8 @@ class BgMusic {
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(BG_VOLUME, ctx.currentTime + 1);
-    gain.connect(ctx.destination);
+    gain.connect(this.output());
+    gain.connect(levelsTap().input);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
@@ -244,6 +313,8 @@ class BgMusic {
     if (!this.current) return;
     const { source, gain } = this.current;
     this.current = undefined;
+    // Off the equalizer straight away: a song starting now has the bars to itself while this fades.
+    gain.disconnect(levelsTap().input);
     const now = audioContext().currentTime;
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(gain.gain.value, now);

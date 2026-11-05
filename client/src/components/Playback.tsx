@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { stemPlayer } from '../audio';
 
 type State = { position: number; duration: number; playing: boolean };
@@ -32,6 +32,9 @@ export function formatTime(seconds: number) {
 export function ProgressBar({ seekable = false }: { seekable?: boolean }) {
   const { position, duration } = usePlayback();
   const percent = duration ? (position / duration) * 100 : 0;
+  // While the next song loads, the last length stays up instead of flashing 0:00.
+  const lastDuration = useRef(0);
+  if (duration) lastDuration.current = duration;
   return (
     <div className="progress-row">
       <span className="progress-time">{formatTime(position)}</span>
@@ -53,7 +56,7 @@ export function ProgressBar({ seekable = false }: { seekable?: boolean }) {
           <div className="progress-fill" style={{ width: `${percent}%` }} />
         </div>
       )}
-      <span className="progress-time">{formatTime(duration)}</span>
+      <span className="progress-time">{formatTime(lastDuration.current)}</span>
     </div>
   );
 }

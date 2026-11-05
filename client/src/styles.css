@@ -3,7 +3,7 @@
   --panel-2: #f1eee6;
   --border: #e4e0d5;
   --border-strong: #d3cdbf;
-  /* Grey for lines meant to be noticed: the About scroll lines and the section strip's border. */
+  /* Grey for lines meant to be noticed: the About scroll lines and the boxes in a game. */
   --line: #a9a6b4;
   --text: #24233a;
   --muted: #6e6c86;
@@ -15,6 +15,8 @@
   --page: #ffffff;
   --on-page: #3a3955;
   --radius: 14px;
+  /* Every sub-window's background. This purple keeps dark text readable from the top down. */
+  --window: linear-gradient(to bottom, #a78bfa, transparent);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--page);
@@ -22,6 +24,11 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; }
+
+/* The page background (EqualizerBackground.tsx). Overhangs the window so the blur doesn't fade at the edges. */
+.equalizer-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.equalizer-bg canvas { position: absolute; inset: -12px; width: calc(100% + 24px); height: calc(100% + 24px); filter: blur(5px); opacity: 0.4; }
+
 h1, h2, h3 { margin: 0.2em 0 0.4em; }
 h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 
@@ -32,7 +39,11 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .center { display: grid; place-items: center; }
 
 .card {
-  background: var(--panel);
+  /* Darker than the page's colours, for text over the purple. */
+  --muted: #3f3d58;
+  --me: #0a3aa8;
+  --accent-2: #055c47;
+  background: var(--window);
   border: none;
   border-radius: var(--radius);
   padding: 20px;
@@ -130,9 +141,6 @@ button.mute, .topbar button.ghost { color: var(--on-page); }
 .topbar button.end-game, button.leave-room { color: var(--danger); }
 
 .mute { display: inline-flex; align-items: center; padding: 8px; }
-.players-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.players-head h3 { margin: 0; }
-.players-head .mute { margin: -8px -8px -8px 0; }
 .brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
 .brand .logo { margin: 0; }
 .home-stack { display: flex; flex-direction: column; align-items: center; width: min(420px, 100%); }
@@ -158,9 +166,16 @@ button.mute, .topbar button.ghost { color: var(--on-page); }
 button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .leave-room .arrow { font-size: 1.6rem; line-height: 1; }
 .scoreboard .score, .ranking .score { font-weight: 700; }
+/* The lobby's boxes: numbered player seats (empty ones show just the number), and any spectators. */
+.players-box { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
+.players-box h3 { margin: 0; }
+.players-box .scoreboard li { font-size: 1rem; }
+.player-slots { margin: 0; padding-left: 1.8em; }
+.player-slots li { min-height: 1.75em; padding: 2px 0; font-weight: 600; }
+.player-slots li::marker { color: var(--muted); font-weight: 400; }
+.player-slots li.me { color: var(--me); }
 .round-winners { margin: 8px 0 0; font-weight: 600; color: var(--accent-2); }
 .round-winners.none, .wrong-guess { color: var(--danger); }
-.invite { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; }
 .reconnecting {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 30;
   padding: 8px 16px; border-radius: 99px;
@@ -200,6 +215,9 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 }
 .topbar { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; }
 .topbar-center { grid-column: 2; display: flex; flex-direction: column; align-items: center; }
+.topbar-room { grid-column: 1; margin: 0; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text); }
+.topbar-room span { color: var(--accent-2); white-space: nowrap; }
+@media (max-width: 480px) { .topbar-room { font-size: 0.85rem; } }
 .topbar .end-game { grid-column: 3; justify-self: end; }
 .topbar .logo { font-size: 2rem; }
 .sound { display: flex; align-items: center; gap: 4px; color: var(--on-page); }
@@ -207,8 +225,6 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .countdown { margin: 0; text-align: center; font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
 .countdown.urgent { color: var(--danger); }
 .stage { justify-content: center; }
-.stage-room { margin: 0; text-align: center; font-size: 2.2rem; letter-spacing: 0.08em; color: var(--text); }
-.stage-room span { color: var(--accent-2); }
 .status { font-size: 1.2rem; text-align: center; margin: 0; }
 .answer { text-align: center; }
 .answer h2 { font-size: 2rem; color: var(--accent-2); margin: 0; }
@@ -267,7 +283,6 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .practice .round-winners { margin: 0 0 4px; }
 .practice-actions { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .practice-actions button { min-width: 140px; }
-.spectators { margin-top: 6px; }
 .song-list { display: flex; flex-direction: column; gap: 8px; }
 .song-search { padding: 8px 12px; font-size: 0.9rem; }
 .song-list ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
@@ -280,7 +295,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .song-source-link { color: var(--accent); flex: none; }
 .player {
   display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 12px;
-  border: 1px solid var(--border); border-radius: 12px; background: var(--winner-bg); text-align: center;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--window); text-align: center;
 }
 /* A song's cover, blurred, behind a box (CoverBackdrop): the player, and after the reveal the Practice
    area and a game's round window. A pale wash keeps the text readable. */
@@ -295,8 +310,30 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 }
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 .player > .progress-row { align-self: stretch; }
-.player-name { flex: none; font-size: 0.95rem; }
+.player .progress-time { color: #000; }
+/* The player's song tile, with the cover blurred behind it. Room is kept for a two-line title, an artist and
+   a credit link, so changing song never moves the controls under it. */
+.player-tiles { position: relative; align-self: stretch; margin: -14px -12px 0; overflow: hidden; border-radius: 11px 11px 0 0; }
+.player-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 14px 12px 10px; font-size: 0.95rem;
+}
+/* Changing song: the old tile scrolls out as the new one scrolls in beside it. */
+.player-tile.leaving { position: absolute; inset: 0; animation: tile-out 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+.player-tile.entering { animation: tile-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+.player-tiles { --way: 1; }
+.player-tiles.back { --way: -1; }
+@keyframes tile-out { from { transform: translateX(0); } to { transform: translateX(calc(var(--way) * -100%)); } }
+@keyframes tile-in { from { transform: translateX(calc(var(--way) * 100%)); } to { transform: translateX(0); } }
+.player-tile-text { height: 3.75em; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; width: 100%; }
+.player-tile .song-card-artist { color: var(--on-page); }
+.player-tile-credit { min-height: 1.3em; }
+.player-tile .credit { margin: 0; }
+.player-tile .credit a { color: var(--accent); }
 .player .player-buttons { justify-content: center; }
+/* Shows or hides the row of song cards. */
+button.list-toggle { align-self: flex-end; display: inline-flex; padding: 6px; color: var(--on-page); }
+button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 /* The song list: a sideways row of cover cards. */
 .song-cards { list-style: none; margin: 0; display: flex; gap: 12px; max-height: none; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 6px; }
 .song-cards .song-card { flex: 0 0 132px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: none; border-radius: 12px; font-size: 0.85rem; }
@@ -322,13 +359,13 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .answer-cards .credit { margin: 0; text-align: center; }
 .answer-cards .credit a { color: var(--accent); }
 /* In the player (and Practice), the cover sits centred above the controls. */
-.player > .cover, .practice-player > .cover { align-self: center; width: 160px; height: 160px; border-radius: 12px; }
+.player-tile > .cover, .practice-player > .cover { align-self: center; width: 160px; height: 160px; border-radius: 12px; }
 /* Song covers (Cover.tsx): a square tile, cropped from the video thumbnail. */
 .cover { width: 64px; height: 64px; flex: none; border-radius: 8px; object-fit: cover; background: var(--panel-2); }
 .cover-hidden, .cover-none { display: grid; place-items: center; }
 .cover-hidden { font-size: 1.8rem; font-weight: 800; color: var(--muted); }
 .cover-none img { width: 70%; height: 70%; }
-.practice-stage { display: flex; flex-direction: column; gap: 12px; margin: 0 -8px; padding: 8px; border-radius: 12px; }
+.practice-stage { display: flex; flex-direction: column; gap: 12px; margin: 0 -8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--window); }
 .practice-player { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
 .practice-player > .cover-hidden { font-size: 3rem; }
 /* A song in the list: its name is the play button. */
@@ -353,7 +390,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .artist-picker { display: flex; flex-direction: column; gap: 6px; }
 .artist-toggle { display: flex; align-items: center; gap: 4px; width: 100%; text-align: left; background: var(--panel); font-size: 0.9rem; padding: 8px 12px; border: 1px solid var(--line); }
 .artist-toggle b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.artist-caret { margin-left: auto; color: var(--muted); }
+.artist-caret { margin-left: auto; color: var(--muted); font-size: 1.6rem; line-height: 0.8; }
 .artist-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
 /* Open, the Filters button and its panel are one box: same grey border, no gap, shared edge. */
 .artist-toggle[aria-expanded='true'] { border-bottom-color: var(--border); border-radius: 10px 10px 0 0; }
@@ -392,11 +429,10 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .scroll-wrap { position: relative; }
 .scroll-lines { scrollbar-width: none; }
 .scroll-lines::-webkit-scrollbar { display: none; }
-/* The lines sit over the edges of the scrolled content, in a wide white band (8px each side) so they
-   stand clearly apart from whatever scrolls under them. The band stays within the box's width. */
+/* The lines sit over the edges of the scrolled content. */
 .scroll-wrap::before, .scroll-wrap::after {
   content: ''; position: absolute; left: 0; right: 0; z-index: 1; height: 3px; pointer-events: none;
-  background: var(--line); box-shadow: 0 0 0 8px var(--panel); clip-path: inset(-8px 0);
+  background: var(--line);
   opacity: 0; transition: opacity 0.2s;
 }
 .scroll-wrap::before { top: 0; }
@@ -406,15 +442,13 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
   position: absolute; left: 50%; z-index: 2; transform: translate(-50%, -50%);
   width: 52px; height: 26px; padding: 0; border: none; border-radius: 99px;
   background: var(--line); color: #fff; font-size: 0.95rem; line-height: 26px;
-  /* A wide white ring parts the arrow from the content under it. */
-  box-shadow: 0 0 0 6px var(--panel);
 }
 .scroll-hint.up { top: 1.5px; }
 .scroll-hint.down { top: calc(100% - 1.5px); }
-.scroll-hint.tiny { width: 26px; height: 12px; font-size: 0.45rem; line-height: 12px; box-shadow: 0 0 0 4px var(--panel); }
+.scroll-hint.tiny { width: 26px; height: 12px; font-size: 0.45rem; line-height: 12px; }
 .scroll-hint:hover { background: var(--muted); }
 /* Sideways (axis 'x'): the lines run down the box's left and right edges, the arrows sit on their middle. */
-.scroll-wrap.x::before, .scroll-wrap.x::after { top: 0; bottom: 0; height: auto; width: 3px; clip-path: inset(0 -8px); }
+.scroll-wrap.x::before, .scroll-wrap.x::after { top: 0; bottom: 0; height: auto; width: 3px; }
 .scroll-wrap.x::before { left: 0; right: auto; }
 .scroll-wrap.x::after { right: 0; left: auto; }
 .scroll-wrap.x.more-above::before, .scroll-wrap.x.more-below::after { opacity: 1; }
@@ -423,14 +457,16 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .scroll-hint.right { left: calc(100% - 1.5px); }
 /* Rows of song cards (Play Library, final scores): small arrows only, no lines. */
 .scroll-wrap.x.quiet::before, .scroll-wrap.x.quiet::after { display: none; }
-.quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 18px; height: 34px; line-height: 34px; font-size: 0.6rem; box-shadow: 0 0 0 4px var(--panel); }
+.quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 18px; height: 34px; line-height: 34px; font-size: 0.6rem; }
 .quiet .scroll-hint.left { left: 9px; }
 .quiet .scroll-hint.right { left: calc(100% - 9px); }
 /* About is a page of its own: the app header on top, the window and section strip under it. */
 .overlay.about-page {
-  place-items: start center; background: var(--page); backdrop-filter: none;
+  place-items: start center; background: transparent; backdrop-filter: none;
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
 }
+/* The screen it opened over steps aside, leaving the equalizer background. */
+body:has(.about-page) main { visibility: hidden; }
 .about-page .about-stack { max-height: calc(100vh - 32px); }
 .about-page .brand-block { align-self: stretch; margin-bottom: 12px; }
 .about-page .about { flex: 1; max-height: none; }
@@ -439,8 +475,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 /* The section buttons: a submenu strip joined to the bottom of the window above it. */
 .section-nav {
   gap: 4px; margin-top: 0; padding: 0 4px 4px;
-  background: var(--panel); border-radius: 0 0 var(--radius) var(--radius);
-  border: 2px solid var(--line); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 .section-nav button { background: transparent; padding: 9px 6px; font-size: 0.9rem; border-radius: 0 0 10px 10px; color: var(--on-page); }
 /* Hover: a grey box whose square top meets the window above. */

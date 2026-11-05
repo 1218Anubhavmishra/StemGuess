@@ -108,7 +108,7 @@ export default function GameOver({ room, ranking, songs, isHost, onLeave }: Prop
           <p className="muted">Waiting for the host…</p>
         )}
         {error && <p className="error">{error}</p>}
-        <button className="ghost" onClick={onLeave}>
+        <button className="ghost leave-room" onClick={onLeave}>
           Leave room
         </button>
       </div>

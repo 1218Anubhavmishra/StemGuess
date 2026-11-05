@@ -1,5 +1,7 @@
 # Stem Guess
 
+**Play it live: <https://stem-guess-of6p.onrender.com/>**
+
 Multiplayer "name that song" game: each round plays the first 15 seconds of a popular hit (looped)
 and shows four titles. Every player gets one pick; a correct pick scores 10 points at the start of
 the round, falling to 1 point at the buzzer. From halfway through a round, each player may remove up to two

@@ -12,7 +12,7 @@ async function shareableBase(): Promise<string> {
       const { ip } = await (await fetch(serverUrl('/lan'))).json();
       if (ip) url.hostname = ip;
     } catch {
-      // Keep the localhost link; it still works on this machine.
+      // Keep the localhost address; it still works on this machine.
     }
   }
   return url.origin;
@@ -32,25 +32,10 @@ async function copyText(text: string) {
   }
 }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="small"
-      onClick={async () => {
-        await copyText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-    >
-      {copied ? 'Copied!' : label}
-    </button>
-  );
-}
-
+/** The room code, followed by its copy button. */
 export default function Invite({ code }: { code: string }) {
   const [base, setBase] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,9 +53,20 @@ export default function Invite({ code }: { code: string }) {
 
   return (
     <>
-      <div className="invite">
-        {base && <CopyButton text={`${base}/?room=${code}`} label="Copy invite link" />}
-        <CopyButton text={code} label="Copy room code" />
+      <div className="room-code-row">
+        <span className="muted small">Room code</span>
+        <h1 className="room-code">{code}</h1>
+        <button
+          type="button"
+          className="small"
+          onClick={async () => {
+            await copyText(code);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? 'Copied!' : 'Copy room code'}
+        </button>
       </div>
       {onLan && (
         <p className="muted small">

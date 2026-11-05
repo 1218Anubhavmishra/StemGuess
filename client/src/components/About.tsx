@@ -42,7 +42,7 @@ export default function About({
                   Enter your name, choose the max players ({PLAYER_LIMITS.min}–{PLAYER_LIMITS.max}) and press Create
                   Room.
                 </li>
-                <li>Share the 4-letter room code or copy the invite link. Friends join with the code.</li>
+                <li>Share the 4-letter room code. Friends join with the code.</li>
                 <li>
                   As the host, choose how many songs to play ({SONG_LIMITS.min}–{SONG_LIMITS.max}). Use Filters to play
                   only some genres, languages or artists (see Song filters below). Then press Start game. The game also
