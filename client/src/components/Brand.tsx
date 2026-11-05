@@ -1,6 +1,4 @@
-import MusicToggle from './MusicToggle';
-
-export default function Brand({ music = true }: { music?: boolean }) {
+export default function Brand() {
   return (
     <div className="brand-block">
       <header className="brand">
@@ -8,7 +6,6 @@ export default function Brand({ music = true }: { music?: boolean }) {
           <img className="logo-icon" src="/logo-mark.svg" alt="" aria-hidden />
           Stem<span>Guess</span>
         </h1>
-        {music && <MusicToggle />}
       </header>
     </div>
   );

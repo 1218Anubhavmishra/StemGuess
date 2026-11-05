@@ -29,7 +29,7 @@ export default function SongLibrary({
   return (
     <main className="screen center">
       <div className="home-stack practice">
-        <Brand music={false} />
+        <Brand />
         <div className="card narrow">
           <header className="about-head">
             <h2 className="practice-head">{mode === 'songs' ? 'Play Library' : 'Practice'}</h2>

@@ -10,6 +10,7 @@ import About from './components/About';
 import SectionNav, { type Section } from './components/SectionNav';
 import SongLibrary, { type LibraryMode } from './components/SongLibrary';
 let feedId = 0;
+const MUSIC_RETURN_MS = 1500;
 
 export default function App() {
   const [connected, setConnected] = useState(socket.connected);
@@ -18,16 +19,11 @@ export default function App() {
   const [options, setOptions] = useState<string[]>([]);
   const [choice, setChoice] = useState<number | null>(null);
   const [endsAt, setEndsAt] = useState<number | null>(null);
-  // When this player may start removing wrong options, and which ones they removed this round.
-  const [removeAt, setRemoveAt] = useState<number | null>(null);
-  const [removed, setRemoved] = useState<number[]>([]);
   const [nextAt, setNextAt] = useState<number | null>(null);
   const [answer, setAnswer] = useState<RoundAnswer | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
   const [songs, setSongs] = useState<GameSong[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  // Remounts the game view per game so in-game settings (volume, mute) start from their defaults.
-  const [gameKey, setGameKey] = useState(0);
   const [libraryMode, setLibraryMode] = useState<LibraryMode | null>(null);
   const [about, setAbout] = useState(false);
 
@@ -39,7 +35,6 @@ export default function App() {
       setRoom(null);
       setPhase('lobby');
       stemPlayer.stop();
-      stemPlayer.resetSettings();
     };
     const tryRejoin = async () => {
       const session = loadSession();
@@ -64,31 +59,16 @@ export default function App() {
       setChoice(null);
       setAnswer(null);
       setEndsAt(null);
-      setRemoveAt(null);
-      setRemoved([]);
       setNextAt(null);
-      if (p.resume) {
-        setFeed([]);
-      } else if (p.round === 1) {
-        setFeed([]);
-        setGameKey((k) => k + 1);
-      }
+      if (p.resume || p.round === 1) setFeed([]);
       pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
       stemPlayer.prepare(p.urls.map(serverUrl));
     };
-    const onStart = (p: {
-      duration: number;
-      options: string[];
-      removeIn: number;
-      choice?: number | null;
-      removed?: number[];
-    }) => {
+    const onStart = (p: { duration: number; options: string[]; choice?: number | null }) => {
       setPhase('playing');
       setOptions(p.options);
       setChoice(p.choice ?? null);
       setEndsAt(Date.now() + p.duration * 1000);
-      setRemoveAt(Date.now() + p.removeIn * 1000);
-      setRemoved(p.removed ?? []);
       void stemPlayer.start();
     };
     const onRoundEnd = (p: RoundAnswer & { options: string[]; winners: string[]; nextIn: number }) => {
@@ -105,7 +85,6 @@ export default function App() {
         points: p.points,
       });
       setEndsAt(null);
-      setRemoveAt(null);
       setNextAt(Date.now() + p.nextIn * 1000);
       stemPlayer.stop();
     };
@@ -114,7 +93,6 @@ export default function App() {
       setRanking(p.ranking);
       setSongs(p.songs ?? []);
       stemPlayer.stop();
-      stemPlayer.resetSettings();
     };
 
     socket.on('connect', onConnect);
@@ -140,7 +118,6 @@ export default function App() {
 
   const leave = async () => {
     stemPlayer.stop();
-    stemPlayer.resetSettings();
     clearSession();
     await request('leave_room');
     setRoom(null);
@@ -156,13 +133,15 @@ export default function App() {
         ? 'gameOver'
         : 'lobby';
   const practising = libraryMode !== null && (screen === 'home' || screen === 'lobby');
-  const menuMusic = (screen === 'home' || screen === 'lobby') && !practising;
-  // In a game (and on its final scores) the music fills every moment a song isn't playing.
+  // The music fills every moment a song isn't playing.
   const songPlaying = useSyncExternalStore(stemPlayer.subscribe, stemPlayer.isPlaying);
-  const gameMusic = (screen === 'game' || screen === 'gameOver') && !songPlaying;
-  const music = menuMusic || gameMusic;
 
-  useEffect(() => bgMusic.setWanted(music), [music]);
+  useEffect(() => {
+    if (songPlaying) return bgMusic.setWanted(false);
+    // Waits a moment: changing song stops the old one before the next has loaded.
+    const timer = setTimeout(() => bgMusic.setWanted(true), MUSIC_RETURN_MS);
+    return () => clearTimeout(timer);
+  }, [songPlaying]);
   // A game starting (e.g. the room filled up) takes over from the Song Library.
   useEffect(() => {
     if (screen === 'game') setLibraryMode(null);
@@ -228,7 +207,6 @@ export default function App() {
       {banner}
       <div inert={gameOver}>
         <Game
-          key={gameKey}
           room={room}
           meId={meId}
           phase={gameOver ? 'roundEnd' : phase}
@@ -236,9 +214,6 @@ export default function App() {
           choice={choice}
           onPick={setChoice}
           endsAt={endsAt}
-          removeAt={removeAt}
-          removed={removed}
-          onRemoved={setRemoved}
           nextAt={nextAt}
           answer={answer}
           feed={feed}

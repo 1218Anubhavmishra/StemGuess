@@ -229,23 +229,23 @@ export default function SongList({
             <button className="player-step" aria-label="Next song" onClick={() => step(1)}>
               ⏭
             </button>
+            <button
+              className="player-step list-toggle"
+              aria-expanded={listOpen}
+              aria-label={listOpen ? 'Hide song list' : 'Show song list'}
+              title={listOpen ? 'Hide song list' : 'Show song list'}
+              onClick={() => setListOpen((open) => !open)}
+            >
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="currentColor" aria-hidden>
+                <rect x="2" y="2" width="2.5" height="14" rx="1.25" />
+                <rect x="7.75" y="2" width="2.5" height="14" rx="1.25" />
+                <rect x="13.5" y="2" width="2.5" height="14" rx="1.25" />
+              </svg>
+            </button>
           </div>
           <ProgressBar seekable />
         </div>
       )}
-      <button
-        className="ghost list-toggle"
-        aria-expanded={listOpen}
-        aria-label={listOpen ? 'Hide song list' : 'Show song list'}
-        title={listOpen ? 'Hide song list' : 'Show song list'}
-        onClick={() => setListOpen((open) => !open)}
-      >
-        <svg viewBox="0 0 18 18" width="18" height="18" fill="currentColor" aria-hidden>
-          <rect x="2" y="2" width="2.5" height="14" rx="1.25" />
-          <rect x="7.75" y="2" width="2.5" height="14" rx="1.25" />
-          <rect x="13.5" y="2" width="2.5" height="14" rx="1.25" />
-        </svg>
-      </button>
       {/* The songs as a sideways row of cover cards. Hidden rather than removed, so it keeps its scroll place. */}
       <div className={`${scroll.wrapClassName} quiet`} hidden={!listOpen}>
         <ul ref={scroll.ref} className={`song-cards ${scroll.className}`} onScroll={scroll.onScroll}>

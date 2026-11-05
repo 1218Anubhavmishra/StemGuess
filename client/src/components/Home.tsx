@@ -91,7 +91,7 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
           <form className="row join-row" onSubmit={onJoin}>
             <span className="divider">or join one</span>
             <CodeInput value={code} length={4} onChange={setCode} />
-            <button type="submit" disabled={!connected || busy}>
+            <button type="submit" className="primary" disabled={!connected || busy}>
               Join
             </button>
           </form>

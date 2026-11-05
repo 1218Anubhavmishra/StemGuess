@@ -51,7 +51,7 @@ for (const event of ['pointerdown', 'keydown', 'touchstart']) {
   window.addEventListener(event, unlockAudio, { passive: true });
 }
 
-const DEFAULT_VOLUME = 0.5;
+const SONG_VOLUME = 0.5;
 
 /** Plays all stems of a song together and in sync: looped in rounds, or once with seeking in the Song Library. */
 class StemPlayer {
@@ -60,8 +60,6 @@ class StemPlayer {
   private loaded?: AudioBuffer[];
   private tracks: Track[] = [];
   private generation = 0;
-  private volume = DEFAULT_VOLUME;
-  private muted = false;
   private loop = true;
   // Context time at which the song's 0 s mark plays, and where it is paused.
   private origin = 0;
@@ -84,16 +82,11 @@ class StemPlayer {
     this.listeners.forEach((fn) => fn());
   }
 
-  /** The background music between a game's songs follows the game's volume and mute. */
-  private applyVolumeToMusic() {
-    bgMusic.setLevel(this.muted ? 0 : this.volume / DEFAULT_VOLUME);
-  }
-
   private output(): GainNode {
     if (!this.master) {
       const ctx = audioContext();
       this.master = ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : this.volume;
+      this.master.gain.value = SONG_VOLUME;
       this.master.connect(ctx.destination);
     }
     return this.master;
@@ -133,7 +126,6 @@ class StemPlayer {
     this.tracks = this.loaded.map((buffer) => {
       const gain = ctx.createGain();
       gain.connect(this.output());
-      // Taken before the volume, so the equalizer follows the song however low it's turned down, or muted.
       gain.connect(levelsTap().input);
       const source = ctx.createBufferSource();
       source.buffer = buffer;
@@ -185,31 +177,6 @@ class StemPlayer {
     else this.offset = at;
   }
 
-  setVolume(value: number) {
-    this.volume = value;
-    if (this.master && !this.muted) this.master.gain.value = value;
-    this.applyVolumeToMusic();
-  }
-
-  getVolume() {
-    return this.volume;
-  }
-
-  setMuted(muted: boolean) {
-    this.muted = muted;
-    if (this.master) this.master.gain.value = muted ? 0 : this.volume;
-    this.applyVolumeToMusic();
-  }
-
-  isMuted() {
-    return this.muted;
-  }
-
-  resetSettings() {
-    this.volume = DEFAULT_VOLUME;
-    this.setMuted(false);
-  }
-
   stop() {
     this.generation++;
     this.release();
@@ -235,47 +202,12 @@ class StemPlayer {
 
 const BG_URL = '/audio/bg-loop.wav';
 const BG_VOLUME = 0.35;
-const MUTE_KEY = 'stemguess:musicMuted';
 
-/** Menu background loop. AudioBufferSourceNode.loop is sample-accurate, so there is no gap. */
+/** Background loop. AudioBufferSourceNode.loop is sample-accurate, so there is no gap. */
 class BgMusic {
   private wanted = false;
-  private muted = localStorage.getItem(MUTE_KEY) === '1';
   private buffer?: Promise<AudioBuffer>;
   private current?: Track;
-  private level?: GainNode;
-  private listeners = new Set<() => void>();
-
-  /** Scales the music's volume, on top of its own fade in and out. */
-  setLevel(level: number) {
-    this.output().gain.value = level;
-  }
-
-  private output(): GainNode {
-    if (!this.level) {
-      const ctx = audioContext();
-      this.level = ctx.createGain();
-      this.level.connect(ctx.destination);
-    }
-    return this.level;
-  }
-
-  isMuted() {
-    return this.muted;
-  }
-
-  /** Called when the music is muted or unmuted, so every music button shows the same state. */
-  subscribe(fn: () => void) {
-    this.listeners.add(fn);
-    return () => void this.listeners.delete(fn);
-  }
-
-  setMuted(muted: boolean) {
-    this.muted = muted;
-    localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
-    this.listeners.forEach((fn) => fn());
-    void this.sync();
-  }
 
   setWanted(wanted: boolean) {
     this.wanted = wanted;
@@ -283,7 +215,7 @@ class BgMusic {
   }
 
   async sync() {
-    if (!this.wanted || this.muted) {
+    if (!this.wanted) {
       this.fadeOut();
       return;
     }
@@ -294,12 +226,12 @@ class BgMusic {
       .then((res) => res.arrayBuffer())
       .then((data) => ctx.decodeAudioData(data));
     const buffer = await this.buffer.catch(() => undefined);
-    if (!buffer || this.current || !this.wanted || this.muted) return;
+    if (!buffer || this.current || !this.wanted) return;
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(BG_VOLUME, ctx.currentTime + 1);
-    gain.connect(this.output());
+    gain.connect(ctx.destination);
     gain.connect(levelsTap().input);
     const source = ctx.createBufferSource();
     source.buffer = buffer;

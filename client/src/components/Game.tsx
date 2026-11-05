@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import { stemPlayer } from '../audio';
 import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
 import Brand from './Brand';
 import { CoverBackdrop } from './Cover';
 import CreditLine from './CreditLine';
 import Scoreboard, { Spectators } from './Scoreboard';
-import SpeakerIcon from './SpeakerIcon';
 
 type Props = {
   room: RoomState;
@@ -16,9 +14,6 @@ type Props = {
   choice: number | null;
   onPick: (option: number) => void;
   endsAt: number | null;
-  removeAt: number | null;
-  removed: number[];
-  onRemoved: (removed: number[]) => void;
   nextAt: number | null;
   answer: RoundAnswer | null;
   feed: FeedItem[];
@@ -38,9 +33,6 @@ function useCountdown(endsAt: number | null) {
 
 const pointsLabel = (n: number) => `${n} point${n === 1 ? '' : 's'}`;
 
-// Share of the points a correct answer keeps after removing this many wrong options (mirrors the server).
-const REMOVE_MULTIPLIERS = [1, 0.5, 0.2];
-
 const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
 export default function Game({
@@ -51,17 +43,12 @@ export default function Game({
   choice,
   onPick,
   endsAt,
-  removeAt,
-  removed,
-  onRemoved,
   nextAt,
   answer,
   feed,
   onLeave,
 }: Props) {
   const [hint, setHint] = useState('');
-  const [volume, setVolume] = useState(stemPlayer.getVolume());
-  const [muted, setMuted] = useState(stemPlayer.isMuted());
   const secondsLeft = useCountdown(endsAt);
   const nextIn = useCountdown(nextAt);
   const me = room.players.find((p) => p.id === meId);
@@ -69,13 +56,6 @@ export default function Game({
   const spectating = !me;
   const canPick = phase === 'playing' && choice === null && !!me && !me.attempted;
   const result = phase === 'roundEnd' && answer;
-  const canRemove =
-    canPick &&
-    removeAt !== null &&
-    Date.now() >= removeAt &&
-    removed.length < REMOVE_MULTIPLIERS.length - 1 &&
-    options.length - removed.length > 2;
-  const [removing, setRemoving] = useState(false);
 
   useEffect(() => setHint(''), [room.round]);
 
@@ -86,19 +66,9 @@ export default function Game({
     if (ack.error) setHint(ack.error);
   }
 
-  async function removeOption() {
-    if (!canRemove || removing) return;
-    setRemoving(true);
-    const ack = await request('remove_option');
-    setRemoving(false);
-    if (ack.removed) onRemoved(ack.removed);
-    else if (ack.error) setHint(ack.error);
-  }
-
   const optionClass = (i: number) =>
     [
       'option',
-      removed.includes(i) && !(result && i === answer.correct) ? 'removed' : '',
       i === choice ? 'picked' : '',
       result && i === answer.correct ? 'right' : '',
       result && i === choice && i !== answer.correct ? 'wrong' : '',
@@ -113,38 +83,7 @@ export default function Game({
           Room <span>{room.code}</span>
         </p>
         <div className="topbar-center">
-          <Brand music={false} />
-          <div className="sound">
-            <button
-              className="mute ghost"
-              aria-label={muted ? 'Unmute game audio' : 'Mute game audio'}
-              title={muted ? 'Unmute' : 'Mute'}
-              aria-pressed={muted}
-              onClick={() => {
-                stemPlayer.setMuted(!muted);
-                setMuted(!muted);
-              }}
-            >
-              <SpeakerIcon muted={muted} size={24} />
-            </button>
-            <input
-              type="range"
-              aria-label="Volume"
-              min={0}
-              max={1}
-              step={0.05}
-              value={volume}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setVolume(v);
-                stemPlayer.setVolume(v);
-                if (muted) {
-                  stemPlayer.setMuted(false);
-                  setMuted(false);
-                }
-              }}
-            />
-          </div>
+          <Brand />
         </div>
         <button className="ghost small end-game" onClick={onLeave}>
           End
@@ -203,7 +142,7 @@ export default function Game({
               <button
                 key={`${i}-${title}`}
                 className={optionClass(i)}
-                disabled={!canPick || removed.includes(i)}
+                disabled={!canPick}
                 onClick={() => void pick(i)}
               >
                 {title}
@@ -211,20 +150,6 @@ export default function Game({
             ))}
           </div>
         )}
-        {phase === 'playing' && (canRemove || (removed.length > 0 && canPick)) && (
-          <div className="remove-option">
-            {canRemove && (
-              <button className="ghost small" disabled={removing} onClick={() => void removeOption()}>
-                {removed.length === 0 ? 'Remove a wrong option' : 'Remove another'} (right answer scores ×
-                {REMOVE_MULTIPLIERS[removed.length + 1]})
-              </button>
-            )}
-            {removed.length > 0 && (
-              <p className="muted small">A right answer now scores ×{REMOVE_MULTIPLIERS[removed.length]} points.</p>
-            )}
-          </div>
-        )}
-
         {result && room.state !== 'finished' && nextIn !== null && (
           <p className="status muted">
             {answer.isLast ? 'Final results' : 'Next song'} in {nextIn}…

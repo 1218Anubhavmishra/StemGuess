@@ -24,12 +24,6 @@ AUDIO_START_GRACE = 0.3
 OPTION_COUNT = 4
 # A correct answer scores MAX_POINTS right at the start, falling to 1 point at the buzzer.
 MAX_POINTS = 10
-# From this fraction of the round on, a player may remove wrong options one at a time. A correct answer
-# then scores this share of its points (index = options removed).
-REMOVE_AFTER = 0.5
-REMOVE_MULTIPLIERS = (1.0, 0.5, 0.2)
-# Slack for the client's clock when it unlocks the button at halfway.
-REMOVE_CLOCK_SLACK = 1.0
 
 # Where a room's songs come from. Libraries are told apart by their Song.source_file prefix; the game has
 # one, previews of popular hits. Songs of any other source (or hidden) are never served to games.
@@ -69,7 +63,6 @@ class Player:
     attempted: bool = False  # used their one pick this round
     choice: int | None = None
     round_points: float = 0
-    removed: list[int] = field(default_factory=list)  # wrong options taken out for this player this round
     connected: bool = True  # False once they drop out mid-game; removed when the game ends
     # Secret handed only to this player's client so it can reclaim the seat after a reconnect.
     token: str = field(default_factory=lambda: secrets.token_urlsafe(16))
@@ -317,9 +310,7 @@ class GameManager:
         if rnd:
             player = room.players.get(sid)
             payload = {"duration": max(0.0, rnd.ends_at - now), "options": rnd.options,
-                       "removeIn": max(0.0, self._remove_unlocks_at(rnd) - now),
-                       "choice": player.choice if player else None,
-                       "removed": player.removed if player else []}
+                       "choice": player.choice if player else None}
             await self.sio.emit("round_start", payload, to=sid)
         elif room.next_at and room.end_payload:
             await self.sio.emit("round_end", {**room.end_payload, "nextIn": max(0.0, room.next_at - now)}, to=sid)
@@ -568,7 +559,6 @@ class GameManager:
             p.score = 0
             p.guessed = p.attempted = False
             p.choice = None
-            p.removed = []
         room.state = "playing"
         room.task = asyncio.create_task(self._run_game(room))
         return {"ok": True}
@@ -649,7 +639,6 @@ class GameManager:
             p.guessed = p.attempted = False
             p.choice = None
             p.round_points = 0
-            p.removed = []
         await self._broadcast_state(room)
 
         room.end_payload = None
@@ -661,8 +650,7 @@ class GameManager:
         rnd.duration = config.ROUND_SECONDS
         rnd.ends_at = time.monotonic() + rnd.duration
         # Clients loop the clip until the countdown runs out, so the round length doesn't depend on it.
-        await self.sio.emit("round_start", {"duration": rnd.duration, "options": rnd.options,
-                                            "removeIn": rnd.duration * REMOVE_AFTER}, room=room.code)
+        await self.sio.emit("round_start", {"duration": rnd.duration, "options": rnd.options}, room=room.code)
         await _wait_event(room.all_guessed, rnd.duration + AUDIO_START_GRACE)
 
         room.current = None
@@ -728,8 +716,6 @@ class GameManager:
             return _error("Pick one of the options")
         if player.attempted:
             return _error("You've already answered this round")
-        if option in player.removed:
-            return _error("That option was removed")
 
         player.attempted = True
         player.choice = option
@@ -737,9 +723,8 @@ class GameManager:
             player.guessed = True
             # Faster answers score more: MAX_POINTS at the start, 1 point at the buzzer.
             left = min(1.0, max(0.0, (rnd.ends_at - time.monotonic()) / rnd.duration))
-            points = (1 + round((MAX_POINTS - 1) * left)) * REMOVE_MULTIPLIERS[len(player.removed)]
-            player.round_points = round(points, 1)
-            player.score = round(player.score + player.round_points, 1)
+            player.round_points = 1 + round((MAX_POINTS - 1) * left)
+            player.score += player.round_points
             result = "correct"
         else:
             result = "wrong"
@@ -747,27 +732,6 @@ class GameManager:
         await self._broadcast_state(room)
         self._check_all_guessed(room)
         return {"ok": True, "result": result}
-
-    @staticmethod
-    def _remove_unlocks_at(rnd: Round) -> float:
-        return rnd.ends_at - rnd.duration * (1 - REMOVE_AFTER)
-
-    async def remove_option(self, sid: str) -> dict:
-        """Takes one wrong option out for this player only; their correct answer then scores less."""
-        room = self._room_of(sid)
-        rnd = room.current if room else None
-        player = room.players.get(sid) if room else None
-        if not room or not rnd or not player:
-            return _error("No round in progress")
-        if player.attempted:
-            return _error("You've already answered this round")
-        if time.monotonic() < self._remove_unlocks_at(rnd) - REMOVE_CLOCK_SLACK:
-            return _error("Options can be removed from halfway through the round")
-        wrong = [i for i in range(len(rnd.options)) if i != rnd.correct and i not in player.removed]
-        if len(player.removed) >= len(REMOVE_MULTIPLIERS) - 1 or not wrong:
-            return _error("No more options can be removed")
-        player.removed.append(random.choice(wrong))
-        return {"ok": True, "removed": player.removed, "multiplier": REMOVE_MULTIPLIERS[len(player.removed)]}
 
     def _check_all_guessed(self, room: Room) -> None:
         active = room.active()
