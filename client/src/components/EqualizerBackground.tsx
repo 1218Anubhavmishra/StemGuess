@@ -1,58 +1,124 @@
 import { useEffect, useRef } from 'react';
-import { alignLevelsToSpeakers, audioAnalyser } from '../audio';
+import { alignLevelsToSpeakers, readPeaks } from '../audio';
 
-const BARS = 40;
-// Drawn small and stretched over the page: the bars are soft anyway, and the blur stays cheap.
-const WIDTH = 240;
-const HEIGHT = 135;
-const BAR_WIDTH = 4;
-const MIN_HZ = 40;
-const MAX_HZ = 16000;
-// Bars stop short of the pinned header, and rest at a sliver during silence.
-const TALLEST = 0.7;
-const RESTING = 0.02;
-// Music is far quieter in the highs. Each octave up is lifted by this much (of 255), so the bars span the page.
-const TILT_PER_OCTAVE = 11;
+type Note = { x: number; y: number; angle: number; speed: number; size: number; glyph: string; age: number; life: number; wobble: number };
 
-/** The page background: a live, blurred equalizer of whatever the game is playing. */
+const GLYPHS = ['♪', '♫', '♩', '♬'];
+const MAX_NOTES = 70;
+const BARS = 24;
+const TWO_PI = Math.PI * 2;
+// What counts as a new note in the music: louder than the recent level, and not too soon after the last one.
+const ONSET_RISE = 1.08;
+const ONSET_MIN_LEVEL = 0.02;
+const ONSET_GAP_SECONDS = 0.2;
+// A held sound with no clear attacks still gives off a note this often.
+const STEADY_GAP_SECONDS = 0.7;
+const FADE_IN_SECONDS = 0.5;
+const FADE_OUT_SECONDS = 1.8;
+const WOBBLE_RADIANS = 0.35;
+
+/**
+ * Where the notes come from: the song's cover when one is on screen (the icon stands in for it until the answer
+ * is revealed), and otherwise the game's icon in the header.
+ */
+function noteSource(): DOMRect | null {
+  for (const selector of ['.ringed-cover', '.player-cover.current', '.logo-icon']) {
+    for (const el of document.querySelectorAll(selector)) {
+      if (el.closest('[inert]') || getComputedStyle(el).visibility !== 'visible') continue;
+      const box = el.getBoundingClientRect();
+      if (box.width && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth) return box;
+    }
+  }
+  return null;
+}
+
+/** The page background: music notes drifting away from the cover, in time with whatever the game is playing. */
 export default function EqualizerBackground() {
   const canvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const ctx = canvas.current?.getContext('2d');
-    if (!ctx) return;
-    // The bars take the browser theme's colour, and change with it.
-    const theme = matchMedia('(prefers-color-scheme: dark)');
+    const el = canvas.current;
+    const ctx = el?.getContext('2d');
+    if (!el || !ctx || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    // The notes take the browser theme's colour, and change with it.
+    let ink = '';
     const applyTheme = () => {
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--eq-bar').trim();
+      ink = getComputedStyle(document.documentElement).getPropertyValue('--eq-bar').trim();
     };
     applyTheme();
+    const theme = matchMedia('(prefers-color-scheme: dark)');
     theme.addEventListener('change', applyTheme);
 
-    const analyser = audioAnalyser();
-    const levels = new Uint8Array(analyser.frequencyBinCount);
-    const hzPerBin = analyser.context.sampleRate / analyser.fftSize;
-    // Hearing is logarithmic: each bar spans the same musical interval, so the low notes aren't squeezed.
-    const edge = (bar: number) => (MIN_HZ * (MAX_HZ / MIN_HZ) ** (bar / BARS)) / hzPerBin;
-    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
+    const peaks = new Float32Array(BARS);
+    const notes: Note[] = [];
+    let recent = 0;
+    let lastNote = 0;
+    let before = performance.now();
     let frame = 0;
-    const draw = () => {
-      alignLevelsToSpeakers();
-      analyser.getByteFrequencyData(levels);
-      ctx.clearRect(0, 0, WIDTH, HEIGHT);
-      for (let bar = 0; bar < BARS; bar++) {
-        const from = Math.floor(edge(bar));
-        const to = Math.max(from + 1, Math.floor(edge(bar + 1)));
-        const raw = still ? 0 : Math.max(...levels.subarray(from, to));
-        const peak = raw && Math.min(1, (raw + Math.log2(edge(bar) / edge(0)) * TILT_PER_OCTAVE) / 255);
-        const height = Math.max(RESTING, peak ** 3 * TALLEST) * HEIGHT;
-        // Centred on the page's middle, growing up and down from it.
-        ctx.fillRect((bar * WIDTH) / BARS + 0.5, (HEIGHT - height) / 2, BAR_WIDTH, height);
-      }
-      if (!still) frame = requestAnimationFrame(draw);
+
+    const release = (loudness: number) => {
+      const from = noteSource();
+      if (!from || notes.length >= MAX_NOTES) return;
+      const angle = Math.random() * TWO_PI;
+      const radius = Math.min(from.width, from.height) / 2;
+      notes.push({
+        x: from.left + from.width / 2 + Math.cos(angle) * radius,
+        y: from.top + from.height / 2 + Math.sin(angle) * radius,
+        angle,
+        speed: 45 + Math.random() * 50,
+        size: 16 + Math.random() * 12 + Math.min(1, loudness * 4) * 14,
+        glyph: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+        age: 0,
+        life: 5 + Math.random() * 2.5,
+        wobble: Math.random() * TWO_PI,
+      });
     };
-    draw();
+
+    const draw = (now: number) => {
+      const seconds = Math.min(0.1, Math.max(0, now - before) / 1000);
+      before = now;
+      alignLevelsToSpeakers();
+      readPeaks(peaks);
+      let level = 0;
+      for (const peak of peaks) level += peak ** 3;
+      level /= BARS;
+      const quiet = now - lastNote;
+      const onset = level > recent * ONSET_RISE && quiet > ONSET_GAP_SECONDS * 1000;
+      if (level > ONSET_MIN_LEVEL && (onset || quiet > STEADY_GAP_SECONDS * 1000)) {
+        release(level);
+        lastNote = now;
+      }
+      recent += (level - recent) * 0.2;
+
+      const scale = Math.min(2, window.devicePixelRatio || 1);
+      const [width, height] = [Math.round(innerWidth * scale), Math.round(innerHeight * scale)];
+      if (el.width !== width || el.height !== height) {
+        el.width = width;
+        el.height = height;
+      }
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = notes.length - 1; i >= 0; i--) {
+        const note = notes[i];
+        note.age += seconds;
+        if (note.age >= note.life) {
+          notes.splice(i, 1);
+          continue;
+        }
+        const heading = note.angle + Math.sin(note.age * 0.9 + note.wobble) * WOBBLE_RADIANS;
+        note.x += Math.cos(heading) * note.speed * seconds;
+        note.y += Math.sin(heading) * note.speed * seconds;
+        ctx.globalAlpha = Math.min(1, note.age / FADE_IN_SECONDS, (note.life - note.age) / FADE_OUT_SECONDS);
+        ctx.font = `${note.size}px serif`;
+        ctx.fillText(note.glyph, note.x, note.y);
+      }
+      frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(frame);
       theme.removeEventListener('change', applyTheme);
@@ -61,7 +127,7 @@ export default function EqualizerBackground() {
 
   return (
     <div className="equalizer-bg" aria-hidden>
-      <canvas ref={canvas} width={WIDTH} height={HEIGHT} />
+      <canvas ref={canvas} />
     </div>
   );
 }

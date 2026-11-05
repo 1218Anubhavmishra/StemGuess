@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
 import Brand from './Brand';
-import { CoverBackdrop } from './Cover';
+import { CoverBackdrop, RingedCover } from './Cover';
 import CreditLine from './CreditLine';
 import Scoreboard, { Spectators } from './Scoreboard';
 
@@ -100,22 +100,13 @@ export default function Game({
           </p>
         )}
         {phase === 'playing' && (
-          <>
-            <span className="now-playing" aria-hidden>
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-            </span>
-            <p className="status">
-              {spectating
-                ? "You're spectating. You'll join as a player after this game."
-                : me.attempted
-                  ? 'Answer locked in. Waiting for others…'
-                  : 'Which song is this? You get one pick.'}
-            </p>
-          </>
+          <p className="status">
+            {spectating
+              ? "You're spectating. You'll join as a player after this game."
+              : me.attempted
+                ? 'Answer locked in. Waiting for others…'
+                : 'Which song is this? You get one pick.'}
+          </p>
         )}
         {result && (
           <div className="answer">
@@ -135,6 +126,9 @@ export default function Game({
             </p>
           </div>
         )}
+
+        {/* The song's cover stays the game's icon until the reveal. */}
+        <RingedCover credit={result ? answer.credit : null} revealed={!!result} />
 
         {options.length > 0 && (
           <div className="options" role="group" aria-label="Answer options">

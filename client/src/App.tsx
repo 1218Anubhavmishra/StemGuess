@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { bgMusic, stemPlayer } from './audio';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
 import type { FeedItem, GameSong, Phase, Player, RoomState, RoundAnswer } from './types';
@@ -11,6 +11,9 @@ import SectionNav, { type Section } from './components/SectionNav';
 import SongLibrary, { type LibraryMode } from './components/SongLibrary';
 let feedId = 0;
 const MUSIC_RETURN_MS = 1500;
+// Changing section: the old one fades out for this long, then the new one floats in (see styles.css).
+const SECTION_OUT_MS = 320;
+const SECTION_IN_MS = 950;
 
 export default function App() {
   const [connected, setConnected] = useState(socket.connected);
@@ -133,33 +136,62 @@ export default function App() {
         ? 'gameOver'
         : 'lobby';
   const practising = libraryMode !== null && (screen === 'home' || screen === 'lobby');
-  // The music fills every moment a song isn't playing.
+  // The music fills every moment a song isn't playing, except during a game: there it would sound like a clue.
   const songPlaying = useSyncExternalStore(stemPlayer.subscribe, stemPlayer.isPlaying);
+  const musicAllowed = !songPlaying && screen !== 'game';
 
   useEffect(() => {
-    if (songPlaying) return bgMusic.setWanted(false);
+    if (!musicAllowed) return bgMusic.setWanted(false);
     // Waits a moment: changing song stops the old one before the next has loaded.
     const timer = setTimeout(() => bgMusic.setWanted(true), MUSIC_RETURN_MS);
     return () => clearTimeout(timer);
-  }, [songPlaying]);
+  }, [musicAllowed]);
   // A game starting (e.g. the room filled up) takes over from the Song Library.
   useEffect(() => {
     if (screen === 'game') setLibraryMode(null);
   }, [screen]);
 
+  const sectionTimers = useRef<number[]>([]);
+  useEffect(
+    () => () => {
+      sectionTimers.current.forEach(clearTimeout);
+      document.body.classList.remove('section-leaving', 'entering');
+    },
+    [],
+  );
+
+  /** Makes the change once the current section has faded out; the new one then floats in. */
+  const changeSection = (change: () => void) => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return change();
+    const { classList } = document.body;
+    sectionTimers.current.forEach(clearTimeout);
+    classList.remove('entering');
+    classList.add('section-leaving');
+    sectionTimers.current = [
+      window.setTimeout(() => {
+        change();
+        classList.remove('section-leaving');
+        classList.add('entering');
+        sectionTimers.current = [window.setTimeout(() => classList.remove('entering'), SECTION_IN_MS)];
+      }, SECTION_OUT_MS),
+    ];
+  };
+
   const navigate = (section: Section) => {
     if (section === 'about') {
       // Opens over the current section, so Back returns to it.
-      setAbout(true);
+      changeSection(() => setAbout(true));
       return;
     }
     stemPlayer.stop();
-    setAbout(false);
-    setLibraryMode(section === 'room' ? null : section);
+    changeSection(() => {
+      setAbout(false);
+      setLibraryMode(section === 'room' ? null : section);
+    });
   };
   // The section buttons under the home screen and the room lobby (both are the game room).
   const menu = <SectionNav current="room" onGo={navigate} />;
-  const aboutDialog = about && <About onClose={() => setAbout(false)} onNavigate={navigate} />;
+  const aboutDialog = about && <About onClose={() => changeSection(() => setAbout(false))} onNavigate={navigate} />;
 
   if (libraryMode && practising) {
     return (

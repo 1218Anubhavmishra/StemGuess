@@ -3,7 +3,7 @@ import { stemPlayer, unlockAudio } from '../audio';
 import { type SongFilters } from '../filters';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
-import Cover, { CoverBackdrop } from './Cover';
+import { CoverBackdrop, RingedCover } from './Cover';
 import CreditLine from './CreditLine';
 import { ProgressBar } from './Playback';
 
@@ -22,6 +22,8 @@ export default function Practice({
 }) {
   const [round, setRound] = useState<Round | null>(null);
   const [choice, setChoice] = useState<number | null>(null);
+  // The answer last revealed. It stays in its folded-away box, so folding it doesn't cut it off.
+  const [shownAnswer, setShownAnswer] = useState<{ round: Round; right: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [score, setScore] = useState({ right: 0, played: 0 });
@@ -57,6 +59,7 @@ export default function Practice({
   function pick(i: number) {
     if (!round || choice !== null) return;
     setChoice(i);
+    setShownAnswer({ round, right: i === round.correct });
     setScore((s) => ({ right: s.right + (i === round.correct ? 1 : 0), played: s.played + 1 }));
   }
 
@@ -75,31 +78,25 @@ export default function Practice({
         // Once answered, the song's cover, blurred, fills the round's area.
         <div className={`practice-stage has-backdrop${choice !== null ? ' revealed' : ''}`}>
           {choice !== null && <CoverBackdrop credit={round.credit} />}
-          {choice === null ? (
-            <span className="now-playing" aria-hidden>
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-            </span>
-          ) : (
-            <div className="answer">
-              <p className={choice === round.correct ? 'round-winners' : 'round-winners none'}>
-                {choice === round.correct ? 'Correct!' : 'Not this time.'}
-              </p>
-              <h2>
-                {round.title}
-                {round.artist && ` - ${round.artist}`}
-              </h2>
-              {round.credit && <CreditLine credit={round.credit} />}
-            </div>
-          )}
-          {/* The cover stays a "?" until you answer, so it doesn't give the song away. */}
+          <div className="practice-answer" inert={choice === null}>
+            {shownAnswer && (
+              <div className="answer">
+                <p className={shownAnswer.right ? 'round-winners' : 'round-winners none'}>
+                  {shownAnswer.right ? 'Correct!' : 'Not this time.'}
+                </p>
+                <h2>
+                  {shownAnswer.round.title}
+                  {shownAnswer.round.artist && ` - ${shownAnswer.round.artist}`}
+                </h2>
+                {shownAnswer.round.credit && <CreditLine credit={shownAnswer.round.credit} />}
+              </div>
+            )}
+          </div>
+          {/* The cover stays the game's icon until you answer, so it doesn't give the song away. */}
           <div className="practice-player">
             {/* The cover stays centred, with the button for the next song to its right. */}
             <div className="practice-cover-row">
-              <Cover credit={round.credit} hidden={choice === null} />
+              <RingedCover credit={round.credit} revealed={choice !== null} />
               <button
                 className="practice-next"
                 aria-label={choice === null ? 'Skip this song' : 'Next song'}

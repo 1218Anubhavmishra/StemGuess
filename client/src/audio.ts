@@ -29,6 +29,30 @@ export function audioAnalyser(): AnalyserNode {
   return levelsTap().analyser;
 }
 
+const MIN_HZ = 40;
+const MAX_HZ = 16000;
+// Music is far quieter in the highs. Each octave up is lifted by this much (of 255), so the bars span the range.
+const TILT_PER_OCTAVE = 11;
+let levels: Uint8Array<ArrayBuffer> | undefined;
+
+/**
+ * Fills `peaks` with how loud each bar is right now, 0 to 1, from the lowest notes to the highest. Hearing is
+ * logarithmic: each bar spans the same musical interval, so the low notes aren't squeezed.
+ */
+export function readPeaks(peaks: Float32Array) {
+  const analyser = audioAnalyser();
+  levels ??= new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(levels);
+  const hzPerBin = analyser.context.sampleRate / analyser.fftSize;
+  const edge = (bar: number) => (MIN_HZ * (MAX_HZ / MIN_HZ) ** (bar / peaks.length)) / hzPerBin;
+  for (let bar = 0; bar < peaks.length; bar++) {
+    const from = Math.floor(edge(bar));
+    const to = Math.max(from + 1, Math.floor(edge(bar + 1)));
+    const raw = Math.max(...levels.subarray(from, to));
+    peaks[bar] = raw && Math.min(1, (raw + Math.log2(edge(bar) / edge(0)) * TILT_PER_OCTAVE) / 255);
+  }
+}
+
 /**
  * The analyser hears the sound before the speakers play it (by 200 ms or more on Bluetooth). Holding it back
  * by that latency keeps the bars on what you hear. Output devices can change, so this is called every frame.
