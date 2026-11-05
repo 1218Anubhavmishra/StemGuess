@@ -400,21 +400,26 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 .artist-tools { display: flex; gap: 6px; }
 .artist-tools .song-search { flex: 1; min-width: 0; }
 .artist-tools button { flex: none; font-size: 0.8rem; padding: 6px 10px; }
-.artist-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; }
-.facet-option {
-  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px;
-  font-size: 0.85rem; font-weight: 500; background: var(--panel-2); border: 1px solid transparent; color: var(--text);
+/* A filter category: a sideways row of tiles, each a cover with the option's name and song count. */
+.filter-tiles { list-style: none; margin: 0; padding: 2px; display: flex; align-items: flex-start; gap: 6px; overflow-x: auto; overflow-y: hidden; }
+.filter-tiles > li { flex: none; }
+.filter-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; width: 92px; padding: 6px 4px;
+  background: transparent; border: none; border-radius: 10px; font-weight: 400; color: var(--text); text-align: center;
 }
-.facet-option:hover { background: var(--border); }
-.facet-option.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.facet-count { font-size: 0.75rem; opacity: 0.65; }
-.facet-option.on .facet-count { opacity: 0.85; }
-.artist-name { min-width: 0; overflow-wrap: anywhere; }
+.filter-tile:hover { background: var(--panel-2); }
+.filter-tile.on { background: var(--accent); color: #fff; }
+.filter-tile .cover { width: 76px; height: 76px; }
+.filter-tile-name {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  width: 100%; font-size: 0.8rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere;
+}
+.filter-tile-count { font-size: 0.7rem; opacity: 0.75; }
 .filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .chip { padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; background: var(--winner-bg); border-color: var(--accent); color: var(--text); }
-.facet { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 4px 6px 6px; border: 1px solid var(--border); border-radius: 8px; }
+/* min-width: a fieldset otherwise grows to its content, and the sideways rows would stretch the window. */
+.facet { min-width: 0; display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 4px 6px 6px; border: 1px solid var(--border); border-radius: 8px; }
 .facet legend { padding: 0 4px; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
-.facet-grid { max-height: none; }
 .about { width: min(560px, 100%); max-height: calc(100vh - 100px); overflow: hidden; gap: 8px; line-height: 1.45; }
 .about p, .about ul, .about ol { margin: 0; }
 .about ul, .about ol { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
@@ -445,7 +450,6 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 }
 .scroll-hint.up { top: 1.5px; }
 .scroll-hint.down { top: calc(100% - 1.5px); }
-.scroll-hint.tiny { width: 26px; height: 12px; font-size: 0.45rem; line-height: 12px; }
 .scroll-hint:hover { background: var(--muted); }
 /* Sideways (axis 'x'): the lines run down the box's left and right edges, the arrows sit on their middle. */
 .scroll-wrap.x::before, .scroll-wrap.x::after { top: 0; bottom: 0; height: auto; width: 3px; }

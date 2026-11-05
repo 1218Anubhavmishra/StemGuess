@@ -12,8 +12,8 @@ export const FILTER_KINDS: FilterKind[] = ['genres', 'languages', 'artists'];
 export const NO_FILTERS: SongFilters = { genres: [], languages: [], artists: [] };
 export const FILTER_LABELS: Record<FilterKind, string> = { genres: 'Genres', languages: 'Languages', artists: 'Artists' };
 
-/** Songs sharing an artist credit, genre and language. */
-export type FacetRow = { artist: string; genre: string; language: string; songs: number };
+/** Songs sharing an artist credit, genre and language, with the link of one of them for a cover. */
+export type FacetRow = { artist: string; genre: string; language: string; songs: number; url?: string | null };
 type SongFields = { artist: string; genre?: string; language?: string };
 
 /** The values a song has for one kind: every genre ("Indian, Pop"), language ("Hindi, English") or artist it credits. */

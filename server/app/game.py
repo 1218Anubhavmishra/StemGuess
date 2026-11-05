@@ -463,8 +463,8 @@ class GameManager:
             return count_artists(list(db.scalars(select(Song.artist).where(Song.id.in_(ids)))))
 
     async def library_facets(self, library: object, search: object = None) -> dict:
-        """Song counts per (artist, genre, language) in a server library, for its filters. No titles.
-        With a search, only the songs matching it count."""
+        """Song counts per (artist, genre, language) in a server library, for its filters, each with the
+        link of one of those songs for a cover. No titles. With a search, only the songs matching it count."""
         if library not in SERVER_LIBRARIES:
             return _error("Unknown song library")
         search = clean_search(search) if search is not None else ""
@@ -476,11 +476,20 @@ class GameManager:
     def _library_facets(library: str, search: str = "") -> list[dict]:
         ids = GameManager._playable_song_ids(library, None, search)
         counts: dict[tuple[str, str, str], int] = {}
+        links: dict[tuple[str, str, str], str] = {}
         with SessionLocal() as db:
-            for row in db.execute(select(Song.artist, Song.genre, Song.language).where(Song.id.in_(ids))):
+            # By id, so a filter keeps the same cover from one request to the next.
+            songs = select(Song.artist, Song.genre, Song.language, Song.credit).where(Song.id.in_(ids)).order_by(Song.id)
+            for row in db.execute(songs):
                 key = (row.artist, row.genre or "", row.language or "")
                 counts[key] = counts.get(key, 0) + 1
-        return [{"artist": a, "genre": g, "language": lang, "songs": n} for (a, g, lang), n in counts.items()]
+                link = (row.credit or {}).get("url")
+                if link:
+                    links.setdefault(key, link)
+        return [
+            {"artist": a, "genre": g, "language": lang, "songs": n, "url": links.get((a, g, lang))}
+            for (a, g, lang), n in counts.items()
+        ]
 
     async def song_clip(self, song_id: object) -> dict:
         """The stems of one library song, for playing it from the Song Library list."""

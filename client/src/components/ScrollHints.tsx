@@ -56,19 +56,16 @@ export function useScrollHints<T extends HTMLElement>(axis: Axis = 'y') {
   return { ref, more, axis, className: 'scroll-lines', wrapClassName, onScroll: check, scrollBy };
 }
 
-/** The arrows on the scroll lines; each scrolls that way. `tiny` suits small boxes. */
+/** The arrows on the scroll lines; each scrolls that way. */
 export function ScrollArrows({
   more,
   scrollBy,
-  tiny = false,
   axis = 'y',
 }: {
   more: More;
   scrollBy: (direction: 1 | -1) => void;
-  tiny?: boolean;
   axis?: Axis;
 }) {
-  const size = tiny ? ' tiny' : '';
   const [back, on] =
     axis === 'x'
       ? [
@@ -82,12 +79,12 @@ export function ScrollArrows({
   return (
     <>
       {more.above && (
-        <button className={`scroll-hint ${back.side}${size}`} aria-label={back.label} onClick={() => scrollBy(-1)}>
+        <button className={`scroll-hint ${back.side}`} aria-label={back.label} onClick={() => scrollBy(-1)}>
           {back.glyph}
         </button>
       )}
       {more.below && (
-        <button className={`scroll-hint ${on.side}${size}`} aria-label={on.label} onClick={() => scrollBy(1)}>
+        <button className={`scroll-hint ${on.side}`} aria-label={on.label} onClick={() => scrollBy(1)}>
           {on.glyph}
         </button>
       )}
@@ -95,25 +92,23 @@ export function ScrollArrows({
   );
 }
 
-/** A list that scrolls with grey lines and arrows instead of a scrollbar. */
-export function ScrollList({
+/** A sideways list that scrolls with small arrows instead of a scrollbar. */
+export function ScrollRow({
   className = '',
   label,
-  tiny = false,
   children,
 }: {
   className?: string;
   label?: string;
-  tiny?: boolean;
   children: ReactNode;
 }) {
-  const scroll = useScrollHints<HTMLUListElement>();
+  const scroll = useScrollHints<HTMLUListElement>('x');
   return (
-    <div className={scroll.wrapClassName}>
+    <div className={`${scroll.wrapClassName} quiet`}>
       <ul ref={scroll.ref} className={`${className} ${scroll.className}`} aria-label={label} onScroll={scroll.onScroll}>
         {children}
       </ul>
-      <ScrollArrows more={scroll.more} scrollBy={scroll.scrollBy} tiny={tiny} />
+      <ScrollArrows more={scroll.more} scrollBy={scroll.scrollBy} axis="x" />
     </div>
   );
 }

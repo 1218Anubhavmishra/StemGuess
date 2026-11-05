@@ -11,7 +11,8 @@ import {
 } from '../filters';
 import { request } from '../socket';
 import type { Library } from '../types';
-import { ScrollList } from './ScrollHints';
+import Cover from './Cover';
+import { ScrollRow } from './ScrollHints';
 
 const LABELS: Record<FilterKind, string> = { genres: 'Genre', languages: 'Language', artists: 'Artist' };
 
@@ -42,7 +43,7 @@ export function useLibraryFacets(library: Library, connected: boolean, search = 
   return server?.library === library ? server.facets : null;
 }
 
-type Option = { name: string; songs: number };
+type Option = { name: string; songs: number; url?: string };
 
 /** Songs per value of one kind, keyed by artistKey(value). */
 function countValues(rows: FacetRow[], kind: FilterKind): Map<string, Option> {
@@ -55,6 +56,24 @@ function countValues(rows: FacetRow[], kind: FilterKind): Map<string, Option> {
     }
   }
   return counts;
+}
+
+/** Gives each option the link of one of its songs for a cover, a different song from the options before it if it can. */
+function assignCovers(options: Option[], rows: FacetRow[], kind: FilterKind) {
+  const links = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!row.url) continue;
+    for (const value of valuesOf(row, kind)) {
+      const key = artistKey(value);
+      links.set(key, [...(links.get(key) ?? []), row.url]);
+    }
+  }
+  const used = new Set<string>();
+  for (const option of options) {
+    const own = links.get(artistKey(option.name)) ?? [];
+    option.url = own.find((link) => !used.has(link)) ?? own[0];
+    if (option.url) used.add(option.url);
+  }
 }
 
 /** Kinds worth a list: two or more values to choose between, or something already chosen. */
@@ -95,6 +114,7 @@ export default function Filters({
       out[kind] = [...countValues(facets ?? [], kind).values()].sort(
         (a, b) => b.songs - a.songs || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
       );
+      assignCovers(out[kind], facets ?? [], kind);
     }
     return out;
   }, [facets]);
@@ -188,41 +208,28 @@ export default function Filters({
                     onChange={(e) => setArtistQuery(e.target.value)}
                   />
                 )}
-                {(() => {
-                  const items = (
-                    <>
-                      {options.map((o) => {
-                        const songs = counts.get(artistKey(o.name))?.songs ?? 0;
-                        const on = ticked.has(artistKey(o.name));
-                        return (
-                          <li key={o.name}>
-                            <button
-                              className={on ? 'facet-option on' : 'facet-option'}
-                              aria-pressed={on}
-                              onClick={() => toggle(kind, o.name)}
-                            >
-                              <span className="artist-name">{o.name}</span>
-                              <span className="facet-count">{songs}</span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                      {!options.length && (
-                        <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>
-                      )}
-                    </>
-                  );
-                  // The artist list is long: it scrolls with grey lines and tiny arrows instead of a scrollbar.
-                  return kind === 'artists' ? (
-                    <ScrollList className="artist-list" label={LABELS[kind]} tiny>
-                      {items}
-                    </ScrollList>
-                  ) : (
-                    <ul className="artist-list facet-grid" aria-label={LABELS[kind]}>
-                      {items}
-                    </ul>
-                  );
-                })()}
+                <ScrollRow className="filter-tiles" label={LABELS[kind]}>
+                  {options.map((o) => {
+                    const songs = counts.get(artistKey(o.name))?.songs ?? 0;
+                    const on = ticked.has(artistKey(o.name));
+                    return (
+                      <li key={o.name}>
+                        <button
+                          className={on ? 'filter-tile on' : 'filter-tile'}
+                          aria-pressed={on}
+                          onClick={() => toggle(kind, o.name)}
+                        >
+                          <Cover credit={o.url ? { text: '', url: o.url } : null} lazy />
+                          <span className="filter-tile-name">{o.name}</span>
+                          <span className="filter-tile-count">
+                            {songs} song{songs === 1 ? '' : 's'}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {!options.length && <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>}
+                </ScrollRow>
               </fieldset>
             );
           })}
