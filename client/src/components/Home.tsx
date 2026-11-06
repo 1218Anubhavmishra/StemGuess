@@ -3,7 +3,7 @@ import { unlockAudio } from '../audio';
 import { request, saveSession } from '../socket';
 import { PLAYER_LIMITS } from '../types';
 import CodeInput from './CodeInput';
-import Brand from './Brand';
+import { BrandIcon } from './Brand';
 import { WindowBody } from './ScrollHints';
 import Stepper from './Stepper';
 
@@ -54,9 +54,10 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
 
   return (
     <main className="screen center">
+      <header className="topbar">
+        <BrandIcon />
+      </header>
       <div className="home-stack">
-        <Brand />
-
         <div className="card narrow">
           <WindowBody>
             <label className="field inline name-field">

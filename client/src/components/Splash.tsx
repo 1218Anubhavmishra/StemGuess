@@ -10,8 +10,8 @@ const ENTER_MS = 900;
 const START_SCALE = 1.3;
 
 /**
- * The starting screen: the app header alone on white, which then slides up onto the header of
- * whatever screen is open while the screen's content floats in. Shown once per page load.
+ * The starting screen: the full app label alone on the page, which then collapses into the icon in the corner
+ * of whatever screen is open while the screen's content floats in. Shown once per page load.
  */
 export default function Splash() {
   const [stage, setStage] = useState<'show' | 'move' | 'done'>('show');
@@ -22,17 +22,16 @@ export default function Splash() {
     const timers: number[] = [];
     timers.push(
       window.setTimeout(() => {
-        // Slide onto the real header, wherever the open screen has it, shrinking on the way. The title
-        // is measured (not the whole header block, which the screen stretches to its width) so the
-        // header ends at exactly the real one's size and nothing snaps when the starting screen goes.
-        const target = document.querySelector('main .brand-block .logo');
+        // Slide into the open screen's corner, shrinking on the way while the name fades (see .splash.move), so
+        // the icon ends at exactly the real one's place and size and nothing snaps when the starting screen goes.
+        const target = document.querySelector('main .topbar-icon');
         const me = header.current;
-        const mine = me?.querySelector('.logo');
+        const mine = me?.querySelector('.logo-icon');
         if (target && me && mine) {
           const from = mine.getBoundingClientRect();
           const to = target.getBoundingClientRect();
-          // The header scales around its centre C (which scaling doesn't move). With the title's centre now
-          // at L (at START_SCALE), it lands on the real title's centre T at the end scale when moved by
+          // The header scales around its centre C (which scaling doesn't move). With the icon's centre now
+          // at L (at START_SCALE), it lands on the real icon's centre T at the end scale when moved by
           // T - C - end * (L - C) / START_SCALE.
           const box = me.getBoundingClientRect();
           const end = (START_SCALE * to.width) / from.width;
