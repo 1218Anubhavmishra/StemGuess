@@ -77,7 +77,7 @@ for (const event of ['pointerdown', 'keydown', 'touchstart']) {
 
 const SONG_VOLUME = 0.5;
 
-/** Plays all stems of a song together and in sync: looped in rounds, or once with seeking in the Song Library. */
+/** Plays all stems of a song together and in sync: looped in rounds, or once to replay it at the final scores. */
 class StemPlayer {
   private master?: GainNode;
   private buffers?: Promise<AudioBuffer[]>;
@@ -85,9 +85,6 @@ class StemPlayer {
   private tracks: Track[] = [];
   private generation = 0;
   private loop = true;
-  // Context time at which the song's 0 s mark plays, and where it is paused.
-  private origin = 0;
-  private offset = 0;
   private playing = false;
   private endTimer?: number;
   private listeners = new Set<() => void>();
@@ -135,17 +132,15 @@ class StemPlayer {
     if (!buffers || generation !== this.generation) return;
     this.loaded = buffers;
     this.loop = loop;
-    this.launch(0);
+    this.launch();
   }
 
-  private launch(offset: number) {
+  private launch() {
     if (!this.loaded) return;
     this.release();
     const ctx = audioContext();
     void ctx.resume();
     const startAt = ctx.currentTime + 0.1;
-    this.origin = startAt - offset;
-    this.offset = offset;
     this.setPlaying(true);
     this.tracks = this.loaded.map((buffer) => {
       const gain = ctx.createGain();
@@ -155,16 +150,15 @@ class StemPlayer {
       source.buffer = buffer;
       source.loop = this.loop;
       source.connect(gain);
-      source.start(startAt, offset);
+      source.start(startAt);
       return { source, gain };
     });
     if (!this.loop) {
       this.endTimer = window.setTimeout(() => {
         this.release();
         this.setPlaying(false);
-        this.offset = 0;
         this.onEnded?.();
-      }, (this.duration() - offset + 0.1) * 1000);
+      }, (this.duration() + 0.1) * 1000);
     }
   }
 
@@ -173,40 +167,13 @@ class StemPlayer {
     return Math.max(0, ...(this.loaded ?? []).map((b) => b.duration));
   }
 
-  /** Current point in the song, in seconds. */
-  position() {
-    const length = this.duration();
-    if (!this.playing || !length) return this.offset;
-    const t = Math.max(0, audioContext().currentTime - this.origin);
-    return this.loop ? t % length : Math.min(t, length);
-  }
-
   isPlaying = () => this.playing;
-
-  pause() {
-    if (!this.playing) return;
-    const at = this.position();
-    this.release();
-    this.setPlaying(false);
-    this.offset = at;
-  }
-
-  resume() {
-    if (!this.playing) this.launch(this.offset >= this.duration() ? 0 : this.offset);
-  }
-
-  seek(seconds: number) {
-    const at = Math.min(Math.max(0, seconds), this.duration());
-    if (this.playing) this.launch(at);
-    else this.offset = at;
-  }
 
   stop() {
     this.generation++;
     this.release();
     this.loaded = undefined;
     this.setPlaying(false);
-    this.offset = 0;
   }
 
   private release() {
@@ -227,7 +194,10 @@ class StemPlayer {
 const BG_URL = '/audio/bg-loop.flac';
 const BG_VOLUME = 0.5;
 
-/** Background loop. AudioBufferSourceNode.loop is sample-accurate, so there is no gap. */
+/**
+ * Background loop, never sent to the speakers: only the equalizer hears it, so the notes keep drifting in silence.
+ * AudioBufferSourceNode.loop is sample-accurate, so there is no gap.
+ */
 class BgMusic {
   private wanted = false;
   private buffer?: Promise<AudioBuffer>;
@@ -255,7 +225,6 @@ class BgMusic {
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(BG_VOLUME, ctx.currentTime + 1);
-    gain.connect(ctx.destination);
     gain.connect(levelsTap().input);
     const source = ctx.createBufferSource();
     source.buffer = buffer;

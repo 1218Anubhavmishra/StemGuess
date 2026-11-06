@@ -31,37 +31,16 @@
   --radius: 14px;
   /* The blank strip every sub-window leaves above the screen's bottom edge. */
   --bottom-gap: max(5px, env(safe-area-inset-bottom));
-  /* The game's app label and the gap under it (phones size the round window with it). */
-  --topbar-height: 77px;
   /* The space around things: a screen's edge to its window, a window's edge to its content, and so on. */
   --screen-top: max(11px, env(safe-area-inset-top));
   --screen-x: 16px;
   --window-pad: 20px;
   --window-gap: 12px;
-  --player-x: 12px;
-  /* Every sub-window's background: purple at its edges, gone 30px in from the top and sides, 25px from the bottom. */
-  --window-purple: #a78bfa;
-  /* Eased, so it melts away with no visible end. */
-  --window-fade: var(--window-purple),
-    color-mix(in srgb, var(--window-purple) 88%, transparent) 3px,
-    color-mix(in srgb, var(--window-purple) 70%, transparent) 7.5px,
-    color-mix(in srgb, var(--window-purple) 50%, transparent) 12px,
-    color-mix(in srgb, var(--window-purple) 32%, transparent) 16.5px,
-    color-mix(in srgb, var(--window-purple) 18%, transparent) 21px,
-    color-mix(in srgb, var(--window-purple) 8%, transparent) 25px,
-    color-mix(in srgb, var(--window-purple) 2%, transparent) 28px,
-    transparent 30px;
-  --window-fade-bottom: var(--window-purple),
-    color-mix(in srgb, var(--window-purple) 88%, transparent) 2.5px,
-    color-mix(in srgb, var(--window-purple) 70%, transparent) 6.25px,
-    color-mix(in srgb, var(--window-purple) 50%, transparent) 10px,
-    color-mix(in srgb, var(--window-purple) 32%, transparent) 13.75px,
-    color-mix(in srgb, var(--window-purple) 18%, transparent) 17.5px,
-    color-mix(in srgb, var(--window-purple) 8%, transparent) 20.75px,
-    color-mix(in srgb, var(--window-purple) 2%, transparent) 23.25px,
-    transparent 25px;
-  --window: linear-gradient(to bottom, var(--window-fade)), linear-gradient(to right, var(--window-fade)),
-    linear-gradient(to left, var(--window-fade)), linear-gradient(to top, var(--window-fade-bottom));
+  /* The purple of buttons and windows. */
+  --window-purple: #9333ea;
+  /* Every sub-window's background: a light purple tint over a light frost (see .card). */
+  --window: color-mix(in srgb, var(--window-purple) 9%, transparent);
+  font-size: 87.5%;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--page);
@@ -90,19 +69,17 @@
     --eq-bar: #fff;
     --eq-opacity: 0.5;
     /* Deeper, so white and light text read on it. */
-    --window-purple: #5f43cf;
+    --window-purple: #7e22ce;
   }
 }
 
 /* Small screens can't spare the same fixed space as large ones. */
 @media (max-width: 480px) {
   :root {
-    --topbar-height: 69px;
     --screen-top: max(3px, env(safe-area-inset-top));
     --screen-x: 6px;
     --window-pad: 10px;
     --window-gap: 8px;
-    --player-x: 6px;
   }
 }
 
@@ -132,7 +109,8 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
   --me: #0a3aa8;
   --accent-2: #055c47;
   background: var(--window);
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  backdrop-filter: blur(3px);
   border-radius: var(--radius);
   padding: var(--window-pad);
   display: flex;
@@ -159,34 +137,12 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .field.inline { flex-direction: row; align-items: center; gap: 10px; }
 .field.inline span { white-space: nowrap; }
 .field.inline input, .field.inline .stepper { flex: 1; min-width: 0; }
-/* Dashed slots: --n monospace characters spread evenly across the field, one dash under each.
-   The gap before, between and after characters is equal, so the last one never scrolls. */
-.slot-wrap { display: flex; flex: 1; min-width: 0; container-type: inline-size; }
-.slot-wrap input.slots { flex: 1; width: 100%; }
-input.slots {
-  --pad: 8px;
-  --dash: color-mix(in srgb, var(--muted) 55%, transparent);
-  --dash-h: 2px;
-  --gap: calc((100cqw - 2px - 2 * var(--pad) - var(--n) * 1ch) / (var(--n) + 1));
-  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  letter-spacing: var(--gap);
-  padding-left: calc(var(--pad) + var(--gap));
-  padding-right: var(--pad);
-  background-image: repeating-linear-gradient(to right, var(--dash) 0 1ch, transparent 1ch calc(1ch + var(--gap)));
-  background-size: calc(var(--n) * (1ch + var(--gap))) var(--dash-h);
-  background-repeat: no-repeat;
-  background-position: calc(var(--pad) + var(--gap)) calc(100% - 7px);
-  background-color: transparent;
-  border-color: var(--box-line);
-}
-input.name-input { padding-top: 10px; padding-bottom: 12px; font-size: 0.95rem; }
+/* The Home screen's fields. */
+.name-input, .code-input { background: transparent; border-color: var(--box-line); }
+input.name-input { padding: 10px 12px; font-size: 0.95rem; }
 input.name-input::placeholder { color: color-mix(in srgb, var(--muted) 55%, transparent); }
-@media (max-width: 440px) { .field.name-field { flex-direction: column; align-items: stretch; gap: 6px; } }input.code-input {
-  --dash: var(--muted);
-  --dash-h: 3px;
-  padding-top: 10px; padding-bottom: 14px;
-  font-size: 1.4rem; font-weight: 700; text-transform: uppercase;
-}
+@media (max-width: 440px) { .field.name-field { flex-direction: column; align-items: stretch; gap: 6px; } }
+input.code-input { padding: 8px 12px; font-size: 1.4rem; font-weight: 700; letter-spacing: 0.3em; text-align: center; text-transform: uppercase; }
 .row { display: flex; gap: 8px; }
 .row input { flex: 1; min-width: 0; }
 
@@ -222,6 +178,18 @@ button {
 }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.primary { background: var(--window-purple); border-color: var(--window-purple); color: #fff; }
+/* Purple and red buttons when pressed: a narrow, soft glow comes in from every edge. A click is brief, so it comes
+   in fast and fades out slowly. */
+button.primary, .filter-tile.on, button.end-game, button.leave-room { transition: box-shadow 0.4s ease; }
+button.primary:not(:disabled):active, .filter-tile.on:active {
+  box-shadow: inset 0 0 7px 1px #d8b4fe;
+  transition-duration: 0.05s;
+}
+button.end-game:active, button.leave-room:active {
+  box-shadow: inset 0 0 7px 1px var(--danger);
+  transition-duration: 0.05s;
+}
+@media (prefers-reduced-motion: reduce) { button.primary, .filter-tile.on, button.end-game, button.leave-room { transition: none; } }
 button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
 button.small { padding: 6px 10px; font-size: 0.85rem; }
 
@@ -244,7 +212,7 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
 .room-code { font-size: 1.6rem; letter-spacing: 0.15em; color: var(--accent-2); margin: 0; }
 .room-code-row button { background: transparent; border-color: var(--box-line); }
 
-.scoreboard, .ranking, .feed { list-style: none; margin: 0; padding: 0; }
+.ranking { list-style: none; margin: 0; padding: 0; }
 /* The final scores: every player's row in one box. */
 .ranking { padding: 4px 0; border: 1px solid var(--box-line); border-radius: 10px; }
 .ranking li {
@@ -253,22 +221,24 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
   align-items: center;
   padding: 6px 10px;
 }
-.scoreboard li { padding: 2px 0; margin-bottom: 2px; font-size: 1.25rem; font-weight: 600; color: var(--text); }
+/* The players above a round's question: name tags that wrap onto more lines if they need to. */
+.scoreboard { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.scoreboard li { padding: 2px 8px; border: 1px solid var(--box-line); border-radius: 99px; font-size: 0.8rem; font-weight: 600; color: var(--text); }
+.scoreboard .tag { margin-left: 4px; padding: 0 4px; font-size: 0.65rem; }
+.answered { margin-left: 4px; color: var(--accent-2); font-weight: 700; }
 .scoreboard li.me { color: var(--me); }
 .scoreboard li.gone, .ranking li.gone { color: var(--muted); opacity: 0.7; }
 .disconnected { display: inline-flex; vertical-align: middle; margin-left: 6px; color: var(--muted); }
 button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .leave-room .arrow { font-size: 1.6rem; line-height: 1; }
-.scoreboard .score, .ranking .score { font-weight: 700; }
-/* The lobby's boxes: numbered player seats (empty ones show just the number), and any spectators. */
+.ranking .score { font-weight: 700; }
+/* The lobby's box: numbered player seats (empty ones show just the number). */
 .players-box { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--box-line); border-radius: 10px; }
-.players-box h3 { margin: 0; }
-.players-box .scoreboard li { font-size: 1rem; }
 .player-slots { margin: 0; padding-left: 1.8em; }
 .player-slots li { min-height: 1.75em; padding: 2px 0; font-weight: 600; }
 .player-slots li::marker { color: var(--muted); font-weight: 400; }
 .player-slots li.me { color: var(--me); }
-.round-winners { margin: 8px 0 0; font-weight: 600; color: var(--accent-2); }
+.round-winners { margin: 4px 0 0; font-size: 0.9rem; font-weight: 600; color: var(--accent-2); }
 .round-winners.none, .wrong-guess { color: var(--danger); }
 .reconnecting {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 30;
@@ -306,10 +276,10 @@ body:has(.final-page) main { visibility: hidden; }
 /* game */
 .game {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 16px;
-  max-width: 1100px;
+  gap: var(--window-gap);
+  max-width: 760px;
   margin: 0 auto;
 }
 .topbar { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; }
@@ -319,19 +289,26 @@ body:has(.final-page) main { visibility: hidden; }
 @media (max-width: 480px) { .topbar-room { font-size: 0.85rem; } }
 .topbar .end-game { grid-column: 3; justify-self: end; }
 .topbar .logo, .home-stack .logo { font-size: 2rem; }
-.countdown { margin: 0; text-align: center; font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+/* Small screens: a smaller app label, at the start and above the windows. */
+@media (max-width: 480px) {
+  .logo { font-size: 2rem; }
+  .topbar .logo, .home-stack .logo { font-size: 1.5rem; }
+}
+.countdown { margin: 0; text-align: center; font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
 .countdown.urgent { color: var(--danger); }
-.stage, .side { min-height: 0; }
-.stage .window-content { justify-content: center; }
-.status { font-size: 1.2rem; text-align: center; margin: 0; }
+.stage { min-height: 0; }
+/* The question sits centred in the room left under the players. */
+.round-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--window-gap); }
+.round-count { text-align: center; font-weight: 600; }
+.status { font-size: 1rem; text-align: center; margin: 0; }
 .answer { text-align: center; }
-.answer h2 { font-size: 2rem; color: var(--accent-2); margin: 0; }
+.answer h2 { font-size: 1.3rem; line-height: 1.2; color: var(--accent-2); margin: 0; }
 .answer .credit { margin: 4px 0 0; }
 .answer .credit a { color: inherit; }
 
-.options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .option {
-  padding: 16px 12px; border-radius: 12px; font-weight: 600; font-size: 1rem; line-height: 1.3;
+  padding: 9px 10px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; line-height: 1.25;
   background: transparent; color: var(--ink); border: 2px solid var(--box-line);
   overflow-wrap: anywhere; transition: background 0.3s, border-color 0.3s;
 }
@@ -342,52 +319,15 @@ body:has(.final-page) main { visibility: hidden; }
 .option.wrong { background: var(--option-wrong); border-color: var(--option-wrong); color: white; }
 @media (max-width: 480px) { .options { grid-template-columns: 1fr; } }
 
-.side { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 16px; }
-/* In a game, the Players, Spectators and Guesses windows keep a border. */
-.side > .card { flex: none; min-height: 0; border: 1px solid var(--box-line); }
-.side > .card:has(> .window-scroll) { flex: 0 1 auto; }
-.side > .card.guesses { flex: 1 1 0; }
-.feed { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
-.feed li.system { color: var(--muted); font-style: italic; }
-.feed li.correct { color: var(--accent-2); font-weight: 600; }
-.feed li.nobody { color: var(--danger); font-weight: 600; }
 
-/* A phone: the round window alone fills the screen, so a timed answer never needs scrolling to; the Players and
-   Guesses windows are below it, with the page scrolling and the app label staying on top. */
-@media (max-width: 760px) {
-  .game > .topbar { position: sticky; top: 0; }
-  .game { height: auto; min-height: 100dvh; overflow: visible; grid-template-columns: 1fr; grid-template-rows: auto; padding-bottom: 16px; }
-  .stage { min-height: calc(100dvh - var(--topbar-height) - var(--bottom-gap)); margin-bottom: calc(var(--bottom-gap) - 16px); }
-  .side { grid-column: 1; grid-row: auto; }
-  .side > .card.guesses { flex: none; }
-  .answer h2 { font-size: 1.4rem; }
-}
 
-/* Song library picker (lobby) */
 .error.small { font-size: 0.8rem; }
 
-/* Song Library */
-.menu-links { display: flex; gap: 10px; justify-content: center; margin-top: 16px; width: 100%; }
-.menu-links button { flex: 1; white-space: nowrap; padding-inline: 8px; }
-/* Library: a window 50% wider than the home screen's (420px). */
-.home-stack.library { width: min(630px, 100%); }
-.home-stack.library > .card.narrow { width: 100%; }
-.song-list { display: flex; flex-direction: column; gap: 8px; }
+/* The lobby's song search. */
 .song-search { padding: 8px 12px; font-size: 0.9rem; background: transparent; border-color: var(--box-line); }
 .song-search::placeholder { color: var(--muted); opacity: 1; }
-.song-list ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
-.song-list li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-.song-list li:last-child { border-bottom: none; }
-.song-list li.playing { background: var(--winner-bg); }
-.song-name { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.3; }
-.song-name b { font-weight: 600; }
-.play-song { width: 34px; height: 34px; padding: 0; flex: none; border-radius: 50%; background: var(--window-purple); border-color: var(--window-purple); color: #fff; font-size: 0.8rem; }
-.player {
-  display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 14px var(--player-x);
-  border: 1px solid var(--box-line); border-radius: 12px; background: var(--window); text-align: center;
-}
-/* A song's cover, blurred, behind a box (CoverBackdrop): the player, and after the reveal a game's round
-   window. A pale wash keeps the text readable. */
+/* A song's cover, blurred, behind a game's round window after the reveal (CoverBackdrop). A pale wash keeps the
+   text readable. */
 .has-backdrop { position: relative; overflow: hidden; isolation: isolate; }
 .cover-backdrop {
   position: absolute; inset: -40px; z-index: -2;
@@ -399,96 +339,7 @@ body:has(.final-page) main { visibility: hidden; }
   animation: backdrop-in 0.6s ease both;
 }
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
-/* Picking the first song: the controls slide down from the box's top edge, pushing the list down. They stay at
-   the bottom of the opening drawer (SongList.tsx), so they come out from behind the edge. */
-.player-reveal {
-  align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
-  margin: -14px calc(-1 * var(--player-x)) 4px;
-}
-.player-controls {
-  position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 14px var(--player-x) 0;
-}
-.player-controls > .progress-row { align-self: stretch; }
-/* The song list folds away and back. */
-.player-fold { align-self: stretch; min-width: 0; display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.35s cubic-bezier(0.3, 0.7, 0.3, 1); }
-.player-fold.closed { grid-template-rows: 0fr; }
-.player-fold > .player-list { min-height: 0; min-width: 0; overflow: hidden; }
-.player .progress-time { color: var(--ink); }
-@property --fade-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-@property --fade-inner { syntax: '<number>'; inherits: false; initial-value: 1; }
-@property --fade-edge { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
-@property --fade-from { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
-@property --fade-to { syntax: '<percentage>'; inherits: false; initial-value: 100%; }
-/* The current song's cover, with the previous and next songs' covers beside it (they're the buttons for those
-   songs). Each cover slides to its slot when the song changes; the ones in the far slots wait out of sight. */
-.player-covers { position: relative; align-self: stretch; height: 160px; margin: 0 calc(-1 * var(--player-x)); }
-button.player-cover {
-  position: absolute; top: 0; left: 50%; width: 160px; height: 160px; padding: 0;
-  background: transparent; border: none; border-radius: 12px;
-  translate: calc(-50% + var(--slot) * 88%) 0;
-  --fade-angle: calc(var(--slot) * 90deg); --fade-inner: 0.25; --fade-from: 24%; --fade-to: 100%; --fade-edge: 18%;
-  --fade-span: calc(var(--fade-to) - var(--fade-from));
-  --fade-across: linear-gradient(
-    var(--fade-angle),
-    rgb(0 0 0 / var(--fade-inner)) 0%,
-    #000 var(--fade-from),
-    rgb(0 0 0 / 0.78) calc(var(--fade-from) + var(--fade-span) * 0.22),
-    rgb(0 0 0 / 0.46) calc(var(--fade-from) + var(--fade-span) * 0.46),
-    rgb(0 0 0 / 0.2) calc(var(--fade-from) + var(--fade-span) * 0.68),
-    rgb(0 0 0 / 0.06) calc(var(--fade-from) + var(--fade-span) * 0.86),
-    transparent var(--fade-to)
-  );
-  --fade-down: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #000 var(--fade-edge),
-    #000 calc(100% - var(--fade-edge)),
-    transparent 100%
-  );
-  -webkit-mask-image: var(--fade-across), var(--fade-down);
-  mask-image: var(--fade-across), var(--fade-down);
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
-  transition:
-    translate 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), scale 0.4s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.4s ease,
-    --fade-angle 0.4s ease, --fade-inner 0.4s ease, --fade-from 0.4s ease, --fade-to 0.4s ease, --fade-edge 0.4s ease;
-}
-button.player-cover.arriving { animation: cover-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1); }
-button.player-cover .cover { display: block; width: 100%; height: 100%; border-radius: 12px; }
-/* Each side cover melts into the box: softly on every edge, and gone by its outer side. The current one is solid. */
-button.player-cover.current { z-index: 1; --fade-inner: 1; --fade-from: 100%; --fade-to: 200%; --fade-edge: 0%; opacity: 1; cursor: default; }
-button.player-cover.side { scale: 0.68; opacity: 1; }
-button.player-cover.side:hover, button.player-cover.side:focus-visible { --fade-inner: 0.6; --fade-from: 45%; --fade-to: 140%; --fade-edge: 10%; }
-button.player-cover.away { scale: 0.5; opacity: 0; }
-.player { --way: 1; }
-.player.back { --way: -1; }
-@keyframes cover-in { from { translate: calc(-50% + var(--way) * 176%) 0; opacity: 0; } }
-/* The current song's name and artist. */
-.player-tiles { position: relative; align-self: stretch; margin: 0 calc(-1 * var(--player-x)); overflow: hidden; }
-.player-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 var(--player-x); font-size: 0.95rem; }
-/* Changing song: the old tile scrolls out as the new one scrolls in beside it. */
-.player-tile.leaving { position: absolute; inset: 0; animation: tile-out 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
-.player-tile.entering { animation: tile-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
-@keyframes tile-out { from { transform: translateX(0); } to { transform: translateX(calc(var(--way) * -100%)); } }
-@keyframes tile-in { from { transform: translateX(calc(var(--way) * 100%)); } to { transform: translateX(0); } }
-/* Close under its cover: 5px above the name (the box's 10px gap, pulled in) and that 10px gap below it. */
-.player-tiles { margin-top: -5px; }
-.player-tile-text { display: flex; flex-direction: column; align-items: center; width: 100%; }
-.player-tile .song-line { -webkit-line-clamp: 2; }
-.player-tile .song-line-artist { color: var(--on-page); }
-.player .player-buttons { justify-content: center; }
-/* The list runs to the box's sides, so its scroll arrows sit on the box's edges. */
-.player-list { margin: 0 calc(-1 * var(--player-x)); }
-.player-list .song-cards { align-items: flex-start; padding-inline: var(--player-x); padding-bottom: 0; gap: 6px; }
-/* Each card fits its own name, 5px under the cover and 10px above the card's end. */
-.player-list .song-cards .song-card { flex-basis: 119px; padding: 5px 5px 10px; font-size: 0.78rem; }
-.player-list .song-card-play { gap: 5px; }
-.player-list .song-card-play .cover { width: 108px; height: 108px; }
-/* Shows or hides the song list, in the box's top-right corner. */
-button.list-toggle { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; color: var(--on-page); }
-button.list-toggle[aria-expanded='true'] { color: var(--accent); }
-/* The song list: a sideways row of cover cards. */
+/* The final scores' songs: a sideways row of cover cards. */
 .song-cards { list-style: none; margin: 0; display: flex; gap: 12px; max-height: none; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 6px; }
 .song-cards .song-card { flex: 0 0 132px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: none; border-radius: 12px; font-size: 0.85rem; }
 .song-cards .song-card.playing { background: var(--winner-bg); }
@@ -497,11 +348,7 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
   background: transparent; border: none; font: inherit; font-weight: 400; text-align: center;
 }
 .song-card-play .cover { width: 120px; height: 120px; border-radius: 10px; }
-.song-card-play:not(:disabled):hover .song-card-title, .song-card-play:not(:disabled):hover .song-line b { color: var(--accent); }
-/* A song's name with its artist beside it, in the Library. */
-.song-line { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; width: 100%; line-height: 1.25; }
-.song-line b { font-weight: 600; }
-.song-line-artist { font-weight: 400; color: var(--muted); }
+.song-card-play:not(:disabled):hover .song-card-title { color: var(--accent); }
 .song-card-title, .song-card-artist {
   display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; width: 100%; line-height: 1.25;
 }
@@ -518,16 +365,30 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 .answer-cards .credit a { color: var(--accent); }
 /* Game rounds: a circular cover inside a radial equalizer (RingedCover in Cover.tsx). The real cover
    clears from a blur over the icon's frame at the reveal. */
-.ringed-cover { position: relative; display: grid; place-items: center; align-self: center; justify-self: center; width: 190px; height: 190px; flex: none; }
+.ringed-cover { position: relative; display: grid; place-items: center; align-self: center; justify-self: center; width: 160px; height: 160px; flex: none; }
 .ringed-cover canvas { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--text); }
-.ringed-cover > .cover { grid-area: 1 / 1; width: 124px; height: 124px; border-radius: 50%; }
+.ringed-cover > .cover { grid-area: 1 / 1; width: 104px; height: 104px; border-radius: 50%; }
 .ringed-cover > .cover-hidden { transition: opacity 0.45s ease; }
 .ringed-cover:has(> .cover:not(.cover-hidden)) > .cover-hidden { opacity: 0; transition: opacity 1.6s ease; }
 .ringed-cover > .cover:not(.cover-hidden) { animation: cover-reveal 1.6s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
 /* Short screens and phones: smaller, so a round's reveal still fits its window without scrolling. */
 @media (max-height: 800px), (max-width: 760px) {
-  .ringed-cover { width: 150px; height: 150px; }
-  .ringed-cover > .cover { width: 98px; height: 98px; }
+  .ringed-cover { width: 110px; height: 110px; }
+  .ringed-cover > .cover { width: 72px; height: 72px; }
+}
+/* Short screens: everything in a round tightens, so its players, question and answers all stay in view. */
+@media (max-height: 700px) {
+  .ringed-cover { width: 76px; height: 76px; }
+  .ringed-cover > .cover { width: 50px; height: 50px; }
+  .stage { --window-gap: 5px; --window-pad: 8px; }
+  .option { padding: 5px 8px; font-size: 0.85rem; line-height: 1.15; }
+  .countdown { font-size: 1.4rem; }
+  .status { font-size: 0.9rem; }
+  .scoreboard li { padding: 1px 6px; font-size: 0.72rem; }
+  .answer .muted { font-size: 0.75rem; }
+  .answer h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 1rem; }
+  .answer .credit { margin: 0; }
+  .round-winners { margin: 2px 0 0; font-size: 0.8rem; }
 }
 /* Song covers (Cover.tsx): a square tile, cropped from the video thumbnail. */
 .cover { width: 64px; height: 64px; flex: none; border-radius: 8px; object-fit: cover; background: var(--panel-2); }
@@ -536,23 +397,6 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 .cover-hidden img { width: 70%; height: 70%; }
 .cover-none img { width: 70%; height: 70%; }
 @keyframes cover-reveal { from { opacity: 0; filter: blur(14px); transform: scale(0.92); } to { opacity: 1; filter: none; transform: none; } }
-/* A song in the list: its name is the play button. */
-.song-row {
-  flex: 1; min-width: 0; display: flex; padding: 4px 0; text-align: left;
-  background: transparent; border: none; border-radius: 6px; font: inherit; font-weight: 400;
-}
-.song-row:not(:disabled):hover .song-name b { color: var(--accent); }
-.player-buttons { display: flex; align-items: center; gap: 6px; flex: none; }
-.player-step { width: 30px; height: 30px; padding: 0; border-radius: 50%; font-size: 0.75rem; background: var(--panel); }
-.progress-row { display: flex; align-items: center; gap: 8px; }
-.progress-time { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 2.4em; text-align: center; }
-.progress { flex: 1; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
-.progress.seek {
-  -webkit-appearance: none; appearance: none; padding: 0; margin: 0; border: none; cursor: pointer; overflow: visible;
-  background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--border) var(--fill, 0%));
-}
-.progress.seek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
-.progress.seek::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
 .artist-picker { display: flex; flex-direction: column; gap: 6px; }
 /* The search and the filters' arrow, sharing one box. */
 .search-box { display: flex; align-items: stretch; min-width: 0; border: 1px solid var(--box-line); border-radius: 10px; }
@@ -569,7 +413,6 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .filter-caret { animation: none; } }
 .song-search.caret-away { caret-color: transparent; }
 .search-toggle { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: transparent; border: none; border-radius: 0 9px 9px 0; font-size: 0.8rem; font-weight: 400; white-space: nowrap; }
-.search-toggle b { font-weight: 600; color: var(--muted); }
 .search-toggle:hover { background: var(--panel-2); }
 .artist-caret { margin-left: auto; color: var(--muted); font-size: 1.6rem; line-height: 0.8; }
 .artist-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
@@ -639,21 +482,11 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 .scroll-hint.left, .scroll-hint.right { top: 50%; transform: translateY(-50%); width: 26px; height: 52px; line-height: 52px; }
 .scroll-hint.left { left: 0; border-radius: 0 26px 26px 0; }
 .scroll-hint.right { left: auto; right: 0; border-radius: 26px 0 0 26px; }
-/* Rows of song cards (Library, final scores): small arrows only, no lines. */
+/* Rows of song cards and filter tiles: small arrows only, no lines. */
 .scroll-wrap.x.quiet::before, .scroll-wrap.x.quiet::after { display: none; }
 .quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 17px; height: 34px; line-height: 34px; font-size: 0.6rem; }
 .quiet .scroll-hint.left { border-radius: 0 17px 17px 0; }
 .quiet .scroll-hint.right { border-radius: 17px 0 0 17px; }
-/* The section buttons: a submenu strip joined to the bottom of the window above it. */
-.section-nav {
-  gap: 4px; margin-top: 0; padding: 0 4px 4px;
-  border-radius: 0 0 var(--radius) var(--radius);
-}
-.section-nav button { background: transparent; padding: 9px 6px; font-size: 0.9rem; border-radius: 0 0 10px 10px; color: var(--on-page); transition: color 0.15s ease, transform 0.15s ease; }
-/* Hover: slightly larger purple text. Scaled, so the buttons around it don't shift. */
-.section-nav button:not(:disabled):hover { color: var(--accent); transform: scale(1.1); }
-.section-nav button.on { color: var(--accent); font-weight: 700; opacity: 1; cursor: default; }
-.card:has(+ .section-nav) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 
 /* ----- Floating header: pinned to the top of every screen, the content scrolls under it ----- */
 .screen.center { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
@@ -686,12 +519,7 @@ body.entering .home-stack > :not(.brand-block),
 body.entering .game > :not(.topbar) { animation: float-in 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 body.entering .home-stack > :nth-child(3), body.entering .game > :nth-child(3) { animation-delay: 0.08s; }
 body.entering .home-stack > :nth-child(n + 4), body.entering .game > :nth-child(n + 4) { animation-delay: 0.16s; }
-/* Changing section: the header stays while the old section fades away, then the new one floats in. */
-@keyframes section-out { to { opacity: 0; transform: translateY(-14px); } }
-body.section-leaving .home-stack > :not(.brand-block) { animation: section-out 0.32s ease-in both; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
-  button.player-cover.arriving { animation: none; }
-  .player-fold, button.player-cover { transition: none; }
   .splash-header { transition: none; }
   body.entering .home-stack > *, body.entering .game > * { animation: none; }
   .ringed-cover > .cover-hidden { transition: none !important; }

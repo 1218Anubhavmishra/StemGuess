@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { unlockAudio } from '../audio';
 import { request, saveSession } from '../socket';
 import { PLAYER_LIMITS } from '../types';
@@ -10,17 +10,16 @@ import Stepper from './Stepper';
 const NAME_KEY = 'stemguess:name';
 const NAME_LIMIT = 20;
 
-export default function Home({ connected, menu }: { connected: boolean; menu: ReactNode }) {
+export default function Home({ connected }: { connected: boolean }) {
   const [name, setName] = useState(() => (localStorage.getItem(NAME_KEY) ?? '').slice(0, NAME_LIMIT));
   const [code, setCode] = useState(() => new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '');
   const [maxPlayers, setMaxPlayers] = useState(PLAYER_LIMITS.min);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [canSpectate, setCanSpectate] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const roomCode = code.replace(/ /g, '');
 
-  async function submit(event: 'create_room' | 'join_room', spectate = false) {
+  async function submit(event: 'create_room' | 'join_room') {
     // The buttons stay enabled so a tap explains what's missing instead of doing nothing.
     if (!nameOk) {
       setError(event === 'join_room' ? 'Enter your name above to join' : 'Enter your name first');
@@ -34,14 +33,10 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
     unlockAudio();
     setBusy(true);
     setError('');
-    setCanSpectate(false);
     localStorage.setItem(NAME_KEY, name.trim());
-    const ack = await request(event, { name, code: roomCode, maxPlayers, spectate });
+    const ack = await request(event, { name, code: roomCode, maxPlayers });
     if (ack.ok) saveSession(ack);
-    else {
-      setError(ack.error ?? 'Something went wrong');
-      setCanSpectate(!!ack.canSpectate);
-    }
+    else setError(ack.error ?? 'Something went wrong');
     setBusy(false);
   }
 
@@ -60,18 +55,15 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
           <WindowBody>
             <label className="field inline name-field">
               <span>Player Name</span>
-              <span className="slot-wrap">
-                <input
-                  ref={nameRef}
-                  className="slots name-input"
-                  style={{ '--n': NAME_LIMIT } as CSSProperties}
-                  value={name}
-                  placeholder="Type your name here-"
-                  maxLength={NAME_LIMIT}
-                  spellCheck={false}
-                  onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
-                />
-              </span>
+              <input
+                ref={nameRef}
+                className="name-input"
+                value={name}
+                placeholder="Type your name here"
+                maxLength={NAME_LIMIT}
+                spellCheck={false}
+                onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
+              />
             </label>
 
             <div className="row create-row">
@@ -97,15 +89,9 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
             </form>
 
             {error && <p className="error">{error}</p>}
-            {canSpectate && (
-              <button className="primary" disabled={busy} onClick={() => void submit('join_room', true)}>
-                Spectate
-              </button>
-            )}
             {!connected && <p className="muted small">Connecting to server…</p>}
           </WindowBody>
         </div>
-        {menu}
       </div>
     </main>
   );

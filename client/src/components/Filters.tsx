@@ -80,11 +80,6 @@ function filterKinds(facets: FacetRow[], value: SongFilters) {
   return FILTER_KINDS.filter((kind) => countValues(facets, kind).size >= 2 || value[kind].length > 0);
 }
 
-/** Whether <Filters> shows its song count; null while loading. */
-export function showsFilters(facets: FacetRow[] | null, value: SongFilters, search = ''): boolean | null {
-  return facets ? filterKinds(facets, value).length > 0 || search.trim() !== '' : null;
-}
-
 /**
  * Choose songs by genre, language and artist, like a shop's search filters: options picked in one list
  * widen the pick, options in different lists narrow it. Each option shows how many songs it would add.
@@ -95,7 +90,6 @@ export default function Filters({
   value,
   onChange,
   search,
-  collapseOn,
 }: {
   facets: FacetRow[] | null;
   value: SongFilters;
@@ -105,13 +99,8 @@ export default function Filters({
    * matching it, so it narrows the songs and finds the genres, languages and artists to choose from.
    */
   search: { value: string; onChange: (query: string) => void };
-  /** The dropdown closes whenever this changes to a new non-null value. */
-  collapseOn?: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (collapseOn != null) setOpen(false);
-  }, [collapseOn]);
   const [openKind, setOpenKind] = useState<FilterKind | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const [filterCaret, setFilterCaret] = useState<number | null>(null);
@@ -248,11 +237,10 @@ export default function Filters({
           <button
             className="search-toggle"
             aria-expanded={open}
-            aria-label={`${open ? 'Hide' : 'Show'} filters, ${count}`}
+            aria-label={`${open ? 'Hide' : 'Show'} filters`}
             title="Filters"
             onClick={() => setOpen((o) => !o)}
           >
-            <b>{count}</b>
             <span className="artist-caret" aria-hidden>
               {open ? '▴' : '▾'}
             </span>

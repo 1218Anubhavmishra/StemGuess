@@ -1,16 +1,20 @@
 import type { RoomState } from '../types';
 import DisconnectedIcon from './DisconnectedIcon';
 
-/** Player list during a game. Scores stay hidden until the final results. */
+/** The players, as a row of name tags above a round's question. Scores stay hidden until the final results. */
 export default function Scoreboard({ room, meId }: { room: RoomState; meId: string }) {
   return (
-    <ul className="scoreboard">
+    <ul className="scoreboard" aria-label="Players">
       {room.players.map((p) => (
         <li key={p.id} className={!p.connected ? 'gone' : p.id === meId ? 'me' : ''}>
           <span className="name">
             {p.name}
             {p.id === room.hostId && <span className="tag">host</span>}
-            {room.state === 'playing' && p.attempted && <span className="tag">answered</span>}
+            {room.state === 'playing' && p.attempted && (
+              <span className="answered" role="img" aria-label="answered">
+                ✓
+              </span>
+            )}
             {!p.connected && <DisconnectedIcon />}
           </span>
         </li>
@@ -35,24 +39,5 @@ export function PlayerSlots({ room, meId }: { room: RoomState; meId: string }) {
         );
       })}
     </ol>
-  );
-}
-
-/** A box listing who's watching. Not shown when nobody is. */
-export function Spectators({ room, meId, className }: { room: RoomState; meId: string; className: string }) {
-  const watching = room.spectators ?? [];
-  if (!watching.length) return null;
-  return (
-    <div className={className}>
-      <h3>Spectators</h3>
-      <ul className="scoreboard">
-        {watching.map((s) => (
-          <li key={s.id} className={s.id === meId ? 'me' : ''}>
-            {s.name}
-            {s.id === meId && ' (you)'}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

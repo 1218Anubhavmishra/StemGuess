@@ -1,5 +1,5 @@
 /**
- * Which songs a game or the Library shows. Mirrors server/app/filters.py: a song can have several
+ * Which songs a game draws from. Mirrors server/app/filters.py: a song can have several
  * genres, languages and artists; choices of one kind widen the pick (Pop or Dance); kinds narrow it
  * (Pop or Dance, and in Hindi). Nothing chosen means any. A search keeps songs whose title, artist,
  * genre or language contains it.
@@ -29,12 +29,6 @@ export function hasFilters(filters: SongFilters) {
 /** A search as the server keeps it: single spaces, none at the ends. */
 export function tidySearch(search: string) {
   return search.split(/\s+/).filter(Boolean).join(' ');
-}
-
-/** Whether a song's title, artist, genre or language contains the search (any song when it's empty). */
-export function matchesSearch(search: string, ...fields: (string | undefined)[]) {
-  const needle = tidySearch(search).toLowerCase();
-  return !needle || fields.some((f) => (f ?? '').toLowerCase().includes(needle));
 }
 
 /** A test for songs matching every kind, optionally ignoring one kind (for that kind's counts). */

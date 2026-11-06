@@ -1,18 +1,12 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { bgMusic, stemPlayer } from './audio';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
-import type { FeedItem, GameSong, Phase, Player, RoomState, RoundAnswer } from './types';
+import type { GameSong, Phase, Player, RoomState, RoundAnswer } from './types';
 import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
 import GameOver from './components/GameOver';
-import SectionNav, { type Section } from './components/SectionNav';
-import SongLibrary from './components/SongLibrary';
-let feedId = 0;
 const MUSIC_RETURN_MS = 1500;
-// Changing section: the old one fades out for this long, then the new one floats in (see styles.css).
-const SECTION_OUT_MS = 320;
-const SECTION_IN_MS = 950;
 
 export default function App() {
   const [connected, setConnected] = useState(socket.connected);
@@ -21,17 +15,13 @@ export default function App() {
   const [options, setOptions] = useState<string[]>([]);
   const [choice, setChoice] = useState<number | null>(null);
   const [endsAt, setEndsAt] = useState<number | null>(null);
-  const [nextAt, setNextAt] = useState<number | null>(null);
   const [answer, setAnswer] = useState<RoundAnswer | null>(null);
   const [ranking, setRanking] = useState<Player[]>([]);
   const [songs, setSongs] = useState<GameSong[]>([]);
-  const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [songSelected, setSongSelected] = useState(false);
+  // Which round this is. From the round's own message: a game can be shorter than the room's setting.
+  const [roundCount, setRoundCount] = useState<{ round: number; total: number } | null>(null);
 
   useEffect(() => {
-    const pushFeed = (item: Omit<FeedItem, 'id'>) => setFeed((items) => [...items, { ...item, id: ++feedId }]);
-
     const exitRoom = () => {
       clearSession();
       setRoom(null);
@@ -55,15 +45,13 @@ export default function App() {
       if (!loadSession()) exitRoom();
     };
     const onRoomState = (state: RoomState) => setRoom(state);
-    const onPrepare = (p: { round: number; totalRounds: number; urls: string[]; resume?: boolean }) => {
+    const onPrepare = (p: { round: number; totalRounds: number; urls: string[] }) => {
+      setRoundCount({ round: p.round, total: p.totalRounds });
       setPhase('prepare');
       setOptions([]);
       setChoice(null);
       setAnswer(null);
       setEndsAt(null);
-      setNextAt(null);
-      if (p.resume || p.round === 1) setFeed([]);
-      pushFeed({ type: 'system', text: `Round ${p.round} of ${p.totalRounds}` });
       stemPlayer.prepare(p.urls.map(serverUrl));
     };
     const onStart = (p: { duration: number; options: string[]; choice?: number | null }) => {
@@ -73,9 +61,7 @@ export default function App() {
       setEndsAt(Date.now() + p.duration * 1000);
       void stemPlayer.start();
     };
-    const onRoundEnd = (p: RoundAnswer & { options: string[]; winners: string[]; nextIn: number }) => {
-      if (p.winners.length) p.winners.forEach((name) => pushFeed({ type: 'correct', name }));
-      else pushFeed({ type: 'nobody' });
+    const onRoundEnd = (p: RoundAnswer & { options: string[] }) => {
       setPhase('roundEnd');
       setOptions(p.options);
       setAnswer({
@@ -87,7 +73,6 @@ export default function App() {
         points: p.points,
       });
       setEndsAt(null);
-      setNextAt(Date.now() + p.nextIn * 1000);
       stemPlayer.stop();
     };
     const onGameOver = (p: { ranking: Player[]; songs?: GameSong[] }) => {
@@ -124,7 +109,6 @@ export default function App() {
     await request('leave_room');
     setRoom(null);
     setPhase('lobby');
-    setFeed([]);
   };
 
   const screen = !room
@@ -134,10 +118,9 @@ export default function App() {
       : phase === 'gameOver'
         ? 'gameOver'
         : 'lobby';
-  // The music fills every moment a song isn't playing, except during a game (there it would sound like a clue) and
-  // while the Library has a song selected, even a paused or finished one.
+  // The silent music keeps the notes drifting whenever a song isn't playing, except during a game.
   const songPlaying = useSyncExternalStore(stemPlayer.subscribe, stemPlayer.isPlaying);
-  const musicAllowed = !songPlaying && !songSelected && screen !== 'game';
+  const musicAllowed = !songPlaying && screen !== 'game';
 
   useEffect(() => {
     if (!musicAllowed) return bgMusic.setWanted(false);
@@ -145,49 +128,7 @@ export default function App() {
     const timer = setTimeout(() => bgMusic.setWanted(true), MUSIC_RETURN_MS);
     return () => clearTimeout(timer);
   }, [musicAllowed]);
-  // A game starting (e.g. the room filled up) takes over from the Song Library.
-  useEffect(() => {
-    if (screen === 'game') setLibraryOpen(false);
-  }, [screen]);
-
-  const sectionTimers = useRef<number[]>([]);
-  useEffect(
-    () => () => {
-      sectionTimers.current.forEach(clearTimeout);
-      document.body.classList.remove('section-leaving', 'entering');
-    },
-    [],
-  );
-
-  /** Makes the change once the current section has faded out; the new one then floats in. */
-  const changeSection = (change: () => void) => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return change();
-    const { classList } = document.body;
-    sectionTimers.current.forEach(clearTimeout);
-    classList.remove('entering');
-    classList.add('section-leaving');
-    sectionTimers.current = [
-      window.setTimeout(() => {
-        change();
-        classList.remove('section-leaving');
-        classList.add('entering');
-        sectionTimers.current = [window.setTimeout(() => classList.remove('entering'), SECTION_IN_MS)];
-      }, SECTION_OUT_MS),
-    ];
-  };
-
-  const navigate = (section: Section) => {
-    stemPlayer.stop();
-    changeSection(() => setLibraryOpen(section === 'songs'));
-  };
-  // The section buttons under the home screen and the room lobby (both are the game room).
-  const menu = <SectionNav current="room" onGo={navigate} />;
-
-  if (libraryOpen && (screen === 'home' || screen === 'lobby')) {
-    return <SongLibrary connected={connected} onNavigate={navigate} onSongSelected={setSongSelected} />;
-  }
-
-  if (!room) return <Home connected={connected} menu={menu} />;
+  if (!room) return <Home connected={connected} />;
 
   const meId = socket.id ?? '';
   const isHost = room.hostId === meId;
@@ -201,7 +142,7 @@ export default function App() {
     return (
       <>
         {banner}
-        <Lobby room={room} isHost={isHost} onLeave={leave} menu={menu} />
+        <Lobby room={room} isHost={isHost} onLeave={leave} />
       </>
     );
   }
@@ -218,9 +159,8 @@ export default function App() {
           choice={choice}
           onPick={setChoice}
           endsAt={endsAt}
-          nextAt={nextAt}
           answer={answer}
-          feed={feed}
+          roundCount={roundCount}
           onLeave={leave}
         />
       </div>

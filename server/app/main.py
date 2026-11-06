@@ -75,7 +75,7 @@ async def create_room(sid, data=None):
 @sio.on("join_room")
 async def join_room(sid, data=None):
     data = data or {}
-    return await games.join_room(sid, data.get("code"), data.get("name"), data.get("spectate", False))
+    return await games.join_room(sid, data.get("code"), data.get("name"))
 
 
 @sio.on("rejoin")
@@ -101,11 +101,6 @@ async def library(_sid, _data=None):
     return {"ok": True, "libraries": await games.library_sizes()}
 
 
-@sio.on("library_songs")
-async def library_songs(_sid, data=None):
-    return await games.library_songs((data or {}).get("library"))
-
-
 @sio.on("library_artists")
 async def library_artists(_sid, data=None):
     return await games.library_artists((data or {}).get("library"))
@@ -115,11 +110,6 @@ async def library_artists(_sid, data=None):
 async def library_facets(_sid, data=None):
     data = data or {}
     return await games.library_facets(data.get("library"), data.get("search"))
-
-
-@sio.on("song_clip")
-async def song_clip(_sid, data=None):
-    return await games.song_clip((data or {}).get("id"))
 
 
 @sio.on("start_game")
