@@ -25,10 +25,14 @@
   /* A revealed answer's fill, under white text. */
   --option-right: #055c47;
   --option-wrong: #d93a5a;
-  /* See-through notes, in the theme's own ink. */
-  --eq-bar: #000;
-  --eq-opacity: 0.4;
-  --radius: 14px;
+  /* The equalizer's dots: medium-bright teal at the base, orange as they rise. */
+  --eq-low: #74cfbb;
+  --eq-high: #faae6a;
+  --radius: 18px;
+  /* The sub-windows' frosted glass: colourless, with a pale sheen, a bright edge and a soft shadow. */
+  --glass: linear-gradient(145deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.2));
+  --glass-edge: rgba(36, 35, 58, 0.14);
+  --glass-shadow: 0 12px 36px rgba(36, 35, 58, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   /* The blank strip every sub-window leaves above the screen's bottom edge. */
   --bottom-gap: max(5px, env(safe-area-inset-bottom));
   /* The space around things: a screen's edge to its window, a window's edge to its content, and so on. */
@@ -36,10 +40,9 @@
   --screen-x: 16px;
   --window-pad: 20px;
   --window-gap: 12px;
-  /* The purple of buttons and windows. */
-  --window-purple: #9333ea;
-  /* Every sub-window's background: a light purple tint over a light frost (see .card). */
-  --window: color-mix(in srgb, var(--window-purple) 9%, transparent);
+  /* Filled buttons: the room code's colour, with text that reads on it. */
+  --button: #055c47;
+  --on-button: #fff;
   font-size: 87.5%;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -66,10 +69,14 @@
     --wash: rgba(0, 0, 0, 0.55);
     --option-right: #0e8a6b;
     --option-wrong: #c92f50;
-    --eq-bar: #fff;
-    --eq-opacity: 0.5;
-    /* Deeper, so white and light text read on it. */
-    --window-purple: #7e22ce;
+    --eq-low: #187e65;
+    --eq-high: #ad5d27;
+    /* The room code is pale in this theme, so button text is dark. */
+    --button: #66e3c1;
+    --on-button: #06281f;
+    --glass: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    --glass-edge: rgba(255, 255, 255, 0.16);
+    --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   }
 }
 
@@ -86,9 +93,9 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; }
 
-/* The page background: music notes drifting away from the cover (EqualizerBackground.tsx). */
+/* The page background: a plain page, with columns of dots rising from the bottom (EqualizerBackground.tsx). */
 .equalizer-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-.equalizer-bg canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: var(--eq-opacity); }
+.equalizer-bg canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 h1, h2, h3 { margin: 0.2em 0 0.4em; }
 h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -104,13 +111,16 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .center { display: grid; place-items: center; }
 
 .card {
-  /* Darker than the page's colours, for text over the purple. */
+  /* Darker than the page's colours, for text in a window. */
   --muted: #3f3d58;
   --me: #0a3aa8;
   --accent-2: #055c47;
-  background: var(--window);
-  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
-  backdrop-filter: blur(3px);
+  /* Frosted glass over the notes behind it. */
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   border-radius: var(--radius);
   padding: var(--window-pad);
   display: flex;
@@ -118,7 +128,7 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
   gap: var(--window-gap);
 }
 @media (prefers-color-scheme: dark) {
-  /* Lighter than the page's colours, for text over the deep purple. */
+  /* Lighter than the page's colours, for text in a window. */
   .card { --muted: #d0cee0; --me: #a8c8ff; --accent-2: #66e3c1; }
 }
 .narrow { width: min(420px, 100%); }
@@ -177,19 +187,7 @@ button {
   cursor: pointer;
 }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
-button.primary { background: var(--window-purple); border-color: var(--window-purple); color: #fff; }
-/* Purple and red buttons when pressed: a narrow, soft glow comes in from every edge. A click is brief, so it comes
-   in fast and fades out slowly. */
-button.primary, .filter-tile.on, button.end-game, button.leave-room { transition: box-shadow 0.4s ease; }
-button.primary:not(:disabled):active, .filter-tile.on:active {
-  box-shadow: inset 0 0 7px 1px #d8b4fe;
-  transition-duration: 0.05s;
-}
-button.end-game:active, button.leave-room:active {
-  box-shadow: inset 0 0 7px 1px var(--danger);
-  transition-duration: 0.05s;
-}
-@media (prefers-reduced-motion: reduce) { button.primary, .filter-tile.on, button.end-game, button.leave-room { transition: none; } }
+button.primary { background: var(--button); border-color: var(--button); color: var(--on-button); }
 button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
 button.small { padding: 6px 10px; font-size: 0.85rem; }
 
@@ -221,13 +219,7 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
   align-items: center;
   padding: 6px 10px;
 }
-/* The players above a round's question: name tags that wrap onto more lines if they need to. */
-.scoreboard { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
-.scoreboard li { padding: 2px 8px; border: 1px solid var(--box-line); border-radius: 99px; font-size: 0.8rem; font-weight: 600; color: var(--text); }
-.scoreboard .tag { margin-left: 4px; padding: 0 4px; font-size: 0.65rem; }
-.answered { margin-left: 4px; color: var(--accent-2); font-weight: 700; }
-.scoreboard li.me { color: var(--me); }
-.scoreboard li.gone, .ranking li.gone { color: var(--muted); opacity: 0.7; }
+.ranking li.gone { color: var(--muted); opacity: 0.7; }
 .disconnected { display: inline-flex; vertical-align: middle; margin-left: 6px; color: var(--muted); }
 button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .leave-room .arrow { font-size: 1.6rem; line-height: 1; }
@@ -238,7 +230,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .player-slots li { min-height: 1.75em; padding: 2px 0; font-weight: 600; }
 .player-slots li::marker { color: var(--muted); font-weight: 400; }
 .player-slots li.me { color: var(--me); }
-.round-winners { margin: 4px 0 0; font-size: 0.9rem; font-weight: 600; color: var(--accent-2); }
+.round-winners { margin: 4px 0 0; font-size: calc(0.9 * var(--round-em, 1rem)); font-weight: 600; color: var(--accent-2); }
 .round-winners.none, .wrong-guess { color: var(--danger); }
 .reconnecting {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 30;
@@ -294,27 +286,33 @@ body:has(.final-page) main { visibility: hidden; }
   .logo { font-size: 2rem; }
   .topbar .logo, .home-stack .logo { font-size: 1.5rem; }
 }
-.countdown { margin: 0; text-align: center; font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+.countdown { margin: 0; text-align: center; font-size: calc(1.7 * var(--round-em, 1rem)); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
 .countdown.urgent { color: var(--danger); }
-.stage { min-height: 0; }
-/* The question sits centred in the room left under the players. */
-.round-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--window-gap); }
+/* A round's text scales together, with the room the screen has: --round-em follows its height, or its width on a
+   narrow one, within limits that stay readable. */
+.stage { --round-em: clamp(12px, min(2.15vh, 3.6vw), 22px); min-height: 0; font-size: var(--round-em); }
+.stage .small { font-size: calc(0.85 * var(--round-em, 1rem)); }
+/* The answers sit at the bottom of the window, and the question centred in the room between them and the players. */
+.round-body > :first-child { margin-top: auto; }
+.round-body > .ringed-cover { margin-bottom: auto; }
+.round-body { flex: 1; display: flex; flex-direction: column; gap: var(--window-gap); }
 .round-count { text-align: center; font-weight: 600; }
-.status { font-size: 1rem; text-align: center; margin: 0; }
+.status { font-size: calc(1 * var(--round-em, 1rem)); text-align: center; margin: 0; }
 .answer { text-align: center; }
-.answer h2 { font-size: 1.3rem; line-height: 1.2; color: var(--accent-2); margin: 0; }
+.answer h2 { font-size: calc(1.3 * var(--round-em, 1rem)); line-height: 1.2; color: var(--accent-2); margin: 0; }
 .answer .credit { margin: 4px 0 0; }
 .answer .credit a { color: inherit; }
 
 .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .option {
-  padding: 9px 10px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; line-height: 1.25;
-  background: transparent; color: var(--ink); border: 2px solid var(--box-line);
+  padding: 9px 10px; border-radius: 10px; font-weight: 600; font-size: calc(0.95 * var(--round-em, 1rem)); line-height: 1.25;
+  /* Filled, so the page's dots stop at the button's edge and never run behind the title. */
+  background: var(--page); color: var(--ink); border: 2px solid var(--box-line);
   overflow-wrap: anywhere; transition: background 0.3s, border-color 0.3s;
 }
 .option:disabled { cursor: default; opacity: 0.6; }
 .option.picked, .option.right, .option.wrong { opacity: 1; }
-.option.picked { border-color: var(--accent); }
+.option.picked { background: var(--button); border-color: var(--button); color: var(--on-button); }
 .option.right { background: var(--option-right); border-color: var(--option-right); color: white; }
 .option.wrong { background: var(--option-wrong); border-color: var(--option-wrong); color: white; }
 @media (max-width: 480px) { .options { grid-template-columns: 1fr; } }
@@ -360,7 +358,7 @@ body:has(.final-page) main { visibility: hidden; }
   position: absolute; display: grid; place-items: center; border-radius: 99px; font-size: 0.75rem; font-weight: 700;
 }
 .song-card-place { top: 6px; left: 6px; min-width: 22px; height: 22px; padding: 0 6px; background: rgba(255, 255, 255, 0.9); color: #24233a; }
-.song-card-state { right: 6px; bottom: 6px; width: 28px; height: 28px; background: var(--window-purple); color: #fff; }
+.song-card-state { right: 6px; bottom: 6px; width: 28px; height: 28px; background: var(--button); color: var(--on-button); }
 .answer-cards .credit { margin: 0; text-align: center; }
 .answer-cards .credit a { color: var(--accent); }
 /* Game rounds: a circular cover inside a radial equalizer (RingedCover in Cover.tsx). The real cover
@@ -376,19 +374,15 @@ body:has(.final-page) main { visibility: hidden; }
   .ringed-cover { width: 110px; height: 110px; }
   .ringed-cover > .cover { width: 72px; height: 72px; }
 }
-/* Short screens: everything in a round tightens, so its players, question and answers all stay in view. */
+/* Short screens: a round's spacing tightens, so its question and answers all stay in view. */
 @media (max-height: 700px) {
   .ringed-cover { width: 76px; height: 76px; }
   .ringed-cover > .cover { width: 50px; height: 50px; }
   .stage { --window-gap: 5px; --window-pad: 8px; }
-  .option { padding: 5px 8px; font-size: 0.85rem; line-height: 1.15; }
-  .countdown { font-size: 1.4rem; }
-  .status { font-size: 0.9rem; }
-  .scoreboard li { padding: 1px 6px; font-size: 0.72rem; }
-  .answer .muted { font-size: 0.75rem; }
-  .answer h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 1rem; }
+  .option { padding: 5px 8px; line-height: 1.15; }
+  .answer h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .answer .credit { margin: 0; }
-  .round-winners { margin: 2px 0 0; font-size: 0.8rem; }
+  .round-winners { margin: 2px 0 0; }
 }
 /* Song covers (Cover.tsx): a square tile, cropped from the video thumbnail. */
 .cover { width: 64px; height: 64px; flex: none; border-radius: 8px; object-fit: cover; background: var(--panel-2); }
@@ -432,7 +426,7 @@ body:has(.final-page) main { visibility: hidden; }
   background: transparent; border: none; border-radius: 10px; font-weight: 400; color: var(--text); text-align: center;
 }
 .filter-tile:hover { background: var(--panel-2); }
-.filter-tile.on { background: var(--window-purple); color: #fff; }
+.filter-tile.on { background: var(--button); color: var(--on-button); }
 .filter-tile .cover { width: 76px; height: 76px; }
 .filter-tile-name {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
@@ -494,10 +488,6 @@ body:has(.final-page) main { visibility: hidden; }
   position: relative; z-index: 10;
   margin-top: calc(-1 * var(--screen-top));
   padding-top: var(--screen-top);
-  background: var(--page);
-  /* Full-width background without widening the page. */
-  box-shadow: 0 0 0 100vmax var(--page);
-  clip-path: inset(0 -100vmax);
 }
 .home-stack > .brand-block { align-self: stretch; padding-bottom: 4px; margin-bottom: 7px; }
 .topbar { padding-bottom: 3px; }
@@ -506,11 +496,9 @@ body:has(.final-page) main { visibility: hidden; }
 .splash {
   position: fixed; inset: 0; z-index: 50;
   display: grid; place-items: center;
-  background: var(--page);
-  transition: background-color var(--move-ms) ease;
 }
 .splash-header { transform-origin: center; transition: transform var(--move-ms) cubic-bezier(0.65, 0, 0.35, 1); }
-.splash.move { background-color: transparent; pointer-events: none; }
+.splash.move { pointer-events: none; }
 /* While the starting screen shows, the screen underneath is laid out but not seen. */
 body.splashing main { visibility: hidden; }
 /* Then each section's content floats in under the header. */

@@ -4,7 +4,6 @@ import type { Phase, RoomState, RoundAnswer } from '../types';
 import Brand from './Brand';
 import { CoverBackdrop, RingedCover } from './Cover';
 import CreditLine from './CreditLine';
-import Scoreboard from './Scoreboard';
 import { WindowBody } from './ScrollHints';
 
 type Props = {
@@ -52,7 +51,8 @@ export default function Game({
   const me = room.players.find((p) => p.id === meId);
   const roundWinners = Object.keys(answer?.points ?? {});
   const canPick = phase === 'playing' && choice === null && !!me && !me.attempted;
-  const result = phase === 'roundEnd' && answer;
+  // During "Get ready" too, when the previous round went straight into it.
+  const result = (phase === 'roundEnd' || phase === 'prepare') && answer;
 
   useEffect(() => setHint(''), [room.round]);
 
@@ -91,14 +91,14 @@ export default function Game({
       <section className="stage card has-backdrop">
         {result && <CoverBackdrop credit={answer.credit} />}
         <WindowBody>
-          <Scoreboard room={room} meId={meId} />
           <div className="round-body">
             {roundCount && (
               <p className="round-count muted small">
                 Round {roundCount.round} of {roundCount.total}
+                {phase === 'prepare' && result && ' · Get ready…'}
               </p>
             )}
-            {phase === 'prepare' && <p className="status">Get ready…</p>}
+            {phase === 'prepare' && !result && <p className="status">Get ready…</p>}
             {phase === 'playing' && secondsLeft !== null && (
               <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
                 {formatTime(secondsLeft)}
@@ -106,7 +106,7 @@ export default function Game({
             )}
             {phase === 'playing' && (
               <p className="status">
-                {me?.attempted ? 'Answer locked in. Waiting for others…' : 'This song is ?'}
+                {me?.attempted ? 'Answer locked in. Waiting for others…' : 'This song is ...'}
               </p>
             )}
             {result && (
@@ -121,7 +121,7 @@ export default function Game({
                   {me && answer.points[me.name]
                     ? `Correct! +${pointsLabel(answer.points[me.name])}`
                     : roundWinners.length
-                      ? `${roundWinners.map((name) => `${name} (+${answer.points[name]})`).join(', ')} got it.`
+                      ? `${roundWinners.length} player${roundWinners.length === 1 ? '' : 's'} got it.`
                       : 'Nobody got this one'}
                   {choice !== null && choice !== answer.correct && <span className="wrong-guess"> · Your pick was wrong.</span>}
                 </p>

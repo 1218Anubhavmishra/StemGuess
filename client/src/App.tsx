@@ -45,23 +45,30 @@ export default function App() {
       if (!loadSession()) exitRoom();
     };
     const onRoomState = (state: RoomState) => setRoom(state);
-    const onPrepare = (p: { round: number; totalRounds: number; urls: string[] }) => {
+    // Everyone answered, so there was no result wait: the answer stays up while the next round gets ready.
+    let keepAnswer = false;
+    const onPrepare = (p: { round: number; totalRounds: number; urls: string[]; resume?: boolean }) => {
       setRoundCount({ round: p.round, total: p.totalRounds });
       setPhase('prepare');
-      setOptions([]);
-      setChoice(null);
-      setAnswer(null);
+      if (!keepAnswer || p.resume) {
+        setOptions([]);
+        setChoice(null);
+        setAnswer(null);
+      }
+      keepAnswer = false;
       setEndsAt(null);
       stemPlayer.prepare(p.urls.map(serverUrl));
     };
     const onStart = (p: { duration: number; options: string[]; choice?: number | null }) => {
       setPhase('playing');
+      setAnswer(null);
       setOptions(p.options);
       setChoice(p.choice ?? null);
       setEndsAt(Date.now() + p.duration * 1000);
       void stemPlayer.start();
     };
-    const onRoundEnd = (p: RoundAnswer & { options: string[] }) => {
+    const onRoundEnd = (p: RoundAnswer & { options: string[]; nextIn: number }) => {
+      keepAnswer = p.nextIn === 0;
       setPhase('roundEnd');
       setOptions(p.options);
       setAnswer({
@@ -118,9 +125,9 @@ export default function App() {
       : phase === 'gameOver'
         ? 'gameOver'
         : 'lobby';
-  // The silent music keeps the notes drifting whenever a song isn't playing, except during a game.
+  // The silent music keeps the notes drifting whenever a song isn't playing, including between a game's rounds.
   const songPlaying = useSyncExternalStore(stemPlayer.subscribe, stemPlayer.isPlaying);
-  const musicAllowed = !songPlaying && screen !== 'game';
+  const musicAllowed = !songPlaying;
 
   useEffect(() => {
     if (!musicAllowed) return bgMusic.setWanted(false);

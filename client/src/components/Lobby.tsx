@@ -5,7 +5,7 @@ import { FILTER_KINDS, FILTER_LABELS, hasFilters, tidySearch, type SongFilters }
 import Brand from './Brand';
 import Filters, { SEARCH_DELAY_MS, useLibraryFacets } from './Filters';
 import Invite from './Invite';
-import { PlayerSlots } from './Scoreboard';
+import { PlayerSlots } from './PlayerSlots';
 import { WindowBody } from './ScrollHints';
 
 export default function Lobby({

@@ -531,7 +531,7 @@ class GameManager:
         rnd.ends_at = time.monotonic() + rnd.duration
         # Clients loop the clip until the countdown runs out, so the round length doesn't depend on it.
         await self.sio.emit("round_start", {"duration": rnd.duration, "options": rnd.options}, room=room.code)
-        await _wait_event(room.all_guessed, rnd.duration + AUDIO_START_GRACE)
+        everyone_answered = await _wait_event(room.all_guessed, rnd.duration + AUDIO_START_GRACE)
 
         room.current = None
         winners = [p for p in room.players.values() if p.guessed]
@@ -546,9 +546,13 @@ class GameManager:
             "points": {p.name: p.round_points for p in winners},
         }
         room.played.append({"title": rnd.title, "artist": rnd.artist, "credit": rnd.credit, "urls": rnd.urls})
-        room.next_at = time.monotonic() + config.RESULT_SECONDS
-        await self.sio.emit("round_end", {**room.end_payload, "nextIn": config.RESULT_SECONDS}, room=room.code)
-        await asyncio.sleep(config.RESULT_SECONDS)
+        # Once everyone has answered the next round starts getting ready at once; the client keeps the answer on
+        # screen through it. The last round has no next one to show it, so its result always gets its time.
+        wait = 0.0 if everyone_answered and not room.end_payload["isLast"] else config.RESULT_SECONDS
+        room.next_at = time.monotonic() + wait
+        await self.sio.emit("round_end", {**room.end_payload, "nextIn": wait}, room=room.code)
+        if wait:
+            await asyncio.sleep(wait)
         room.next_at = None
 
     async def _finish(self, room: Room) -> None:

@@ -1,38 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { alignLevelsToSpeakers, readPeaks } from '../audio';
 
-type Note = { x: number; y: number; angle: number; speed: number; size: number; glyph: string; age: number; life: number; wobble: number };
+// The distance between neighbouring dots, the same across and up, whatever the screen's size.
+const DOT_PITCH = 9;
+const DOT_RADIUS = 2;
+// The tallest a column can reach, as a share of the screen's height.
+const MAX_HEIGHT = 0.6;
+// How far up the screen the colours finish changing, so the peaks of a normal level reach the top colour.
+const GRADIENT_HEIGHT = 0.5;
+// Peaks are shaped so quiet bands stay low and loud ones stand out.
+const PEAK_CURVE = 1.8;
+// How much of the way to a new level a column moves each frame: up quickly, back down slowly.
+const RISE = 0.5;
+const FALL = 0.08;
+// How finely the sound is split. The screen's columns are stretched across the bands that have sound in them.
+const BANDS = 64;
+// How many bands a frame the stretch can shrink by, so one quiet moment doesn't make the whole picture jump.
+const REACH_FALL = 0.1;
 
-const GLYPHS = ['♪', '♫', '♩', '♬'];
-const MAX_NOTES = 70;
-const BARS = 24;
-const TWO_PI = Math.PI * 2;
-// What counts as a new note in the music: louder than the recent level, and not too soon after the last one.
-const ONSET_RISE = 1.08;
-const ONSET_MIN_LEVEL = 0.02;
-const ONSET_GAP_SECONDS = 0.2;
-// A held sound with no clear attacks still gives off a note this often.
-const STEADY_GAP_SECONDS = 0.7;
-const FADE_IN_SECONDS = 0.5;
-const FADE_OUT_SECONDS = 1.8;
-const WOBBLE_RADIANS = 0.35;
-
-/**
- * Where the notes come from: the song's cover when one is on screen (the icon stands in for it until the answer
- * is revealed), and otherwise the game's icon in the header.
- */
-function noteSource(): DOMRect | null {
-  for (const selector of ['.ringed-cover', '.player-cover.current', '.logo-icon']) {
-    for (const el of document.querySelectorAll(selector)) {
-      if (el.closest('[inert]') || getComputedStyle(el).visibility !== 'visible') continue;
-      const box = el.getBoundingClientRect();
-      if (box.width && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth) return box;
-    }
-  }
-  return null;
-}
-
-/** The page background: music notes drifting away from the cover, in time with whatever the game is playing. */
+/** The page background: columns of dots rising from the bottom edge, in time with whatever the game is playing. */
 export default function EqualizerBackground() {
   const canvas = useRef<HTMLCanvasElement>(null);
 
@@ -41,87 +27,82 @@ export default function EqualizerBackground() {
     const ctx = el?.getContext('2d');
     if (!el || !ctx || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    // The notes take the browser theme's colour, and change with it.
-    let ink = '';
-    const applyTheme = () => {
-      ink = getComputedStyle(document.documentElement).getPropertyValue('--eq-bar').trim();
-    };
-    applyTheme();
-    const theme = matchMedia('(prefers-color-scheme: dark)');
-    theme.addEventListener('change', applyTheme);
+    // Every dot, drawn once in its colour. Each frame only uncovers as many of a column's dots as its level calls for.
+    const dots = document.createElement('canvas');
+    let scale = 1;
+    let columns = 0;
+    let rows = 0;
+    let left = 0;
+    const bands = new Float32Array(BANDS);
+    let reach = 0;
+    let heights = new Float32Array(0);
 
-    const peaks = new Float32Array(BARS);
-    const notes: Note[] = [];
-    let recent = 0;
-    let lastNote = 0;
-    let before = performance.now();
-    let frame = 0;
-
-    const release = (loudness: number) => {
-      const from = noteSource();
-      if (!from || notes.length >= MAX_NOTES) return;
-      const angle = Math.random() * TWO_PI;
-      const radius = Math.min(from.width, from.height) / 2;
-      notes.push({
-        x: from.left + from.width / 2 + Math.cos(angle) * radius,
-        y: from.top + from.height / 2 + Math.sin(angle) * radius,
-        angle,
-        speed: 45 + Math.random() * 50,
-        size: 16 + Math.random() * 12 + Math.min(1, loudness * 4) * 14,
-        glyph: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
-        age: 0,
-        life: 5 + Math.random() * 2.5,
-        wobble: Math.random() * TWO_PI,
-      });
-    };
-
-    const draw = (now: number) => {
-      const seconds = Math.min(0.1, Math.max(0, now - before) / 1000);
-      before = now;
-      alignLevelsToSpeakers();
-      readPeaks(peaks);
-      let level = 0;
-      for (const peak of peaks) level += peak ** 3;
-      level /= BARS;
-      const quiet = now - lastNote;
-      const onset = level > recent * ONSET_RISE && quiet > ONSET_GAP_SECONDS * 1000;
-      if (level > ONSET_MIN_LEVEL && (onset || quiet > STEADY_GAP_SECONDS * 1000)) {
-        release(level);
-        lastNote = now;
+    const paintDots = () => {
+      scale = Math.min(2, window.devicePixelRatio || 1);
+      const [width, height] = [innerWidth, innerHeight];
+      el.width = dots.width = Math.round(width * scale);
+      el.height = dots.height = Math.round(height * scale);
+      const count = Math.floor(width / DOT_PITCH);
+      if (count !== columns) {
+        columns = count;
+        heights = new Float32Array(columns);
       }
-      recent += (level - recent) * 0.2;
+      rows = Math.floor((height * MAX_HEIGHT) / DOT_PITCH);
+      left = (width - columns * DOT_PITCH) / 2;
 
-      const scale = Math.min(2, window.devicePixelRatio || 1);
-      const [width, height] = [Math.round(innerWidth * scale), Math.round(innerHeight * scale)];
-      if (el.width !== width || el.height !== height) {
-        el.width = width;
-        el.height = height;
-      }
-      ctx.setTransform(scale, 0, 0, scale, 0, 0);
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
-      ctx.fillStyle = ink;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      for (let i = notes.length - 1; i >= 0; i--) {
-        const note = notes[i];
-        note.age += seconds;
-        if (note.age >= note.life) {
-          notes.splice(i, 1);
-          continue;
+      const paint = dots.getContext('2d');
+      if (!paint) return;
+      const style = getComputedStyle(document.documentElement);
+      const fill = paint.createLinearGradient(0, height, 0, height * (1 - GRADIENT_HEIGHT));
+      fill.addColorStop(0, style.getPropertyValue('--eq-low').trim());
+      fill.addColorStop(1, style.getPropertyValue('--eq-high').trim());
+      paint.setTransform(scale, 0, 0, scale, 0, 0);
+      paint.fillStyle = fill;
+      paint.beginPath();
+      for (let column = 0; column < columns; column++) {
+        const x = left + (column + 0.5) * DOT_PITCH;
+        for (let row = 0; row < rows; row++) {
+          const y = height - (row + 0.5) * DOT_PITCH;
+          paint.moveTo(x + DOT_RADIUS, y);
+          paint.arc(x, y, DOT_RADIUS, 0, Math.PI * 2);
         }
-        const heading = note.angle + Math.sin(note.age * 0.9 + note.wobble) * WOBBLE_RADIANS;
-        note.x += Math.cos(heading) * note.speed * seconds;
-        note.y += Math.sin(heading) * note.speed * seconds;
-        ctx.globalAlpha = Math.min(1, note.age / FADE_IN_SECONDS, (note.life - note.age) / FADE_OUT_SECONDS);
-        ctx.font = `${note.size}px serif`;
-        ctx.fillText(note.glyph, note.x, note.y);
+      }
+      paint.fill();
+    };
+    paintDots();
+    const theme = matchMedia('(prefers-color-scheme: dark)');
+    theme.addEventListener('change', paintDots);
+
+    let frame = 0;
+    const draw = () => {
+      if (el.width !== Math.round(innerWidth * scale) || el.height !== Math.round(innerHeight * scale)) paintDots();
+      alignLevelsToSpeakers();
+      readPeaks(bands);
+      // Music rarely fills the whole range (the menu music has no high notes at all), so the columns span what's there.
+      let top = BANDS - 1;
+      while (top > 0 && !bands[top]) top--;
+      reach = Math.max(top, reach - REACH_FALL, 0);
+
+      ctx.clearRect(0, 0, el.width, el.height);
+      const pitch = DOT_PITCH * scale;
+      for (let column = 0; column < columns; column++) {
+        const at = (reach * column) / Math.max(1, columns - 1);
+        const below = Math.floor(at);
+        const level = bands[below] + (bands[Math.min(below + 1, BANDS - 1)] - bands[below]) * (at - below);
+        const target = level ** PEAK_CURVE;
+        heights[column] += (target - heights[column]) * (target > heights[column] ? RISE : FALL);
+        // While anything is playing, the bottom row of dots spans the whole screen.
+        const shown = Math.max(top > 0 ? 1 : 0, Math.round(heights[column] * rows)) * pitch;
+        if (!shown) continue;
+        const x = (left + column * DOT_PITCH) * scale;
+        ctx.drawImage(dots, x, el.height - shown, pitch, shown, x, el.height - shown, pitch, shown);
       }
       frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(frame);
-      theme.removeEventListener('change', applyTheme);
+      theme.removeEventListener('change', paintDots);
     };
   }, []);
 
