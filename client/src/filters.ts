@@ -1,5 +1,5 @@
 /**
- * Which songs a game or practice draws from. Mirrors server/app/filters.py: a song can have several
+ * Which songs a game or the Library shows. Mirrors server/app/filters.py: a song can have several
  * genres, languages and artists; choices of one kind widen the pick (Pop or Dance); kinds narrow it
  * (Pop or Dance, and in Hindi). Nothing chosen means any. A search keeps songs whose title, artist,
  * genre or language contains it.

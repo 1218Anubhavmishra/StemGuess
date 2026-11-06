@@ -134,12 +134,6 @@ async def song_clip(_sid, data=None):
     return await games.song_clip((data or {}).get("id"))
 
 
-@sio.on("practice_round")
-async def practice_round(_sid, data=None):
-    data = data or {}
-    return await games.practice_round(data.get("library"), data.get("exclude"), data)
-
-
 @sio.on("start_game")
 async def start_game(sid, _data=None):
     return await games.start_game(sid)

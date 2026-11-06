@@ -22,8 +22,8 @@ export function coverUrl(credit?: Credit | null): string | null {
 }
 
 /**
- * A square cover tile. `hidden` shows the game's icon in an empty frame instead (Practice, before the
- * answer, so the cover doesn't give it away); a song without a cover, or one that fails to load, shows the logo.
+ * A square cover tile. `hidden` shows the game's icon in an empty frame instead (a game round, before the
+ * reveal, so the cover doesn't give it away); a song without a cover, or one that fails to load, shows the logo.
  */
 export default function Cover({
   credit,

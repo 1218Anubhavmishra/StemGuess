@@ -6,9 +6,8 @@ import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
 import GameOver from './components/GameOver';
-import About from './components/About';
 import SectionNav, { type Section } from './components/SectionNav';
-import SongLibrary, { type LibraryMode } from './components/SongLibrary';
+import SongLibrary from './components/SongLibrary';
 let feedId = 0;
 const MUSIC_RETURN_MS = 1500;
 // Changing section: the old one fades out for this long, then the new one floats in (see styles.css).
@@ -27,8 +26,8 @@ export default function App() {
   const [ranking, setRanking] = useState<Player[]>([]);
   const [songs, setSongs] = useState<GameSong[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [libraryMode, setLibraryMode] = useState<LibraryMode | null>(null);
-  const [about, setAbout] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [songSelected, setSongSelected] = useState(false);
 
   useEffect(() => {
     const pushFeed = (item: Omit<FeedItem, 'id'>) => setFeed((items) => [...items, { ...item, id: ++feedId }]);
@@ -135,10 +134,10 @@ export default function App() {
       : phase === 'gameOver'
         ? 'gameOver'
         : 'lobby';
-  const practising = libraryMode !== null && (screen === 'home' || screen === 'lobby');
-  // The music fills every moment a song isn't playing, except during a game: there it would sound like a clue.
+  // The music fills every moment a song isn't playing, except during a game (there it would sound like a clue) and
+  // while the Library has a song selected, even a paused or finished one.
   const songPlaying = useSyncExternalStore(stemPlayer.subscribe, stemPlayer.isPlaying);
-  const musicAllowed = !songPlaying && screen !== 'game';
+  const musicAllowed = !songPlaying && !songSelected && screen !== 'game';
 
   useEffect(() => {
     if (!musicAllowed) return bgMusic.setWanted(false);
@@ -148,7 +147,7 @@ export default function App() {
   }, [musicAllowed]);
   // A game starting (e.g. the room filled up) takes over from the Song Library.
   useEffect(() => {
-    if (screen === 'game') setLibraryMode(null);
+    if (screen === 'game') setLibraryOpen(false);
   }, [screen]);
 
   const sectionTimers = useRef<number[]>([]);
@@ -178,43 +177,17 @@ export default function App() {
   };
 
   const navigate = (section: Section) => {
-    if (section === 'about') {
-      // Opens over the current section, so Back returns to it.
-      changeSection(() => setAbout(true));
-      return;
-    }
     stemPlayer.stop();
-    changeSection(() => {
-      setAbout(false);
-      setLibraryMode(section === 'room' ? null : section);
-    });
+    changeSection(() => setLibraryOpen(section === 'songs'));
   };
   // The section buttons under the home screen and the room lobby (both are the game room).
   const menu = <SectionNav current="room" onGo={navigate} />;
-  const aboutDialog = about && <About onClose={() => changeSection(() => setAbout(false))} onNavigate={navigate} />;
 
-  if (libraryMode && practising) {
-    return (
-      <>
-        <SongLibrary
-          key={libraryMode}
-          connected={connected}
-          mode={libraryMode}
-          onNavigate={navigate}
-        />
-        {aboutDialog}
-      </>
-    );
+  if (libraryOpen && (screen === 'home' || screen === 'lobby')) {
+    return <SongLibrary connected={connected} onNavigate={navigate} onSongSelected={setSongSelected} />;
   }
 
-  if (!room) {
-    return (
-      <>
-        <Home connected={connected} menu={menu} />
-        {aboutDialog}
-      </>
-    );
-  }
+  if (!room) return <Home connected={connected} menu={menu} />;
 
   const meId = socket.id ?? '';
   const isHost = room.hostId === meId;
@@ -229,7 +202,6 @@ export default function App() {
       <>
         {banner}
         <Lobby room={room} isHost={isHost} onLeave={leave} menu={menu} />
-        {aboutDialog}
       </>
     );
   }

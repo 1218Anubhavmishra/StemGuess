@@ -26,16 +26,6 @@ export type RoomState = {
 export type ServerLibrary = 'hits';
 export type Library = ServerLibrary;
 
-export type PracticeRound = {
-  id: number;
-  urls: string[];
-  options: string[];
-  correct: number;
-  title: string;
-  artist: string;
-  credit?: Credit | null;
-};
-
 export type Phase = 'lobby' | 'prepare' | 'playing' | 'roundEnd' | 'gameOver';
 
 export type FeedItem = {
@@ -69,7 +59,6 @@ export type Ack = {
   spectator?: boolean;
   canSpectate?: boolean;
   libraries?: Record<ServerLibrary, number>;
-  round?: PracticeRound;
   songs?: LibrarySong[];
   facets?: FacetRow[];
   urls?: string[];
@@ -83,8 +72,6 @@ export type LibrarySong = {
   genre?: string;
   language?: string;
 };
-
-export const GITHUB_URL = 'https://github.com/1218Anubhavmishra';
 
 export const SONG_LIMITS = { min: 3, max: 10 };
 export const PLAYER_LIMITS = { min: 2, max: 10 };

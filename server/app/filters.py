@@ -1,4 +1,4 @@
-"""Which songs a game or practice draws from: the chosen artists, genres and languages, and a search.
+"""Which songs a game draws from: the chosen artists, genres and languages, and a search.
 
 A song can have several of each: "Indian, Hip-Hop/Rap", "Hindi, English", "MC SQUARE, Paradox".
 Choices of one kind widen the pick (Pop or Dance); kinds narrow it (Pop or Dance, and in Hindi).

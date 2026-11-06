@@ -1,11 +1,9 @@
-/** The app's sections besides the home screen. 'room' is the game room: the lobby, or Create / Join without one. */
-export type Section = 'songs' | 'practice' | 'room' | 'about';
+/** The app's sections. 'room' is the game room: the lobby, or Create / Join without one. */
+export type Section = 'songs' | 'room';
 
 const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'practice', label: 'Practice' },
-  { id: 'songs', label: 'Play Library' },
+  { id: 'songs', label: 'Library' },
   { id: 'room', label: 'Game room' },
-  { id: 'about', label: 'About' },
 ];
 
 /** Buttons under a section's window for going straight to the other sections. The current one is marked. */

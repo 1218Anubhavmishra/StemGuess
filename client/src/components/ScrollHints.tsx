@@ -92,6 +92,35 @@ export function ScrollArrows({
   );
 }
 
+/**
+ * The inside of a sub-window, whose height is set by the screen: whatever doesn't fit scrolls here, with the
+ * grey lines and arrows. `follow` scrolls to the end whenever its value changes (a list that grows downward).
+ */
+export function WindowBody({ follow, children }: { follow?: number; children: ReactNode }) {
+  const { ref, more, className, wrapClassName, onScroll, scrollBy } = useScrollHints<HTMLDivElement>();
+  // The content can change size on its own (a filter category opening), without this component rendering.
+  useEffect(() => {
+    const el = ref.current;
+    const content = el?.firstElementChild;
+    if (!el || !content) return;
+    const observer = new ResizeObserver(onScroll);
+    observer.observe(el);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [ref, onScroll]);
+  useEffect(() => {
+    if (follow !== undefined) ref.current?.scrollTo({ top: ref.current.scrollHeight });
+  }, [ref, follow]);
+  return (
+    <div className={`window-scroll ${wrapClassName}`}>
+      <div ref={ref} className={`window-body ${className}`} onScroll={onScroll}>
+        <div className="window-content">{children}</div>
+      </div>
+      <ScrollArrows more={more} scrollBy={scrollBy} />
+    </div>
+  );
+}
+
 /** A sideways list that scrolls with small arrows instead of a scrollbar. */
 export function ScrollRow({
   className = '',

@@ -1,4 +1,4 @@
-"""Artists of a song, for choosing which artists' songs a game or practice uses.
+"""Artists of a song, for choosing which artists' songs a game uses.
 
 A song's artist field can credit several people ("Dr. Dre ft. Eminem", "Skylar Grey, Polo G &
 Eminem"); each of them counts as an artist of the song. The client splits the same way

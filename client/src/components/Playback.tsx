@@ -28,8 +28,8 @@ export function formatTime(seconds: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** How far into the song playback is; with seekable, dragging or clicking it jumps there. */
-export function ProgressBar({ seekable = false }: { seekable?: boolean }) {
+/** How far into the song playback is; dragging or clicking it jumps there. */
+export function ProgressBar() {
   const { position, duration } = usePlayback();
   const percent = duration ? (position / duration) * 100 : 0;
   // While the next song loads, the last length stays up instead of flashing 0:00.
@@ -38,24 +38,18 @@ export function ProgressBar({ seekable = false }: { seekable?: boolean }) {
   return (
     <div className="progress-row">
       <span className="progress-time">{formatTime(position)}</span>
-      {seekable ? (
-        <input
-          className="progress seek"
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={0.1}
-          value={Math.min(position, duration)}
-          disabled={!duration}
-          aria-label="Seek"
-          style={{ '--fill': `${percent}%` } as CSSProperties}
-          onChange={(e) => stemPlayer.seek(Number(e.target.value))}
-        />
-      ) : (
-        <div className="progress" role="progressbar" aria-label="Playback" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent)}>
-          <div className="progress-fill" style={{ width: `${percent}%` }} />
-        </div>
-      )}
+      <input
+        className="progress seek"
+        type="range"
+        min={0}
+        max={duration || 1}
+        step={0.1}
+        value={Math.min(position, duration)}
+        disabled={!duration}
+        aria-label="Seek"
+        style={{ '--fill': `${percent}%` } as CSSProperties}
+        onChange={(e) => stemPlayer.seek(Number(e.target.value))}
+      />
       <span className="progress-time">{formatTime(lastDuration.current)}</span>
     </div>
   );

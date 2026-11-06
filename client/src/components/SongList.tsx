@@ -181,7 +181,10 @@ export default function SongList({
   connected,
   filters,
   query,
+  onSelectionChange,
 }: {
+  /** Told the key of the song selected, playing or not; null with none selected. */
+  onSelectionChange: (key: string | null) => void;
   library: Library;
   connected: boolean;
   /** Only songs matching these are listed. */
@@ -209,6 +212,9 @@ export default function SongList({
     },
     [],
   );
+
+  const selectedKey = current?.key ?? null;
+  useEffect(() => onSelectionChange(selectedKey), [selectedKey, onSelectionChange]);
 
   useEffect(() => {
     if (!connected) return;
@@ -321,7 +327,7 @@ export default function SongList({
                   {playing || loading ? '❚❚' : '▶'}
                 </button>
               </div>
-              <ProgressBar seekable />
+              <ProgressBar />
             </>
           )
         }

@@ -497,40 +497,6 @@ class GameManager:
                 return None
         return GameManager._load_round(song_id)
 
-    async def practice_round(self, library: object, exclude: object = None, filters: dict | None = None) -> dict:
-        """One solo round for Practice. The answer is included: nothing is at stake."""
-        if library not in SERVER_LIBRARIES:
-            return _error("Unknown song library")
-        chosen = clean_filters(filters or {})
-        if chosen is None:
-            return _error("Invalid filters")
-        exclude = exclude if isinstance(exclude, list) else []
-        return await asyncio.to_thread(self._practice_round, library, exclude, chosen)
-
-    @staticmethod
-    def _practice_round(library: str, exclude: list, filters: Filters) -> dict:
-        song_ids = GameManager._playable_song_ids(library, filters)
-        if not song_ids:
-            return _error("No songs match these filters" if any(filters.values()) else "This library has no songs yet")
-        fresh = [i for i in song_ids if i not in set(exclude)] or song_ids
-        song_id = random.choice(fresh)
-        rnd = GameManager._load_round(song_id)
-        if not rnd:
-            return _error("Could not load a song")
-        rnd = GameManager._with_options(rnd, GameManager._option_titles(library, song_ids, filters))
-        return {
-            "ok": True,
-            "round": {
-                "id": song_id,
-                "urls": rnd.urls,
-                "options": rnd.options,
-                "correct": rnd.correct,
-                "title": rnd.title,
-                "artist": rnd.artist,
-                "credit": rnd.credit,
-            },
-        }
-
     async def start_game(self, sid: str) -> dict:
         room = self._room_of(sid)
         if not room:

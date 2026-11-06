@@ -5,6 +5,7 @@ import Brand from './Brand';
 import { CoverBackdrop, RingedCover } from './Cover';
 import CreditLine from './CreditLine';
 import Scoreboard, { Spectators } from './Scoreboard';
+import { WindowBody } from './ScrollHints';
 
 type Props = {
   room: RoomState;
@@ -93,82 +94,88 @@ export default function Game({
       {/* After the reveal, the song's cover, blurred, fills the round window. */}
       <section className="stage card has-backdrop">
         {result && <CoverBackdrop credit={answer.credit} />}
-        {phase === 'prepare' && <p className="status">Get ready…</p>}
-        {phase === 'playing' && secondsLeft !== null && (
-          <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
-            {formatTime(secondsLeft)}
-          </p>
-        )}
-        {phase === 'playing' && (
-          <p className="status">
-            {spectating
-              ? "You're spectating. You'll join as a player after this game."
-              : me.attempted
-                ? 'Answer locked in. Waiting for others…'
-                : 'Which song is this? You get one pick.'}
-          </p>
-        )}
-        {result && (
-          <div className="answer">
-            <p className="muted small">The song was</p>
-            <h2>
-              {answer.title}
-              {answer.artist && ` - ${answer.artist}`}
-            </h2>
-            {answer.credit && <CreditLine credit={answer.credit} />}
-            <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
-              {me && answer.points[me.name]
-                ? `Correct! +${pointsLabel(answer.points[me.name])}`
-                : roundWinners.length
-                  ? `${roundWinners.map((name) => `${name} (+${answer.points[name]})`).join(', ')} got it.`
-                  : 'Nobody got this one'}
-              {choice !== null && choice !== answer.correct && <span className="wrong-guess"> · Your pick was wrong.</span>}
+        <WindowBody>
+          {phase === 'prepare' && <p className="status">Get ready…</p>}
+          {phase === 'playing' && secondsLeft !== null && (
+            <p className={`countdown ${secondsLeft <= 5 ? 'urgent' : ''}`} aria-label="Time left in round">
+              {formatTime(secondsLeft)}
             </p>
-          </div>
-        )}
+          )}
+          {phase === 'playing' && (
+            <p className="status">
+              {spectating
+                ? "You're spectating. You'll join as a player after this game."
+                : me.attempted
+                  ? 'Answer locked in. Waiting for others…'
+                  : 'Which song is this? You get one pick.'}
+            </p>
+          )}
+          {result && (
+            <div className="answer">
+              <p className="muted small">The song was</p>
+              <h2>
+                {answer.title}
+                {answer.artist && ` - ${answer.artist}`}
+              </h2>
+              {answer.credit && <CreditLine credit={answer.credit} />}
+              <p className={roundWinners.length ? 'round-winners' : 'round-winners none'}>
+                {me && answer.points[me.name]
+                  ? `Correct! +${pointsLabel(answer.points[me.name])}`
+                  : roundWinners.length
+                    ? `${roundWinners.map((name) => `${name} (+${answer.points[name]})`).join(', ')} got it.`
+                    : 'Nobody got this one'}
+                {choice !== null && choice !== answer.correct && <span className="wrong-guess"> · Your pick was wrong.</span>}
+              </p>
+            </div>
+          )}
 
-        {/* The song's cover stays the game's icon until the reveal. */}
-        <RingedCover credit={result ? answer.credit : null} revealed={!!result} />
+          {/* The song's cover stays the game's icon until the reveal. */}
+          <RingedCover credit={result ? answer.credit : null} revealed={!!result} />
 
-        {options.length > 0 && (
-          <div className="options" role="group" aria-label="Answer options">
-            {options.map((title, i) => (
-              <button
-                key={`${i}-${title}`}
-                className={optionClass(i)}
-                disabled={!canPick}
-                onClick={() => void pick(i)}
-              >
-                {title}
-              </button>
-            ))}
-          </div>
-        )}
-        {result && room.state !== 'finished' && nextIn !== null && (
-          <p className="status muted">
-            {answer.isLast ? 'Final results' : 'Next song'} in {nextIn}…
-          </p>
-        )}
-        {hint && <p className="hint">{hint}</p>}
+          {options.length > 0 && (
+            <div className="options" role="group" aria-label="Answer options">
+              {options.map((title, i) => (
+                <button
+                  key={`${i}-${title}`}
+                  className={optionClass(i)}
+                  disabled={!canPick}
+                  onClick={() => void pick(i)}
+                >
+                  {title}
+                </button>
+              ))}
+            </div>
+          )}
+          {result && room.state !== 'finished' && nextIn !== null && (
+            <p className="status muted">
+              {answer.isLast ? 'Final results' : 'Next song'} in {nextIn}…
+            </p>
+          )}
+          {hint && <p className="hint">{hint}</p>}
+        </WindowBody>
       </section>
 
       <aside className="side">
         <div className="card">
-          <h3>Players</h3>
-          <Scoreboard room={room} meId={meId} />
+          <WindowBody>
+            <h3>Players</h3>
+            <Scoreboard room={room} meId={meId} />
+          </WindowBody>
         </div>
         <Spectators room={room} meId={meId} className="card" />
-        <div className="card">
-          <h3>Guesses</h3>
-          <ul className="feed">
-            {feed.map((item) => (
-              <li key={item.id} className={item.type}>
-                {item.type === 'system' && item.text}
-                {item.type === 'correct' && `${item.name} guessed it!`}
-                {item.type === 'nobody' && 'Nobody got this one'}
-              </li>
-            ))}
-          </ul>
+        <div className="card guesses">
+          <WindowBody follow={feed.length}>
+            <h3>Guesses</h3>
+            <ul className="feed">
+              {feed.map((item) => (
+                <li key={item.id} className={item.type}>
+                  {item.type === 'system' && item.text}
+                  {item.type === 'correct' && `${item.name} guessed it!`}
+                  {item.type === 'nobody' && 'Nobody got this one'}
+                </li>
+              ))}
+            </ul>
+          </WindowBody>
         </div>
       </aside>
     </main>

@@ -1,64 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NO_FILTERS, type SongFilters } from '../filters';
 import type { Library } from '../types';
 import Brand from './Brand';
 import Filters, { useLibraryFacets } from './Filters';
-import Practice from './Practice';
+import { WindowBody } from './ScrollHints';
 import SongList from './SongList';
 import SectionNav, { type Section } from './SectionNav';
 
-export type LibraryMode = 'songs' | 'practice';
-
-/** Play Library (browse and play a library's songs) or Practice (guess them on your own). No room needed. */
+/** Library: browse and play a library's songs. No room needed. */
 export default function SongLibrary({
   connected,
-  mode,
   onNavigate,
+  onSongSelected,
 }: {
   connected: boolean;
-  mode: LibraryMode;
   onNavigate: (section: Section) => void;
+  onSongSelected: (selected: boolean) => void;
 }) {
   const library: Library = 'hits';
   const [filters, setFilters] = useState<SongFilters>(NO_FILTERS);
   const [query, setQuery] = useState('');
-  // Practice hides the titles, so it has no search.
-  const searchable = mode === 'songs';
-  const facets = useLibraryFacets(library, connected, searchable ? query : '');
+  const facets = useLibraryFacets(library, connected, query);
+  const [selectedSong, setSelectedSong] = useState<string | null>(null);
+
+  const songSelected = selectedSong !== null;
+  useEffect(() => {
+    onSongSelected(songSelected);
+    return () => onSongSelected(false);
+  }, [songSelected, onSongSelected]);
 
   return (
     <main className="screen center">
-      <div className="home-stack practice">
+      <div className="home-stack library">
         <Brand />
         <div className="card narrow">
-          <header className="about-head">
-            <h2 className="practice-head">{mode === 'songs' ? 'Play Library' : 'Practice'}</h2>
-          </header>
-          <Filters
-            facets={facets}
-            value={filters}
-            onChange={setFilters}
-            search={searchable ? { value: query, onChange: setQuery } : undefined}
-          />
-
-          {mode === 'songs' ? (
+          <WindowBody>
+            <h2 className="library-head">Library</h2>
+            <Filters
+              facets={facets}
+              value={filters}
+              onChange={setFilters}
+              search={{ value: query, onChange: setQuery }}
+              collapseOn={selectedSong}
+            />
             <SongList
               key={library}
               library={library}
               connected={connected}
               filters={filters}
-              query={searchable ? query : ''}
+              query={query}
+              onSelectionChange={setSelectedSong}
             />
-          ) : (
-            <Practice
-              key={`${library}|${JSON.stringify(filters)}`}
-              library={library}
-              connected={connected}
-              filters={filters}
-            />
-          )}
+          </WindowBody>
         </div>
-        <SectionNav current={mode} onGo={onNavigate} />
+        <SectionNav current="songs" onGo={onNavigate} />
       </div>
     </main>
   );

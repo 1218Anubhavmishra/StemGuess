@@ -6,6 +6,7 @@ import Brand from './Brand';
 import Filters, { SEARCH_DELAY_MS, showsFilters, useLibraryFacets } from './Filters';
 import Invite from './Invite';
 import { PlayerSlots, Spectators } from './Scoreboard';
+import { WindowBody } from './ScrollHints';
 import SongSource from './SongSource';
 import Stepper from './Stepper';
 
@@ -65,70 +66,72 @@ export default function Lobby({
         <Brand />
 
         <div className="card narrow">
-          <Invite code={room.code} />
+          <WindowBody>
+            <Invite code={room.code} />
 
-          <div className="players-box">
-            <PlayerSlots room={room} meId={socket.id ?? ''} />
-          </div>
-          <Spectators room={room} meId={socket.id ?? ''} className="players-box" />
+            <div className="players-box">
+              <PlayerSlots room={room} meId={socket.id ?? ''} />
+            </div>
+            <Spectators room={room} meId={socket.id ?? ''} className="players-box" />
 
-          {isHost ? (
-            <>
-              <SongSource
-                room={room}
-                libraries={libraries}
-                rounds={room.totalRounds}
-                showCount={showsFilters(facets, filters, search) === false}
-              />
-              <Filters
-                facets={facets}
-                value={filters}
-                onChange={(next) => void update(next)}
-                search={{ value: search, onChange: (text) => setTyped({ library: room.library, text }) }}
-              />
-              <div className="row create-row">
-                <Stepper
-                  label="Songs"
-                  inline
-                  value={room.totalRounds}
-                  min={SONG_LIMITS.min}
-                  max={Math.max(SONG_LIMITS.min, maxSongs)}
-                  onChange={(rounds) => void update({ rounds })}
+            {isHost ? (
+              <>
+                <SongSource
+                  room={room}
+                  libraries={libraries}
+                  rounds={room.totalRounds}
+                  showCount={showsFilters(facets, filters, search) === false}
                 />
-                <button className="primary" disabled={notEnoughSongs} onClick={() => void start()}>
-                  Start game
-                </button>
-              </div>
-              {notEnoughSongs && (
-                <p className="muted small">
-                  {hasFilters(filters) || room.search ? 'The chosen filters match' : 'This library has'}{' '}
-                  {librarySize} song{librarySize === 1 ? '' : 's'}. A game needs at least {SONG_LIMITS.min}.
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              {FILTER_KINDS.map(
-                (kind) =>
-                  filters[kind].length > 0 && (
-                    <p key={kind} className="muted">
-                      {FILTER_LABELS[kind]}: {filters[kind].join(', ')}
-                    </p>
-                  ),
-              )}
-              {room.search && <p className="muted">Search: "{room.search}"</p>}
-              <p className="muted">{room.totalRounds} songs</p>
-              <p className="muted">Waiting for the host to start…</p>
-            </>
-          )}
+                <Filters
+                  facets={facets}
+                  value={filters}
+                  onChange={(next) => void update(next)}
+                  search={{ value: search, onChange: (text) => setTyped({ library: room.library, text }) }}
+                />
+                <div className="row create-row">
+                  <Stepper
+                    label="Songs"
+                    inline
+                    value={room.totalRounds}
+                    min={SONG_LIMITS.min}
+                    max={Math.max(SONG_LIMITS.min, maxSongs)}
+                    onChange={(rounds) => void update({ rounds })}
+                  />
+                  <button className="primary" disabled={notEnoughSongs} onClick={() => void start()}>
+                    Start game
+                  </button>
+                </div>
+                {notEnoughSongs && (
+                  <p className="muted small">
+                    {hasFilters(filters) || room.search ? 'The chosen filters match' : 'This library has'}{' '}
+                    {librarySize} song{librarySize === 1 ? '' : 's'}. A game needs at least {SONG_LIMITS.min}.
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                {FILTER_KINDS.map(
+                  (kind) =>
+                    filters[kind].length > 0 && (
+                      <p key={kind} className="muted">
+                        {FILTER_LABELS[kind]}: {filters[kind].join(', ')}
+                      </p>
+                    ),
+                )}
+                {room.search && <p className="muted">Search: "{room.search}"</p>}
+                <p className="muted">{room.totalRounds} songs</p>
+                <p className="muted">Waiting for the host to start…</p>
+              </>
+            )}
 
-          {error && <p className="error">{error}</p>}
-          <button className="ghost leave-room" onClick={onLeave}>
-            <span className="arrow" aria-hidden>
-              ←
-            </span>
-            Leave room
-          </button>
+            {error && <p className="error">{error}</p>}
+            <button className="ghost leave-room" onClick={onLeave}>
+              <span className="arrow" aria-hidden>
+                ←
+              </span>
+              Leave room
+            </button>
+          </WindowBody>
         </div>
         {menu}
       </div>

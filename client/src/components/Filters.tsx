@@ -89,12 +89,14 @@ export function showsFilters(facets: FacetRow[] | null, value: SongFilters, sear
 /**
  * Choose songs by genre, language and artist, like a shop's search filters: options picked in one list
  * widen the pick, options in different lists narrow it. Each option shows how many songs it would add.
+ * The lists fold under their category's button, one open at a time; each button shows how many options it holds.
  */
 export default function Filters({
   facets,
   value,
   onChange,
   search,
+  collapseOn,
 }: {
   facets: FacetRow[] | null;
   value: SongFilters;
@@ -104,8 +106,14 @@ export default function Filters({
    * narrows the songs and finds the genres, languages and artists to choose from.
    */
   search?: { value: string; onChange: (query: string) => void };
+  /** The dropdown closes whenever this changes to a new non-null value. */
+  collapseOn?: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (collapseOn != null) setOpen(false);
+  }, [collapseOn]);
+  const [openKind, setOpenKind] = useState<FilterKind | null>(null);
   const [artistQuery, setArtistQuery] = useState('');
   // Every value of each kind in a fixed order (most songs in the whole library first), so lists don't jump.
   const all = useMemo(() => {
@@ -188,49 +196,70 @@ export default function Filters({
             // Counts follow the other lists' ticks, as in a shop's filters; options with no songs are hidden.
             const counts = countValues((facets ?? []).filter(songFilter(value, kind)), kind);
             const ticked = new Set(value[kind].map(artistKey));
-            const options = all[kind].filter(
+            const available = all[kind].filter(
+              (o) => ticked.has(artistKey(o.name)) || (counts.get(artistKey(o.name))?.songs ?? 0) > 0,
+            );
+            if (!available.length && kind !== 'artists') return null;
+            const expanded = openKind === kind;
+            const options = available.filter(
               (o) =>
                 ticked.has(artistKey(o.name)) ||
-                ((counts.get(artistKey(o.name))?.songs ?? 0) > 0 &&
-                  (kind !== 'artists' || !needle || o.name.toLowerCase().includes(needle))),
+                kind !== 'artists' ||
+                !needle ||
+                o.name.toLowerCase().includes(needle),
             );
-            if (!options.length && kind !== 'artists') return null;
             return (
-              <fieldset key={kind} className="facet">
-                <legend>{LABELS[kind]}</legend>
-                {kind === 'artists' && !search && (
-                  <input
-                    type="search"
-                    className="song-search"
-                    placeholder={`Search ${all.artists.length} artists`}
-                    aria-label="Search artists"
-                    value={artistQuery}
-                    onChange={(e) => setArtistQuery(e.target.value)}
-                  />
+              <section key={kind} className="facet">
+                <button
+                  className="facet-toggle"
+                  aria-expanded={expanded}
+                  onClick={() => setOpenKind(expanded ? null : kind)}
+                >
+                  <span>{LABELS[kind]}</span>
+                  <b>({available.length})</b>
+                  <span className="artist-caret" aria-hidden>
+                    {expanded ? '▴' : '▾'}
+                  </span>
+                </button>
+                {expanded && (
+                  <div className="facet-body">
+                    {kind === 'artists' && !search && (
+                      <input
+                        type="search"
+                        className="song-search"
+                        placeholder={`Search ${all.artists.length} artists`}
+                        aria-label="Search artists"
+                        value={artistQuery}
+                        onChange={(e) => setArtistQuery(e.target.value)}
+                      />
+                    )}
+                    <ScrollRow className="filter-tiles" label={LABELS[kind]}>
+                      {options.map((o) => {
+                        const songs = counts.get(artistKey(o.name))?.songs ?? 0;
+                        const on = ticked.has(artistKey(o.name));
+                        return (
+                          <li key={o.name}>
+                            <button
+                              className={on ? 'filter-tile on' : 'filter-tile'}
+                              aria-pressed={on}
+                              onClick={() => toggle(kind, o.name)}
+                            >
+                              <Cover credit={o.url ? { text: '', url: o.url } : null} lazy />
+                              <span className="filter-tile-name">{o.name}</span>
+                              <span className="filter-tile-count">
+                                {songs} song{songs === 1 ? '' : 's'}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {!options.length && (
+                        <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>
+                      )}
+                    </ScrollRow>
+                  </div>
                 )}
-                <ScrollRow className="filter-tiles" label={LABELS[kind]}>
-                  {options.map((o) => {
-                    const songs = counts.get(artistKey(o.name))?.songs ?? 0;
-                    const on = ticked.has(artistKey(o.name));
-                    return (
-                      <li key={o.name}>
-                        <button
-                          className={on ? 'filter-tile on' : 'filter-tile'}
-                          aria-pressed={on}
-                          onClick={() => toggle(kind, o.name)}
-                        >
-                          <Cover credit={o.url ? { text: '', url: o.url } : null} lazy />
-                          <span className="filter-tile-name">{o.name}</span>
-                          <span className="filter-tile-count">
-                            {songs} song{songs === 1 ? '' : 's'}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                  {!options.length && <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>}
-                </ScrollRow>
-              </fieldset>
+              </section>
             );
           })}
         </div>

@@ -4,6 +4,7 @@ import { request, saveSession } from '../socket';
 import { PLAYER_LIMITS } from '../types';
 import CodeInput from './CodeInput';
 import Brand from './Brand';
+import { WindowBody } from './ScrollHints';
 import Stepper from './Stepper';
 
 const NAME_KEY = 'stemguess:name';
@@ -57,52 +58,53 @@ export default function Home({ connected, menu }: { connected: boolean; menu: Re
         <Brand />
 
         <div className="card narrow">
+          <WindowBody>
+            <label className="field inline name-field">
+              <span>Player Name</span>
+              <span className="slot-wrap">
+                <input
+                  ref={nameRef}
+                  className="slots name-input"
+                  style={{ '--n': NAME_LIMIT } as CSSProperties}
+                  value={name}
+                  placeholder="Type your name here-"
+                  maxLength={NAME_LIMIT}
+                  spellCheck={false}
+                  onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
+                />
+              </span>
+            </label>
 
-          <label className="field inline name-field">
-            <span>Player Name</span>
-            <span className="slot-wrap">
-              <input
-                ref={nameRef}
-                className="slots name-input"
-                style={{ '--n': NAME_LIMIT } as CSSProperties}
-                value={name}
-                placeholder="Type your name here-"
-                maxLength={NAME_LIMIT}
-                spellCheck={false}
-                onChange={(e) => setName(e.target.value.slice(0, NAME_LIMIT))}
+            <div className="row create-row">
+              <Stepper
+                label="Max players"
+                inline
+                value={maxPlayers}
+                min={PLAYER_LIMITS.min}
+                max={PLAYER_LIMITS.max}
+                onChange={setMaxPlayers}
               />
-            </span>
-          </label>
+              <button className="primary" disabled={!connected || busy} onClick={() => void submit('create_room')}>
+                Create Room
+              </button>
+            </div>
 
-          <div className="row create-row">
-            <Stepper
-              label="Max players"
-              inline
-              value={maxPlayers}
-              min={PLAYER_LIMITS.min}
-              max={PLAYER_LIMITS.max}
-              onChange={setMaxPlayers}
-            />
-            <button className="primary" disabled={!connected || busy} onClick={() => void submit('create_room')}>
-              Create Room
-            </button>
-          </div>
+            <form className="row join-row" onSubmit={onJoin}>
+              <span className="divider">or join one</span>
+              <CodeInput value={code} length={4} onChange={setCode} />
+              <button type="submit" className="primary" disabled={!connected || busy}>
+                Join
+              </button>
+            </form>
 
-          <form className="row join-row" onSubmit={onJoin}>
-            <span className="divider">or join one</span>
-            <CodeInput value={code} length={4} onChange={setCode} />
-            <button type="submit" className="primary" disabled={!connected || busy}>
-              Join
-            </button>
-          </form>
-
-          {error && <p className="error">{error}</p>}
-          {canSpectate && (
-            <button className="primary" disabled={busy} onClick={() => void submit('join_room', true)}>
-              Spectate
-            </button>
-          )}
-          {!connected && <p className="muted small">Connecting to server…</p>}
+            {error && <p className="error">{error}</p>}
+            {canSpectate && (
+              <button className="primary" disabled={busy} onClick={() => void submit('join_room', true)}>
+                Spectate
+              </button>
+            )}
+            {!connected && <p className="muted small">Connecting to server…</p>}
+          </WindowBody>
         </div>
         {menu}
       </div>
