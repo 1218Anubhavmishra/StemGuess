@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { request, socket } from '../socket';
 import { SONG_LIMITS, type RoomState, type ServerLibrary } from '../types';
 import { FILTER_KINDS, FILTER_LABELS, hasFilters, tidySearch, type SongFilters } from '../filters';
-import Brand from './Brand';
+import { BrandIcon } from './Brand';
 import Filters, { SEARCH_DELAY_MS, showsFilters, useLibraryFacets } from './Filters';
 import Invite from './Invite';
 import { PlayerSlots, Spectators } from './Scoreboard';
@@ -62,8 +62,10 @@ export default function Lobby({
 
   return (
     <main className="screen center">
+      <header className="topbar">
+        <BrandIcon />
+      </header>
       <div className="home-stack">
-        <Brand />
 
         <div className="card narrow">
           <WindowBody>

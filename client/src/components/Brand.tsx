@@ -10,3 +10,8 @@ export default function Brand() {
     </div>
   );
 }
+
+/** The app label collapsed to its icon, top left: every screen of a room (lobby, rounds, final scores). */
+export function BrandIcon() {
+  return <img className="logo-icon topbar-icon" src="/logo-mark.svg" alt="StemGuess" />;
+}

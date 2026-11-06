@@ -4,7 +4,6 @@ import { matchesSearch, songFilter, type SongFilters } from '../filters';
 import { request, serverUrl } from '../socket';
 import type { Credit, Library } from '../types';
 import Cover, { CoverBackdrop } from './Cover';
-import CreditLine, { sourceName } from './CreditLine';
 import { ProgressBar, usePlayback } from './Playback';
 import { ScrollArrows, useScrollHints } from './ScrollHints';
 
@@ -18,6 +17,16 @@ type Item = {
   /** The song's audio files, or null if they can't be had. */
   urls: () => Promise<string[] | null>;
 };
+
+/** A song's name with its artist beside it, wrapping as one line of text. The full text shows on hover if cut off. */
+function SongName({ song }: { song: Item }) {
+  return (
+    <span className="song-line" title={song.artist ? `${song.title} - ${song.artist}` : song.title}>
+      <b>{song.title}</b>
+      {song.artist && <span className="song-line-artist"> - {song.artist}</span>}
+    </span>
+  );
+}
 
 type Slot = { song: Item; slot: number };
 const SLOT_ORDER = [0, 1, -1, 2, -2];
@@ -86,7 +95,7 @@ function PlayerCovers({ slots, way, onStep }: { slots: Slot[]; way: number; onSt
 }
 
 /**
- * The player's box: the current song's covers, name, artist, credit link and controls over its blurred cover,
+ * The player's box: the current song's covers, name, artist and controls over its blurred cover,
  * then the children. When the song changes, the old name scrolls out and the new one scrolls in, onward for the
  * next song (direction 1) and back for the previous one (-1). The blurred cover stays still, and fades to the
  * new song once they have arrived. Before a song is picked the box holds just the children; picking one slides
@@ -158,10 +167,8 @@ function Player({
                     }}
                   >
                     <div className="player-tile-text">
-                      <b className="song-card-title">{song.title}</b>
-                      <span className="song-card-artist">{song.artist}</span>
+                      <SongName song={song} />
                     </div>
-                    <div className="player-tile-credit">{song.credit && <CreditLine credit={song.credit} />}</div>
                   </div>
                 );
               })}
@@ -346,14 +353,8 @@ export default function SongList({
                     onClick={() => toggle(s)}
                   >
                     <Cover credit={s.credit} lazy />
-                    <b className="song-card-title">{s.title}</b>
-                    {s.artist && <span className="song-card-artist muted">{s.artist}</span>}
+                    <SongName song={s} />
                   </button>
-                  {s.credit?.url && (
-                    <a className="song-source-link small" href={s.credit.url} target="_blank" rel="noreferrer">
-                      Listen on {sourceName(s.credit.url)}
-                    </a>
-                  )}
                 </li>
               ))}
               {!shown.length && <li className="muted small">No songs match{query.trim() && ` "${query.trim()}"`}.</li>}

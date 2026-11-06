@@ -81,7 +81,7 @@ Every game plays songs from **Preview of hits** (`hits:` songs in the database),
 YouTube video after the round. Songs from any other source, and hidden songs (`Song.hidden`), are never
 used in games.
 
-**Library** shows every song in the game as a sideways row of cover cards, with a player (cover over
+**Library** shows every song in the game as a sideways row of cover cards, each with its artist beside its name, and a player (cover over
 a blurred copy of it, play/pause, the faded covers either side for previous/next, seekable progress bar); a song stops
 when it ends. No room needed.
 

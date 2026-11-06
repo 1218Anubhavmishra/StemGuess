@@ -35,7 +35,6 @@ export default function SongLibrary({
         <Brand />
         <div className="card narrow">
           <WindowBody>
-            <h2 className="library-head">Library</h2>
             <Filters
               facets={facets}
               value={filters}

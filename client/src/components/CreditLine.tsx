@@ -11,7 +11,7 @@ const SITES: [domain: string, name: string][] = [
 ];
 
 /** The site a credit link points to, e.g. "YouTube". */
-export function sourceName(url: string): string {
+function sourceName(url: string): string {
   let host: string;
   try {
     host = new URL(url).hostname;
