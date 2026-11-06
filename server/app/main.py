@@ -1,5 +1,4 @@
 import logging
-import socket
 
 import socketio
 from fastapi import FastAPI
@@ -33,17 +32,6 @@ def health() -> dict:
     with SessionLocal() as db:
         songs = db.scalar(select(func.count(Song.id)))
     return {"ok": True, "songs": songs}
-
-
-@api.get("/lan")
-def lan_address() -> dict:
-    """This machine's LAN IP, so invite links opened from localhost work for other devices."""
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        try:
-            s.connect(("10.255.255.255", 1))  # no packet is sent; just picks the outbound interface
-            return {"ip": s.getsockname()[0]}
-        except OSError:
-            return {"ip": None}
 
 
 class ClientFiles(StaticFiles):

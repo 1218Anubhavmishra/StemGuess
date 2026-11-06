@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { request } from '../socket';
 import type { FeedItem, Phase, RoomState, RoundAnswer } from '../types';
-import { BrandIcon } from './Brand';
+import Brand from './Brand';
 import { CoverBackdrop, RingedCover } from './Cover';
 import CreditLine from './CreditLine';
 import Scoreboard, { Spectators } from './Scoreboard';
@@ -80,10 +80,12 @@ export default function Game({
   return (
     <main className="screen game">
       <header className="topbar">
-        <BrandIcon />
         <p className="topbar-room">
           Room <span>{room.code}</span>
         </p>
+        <div className="topbar-center">
+          <Brand />
+        </div>
         <button className="ghost small end-game" onClick={onLeave}>
           End
         </button>

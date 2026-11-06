@@ -1,22 +1,4 @@
-import { useEffect, useState } from 'react';
-import { SERVER_URL, serverUrl } from '../socket';
-
-const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
-const PRIVATE_IP = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
-
-/** Base URL other devices can open. A localhost address is swapped for this machine's LAN IP. */
-async function shareableBase(): Promise<string> {
-  const url = new URL(SERVER_URL);
-  if (LOCAL_HOSTS.includes(url.hostname)) {
-    try {
-      const { ip } = await (await fetch(serverUrl('/lan'))).json();
-      if (ip) url.hostname = ip;
-    } catch {
-      // Keep the localhost address; it still works on this machine.
-    }
-  }
-  return url.origin;
-}
+import { useState } from 'react';
 
 async function copyText(text: string) {
   try {
@@ -34,46 +16,23 @@ async function copyText(text: string) {
 
 /** The room code, followed by its copy button. */
 export default function Invite({ code }: { code: string }) {
-  const [base, setBase] = useState('');
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    void shareableBase().then((found) => {
-      if (!cancelled) setBase(found);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // A server on this Wi-Fi only knows its own rooms: friends must open its address, not the public site.
-  const lan = base ? new URL(base) : null;
-  const onLan = lan !== null && (PRIVATE_IP.test(lan.hostname) || LOCAL_HOSTS.includes(lan.hostname));
-
   return (
-    <>
-      <div className="room-code-row">
-        <span className="muted small">Room code</span>
-        <h1 className="room-code">{code}</h1>
-        <button
-          type="button"
-          className="small"
-          onClick={async () => {
-            await copyText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          {copied ? 'Copied!' : 'Copy room code'}
-        </button>
-      </div>
-      {onLan && (
-        <p className="muted small">
-          This room is on this computer. Friends on the same Wi-Fi open <b>{lan.host}</b> in their browser, then
-          enter the code.
-        </p>
-      )}
-    </>
+    <div className="room-code-row">
+      <span className="muted small">Room code</span>
+      <h1 className="room-code">{code}</h1>
+      <button
+        type="button"
+        className="small"
+        onClick={async () => {
+          await copyText(code);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+      >
+        {copied ? 'Copied!' : 'Copy room code'}
+      </button>
+    </div>
   );
 }

@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { artistKey } from '../artists';
 import {
   FILTER_KINDS,
-  NO_FILTERS,
   songFilter,
   valuesOf,
   type FacetRow,
@@ -102,10 +101,10 @@ export default function Filters({
   value: SongFilters;
   onChange: (next: SongFilters) => void;
   /**
-   * A song search shown above the filters. The facets must already be of the songs matching it, so it
-   * narrows the songs and finds the genres, languages and artists to choose from.
+   * The song search, sharing a box with the filters' dropdown arrow. The facets must already be of the songs
+   * matching it, so it narrows the songs and finds the genres, languages and artists to choose from.
    */
-  search?: { value: string; onChange: (query: string) => void };
+  search: { value: string; onChange: (query: string) => void };
   /** The dropdown closes whenever this changes to a new non-null value. */
   collapseOn?: string | null;
 }) {
@@ -114,7 +113,8 @@ export default function Filters({
     if (collapseOn != null) setOpen(false);
   }, [collapseOn]);
   const [openKind, setOpenKind] = useState<FilterKind | null>(null);
-  const [artistQuery, setArtistQuery] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [filterCaret, setFilterCaret] = useState<number | null>(null);
   // Every value of each kind in a fixed order (most songs in the whole library first), so lists don't jump.
   const all = useMemo(() => {
     const out = {} as Record<FilterKind, Option[]>;
@@ -128,12 +128,10 @@ export default function Filters({
   }, [facets]);
 
   const kinds = filterKinds(facets ?? [], value);
-  // Without a search, hidden while loading and when there's nothing to choose between.
-  if (!search && (!facets?.length || !kinds.length)) return null;
-
   const chosen = FILTER_KINDS.flatMap((kind) => value[kind].map((name) => ({ kind, name })));
-  const searched = search?.value.trim() ?? '';
-  const needle = artistQuery.trim().toLowerCase();
+  // The cursor among the filters: before the filter at this index. Null when it's in the search text.
+  const caret = filterCaret !== null && filterCaret < chosen.length ? filterCaret : null;
+  const searched = search.value.trim();
   const matching = (facets ?? []).filter(songFilter(value)).reduce((n, row) => n + row.songs, 0);
   const count = `${matching} song${matching === 1 ? '' : 's'}`;
 
@@ -143,48 +141,124 @@ export default function Filters({
     onChange({ ...value, [kind]: on ? value[kind].filter((v) => artistKey(v) !== key) : [...value[kind], name] });
   }
 
+  /**
+   * The search box's keys reach past the text into the filters. The arrow keys, Home and End move a cursor between
+   * them: Backspace removes the filter before it and Delete the one after it. With the cursor in the text,
+   * Backspace at its start and Delete in an empty box remove the last filter. Holding a key down never removes
+   * filters, so clearing the text doesn't also wipe them.
+   */
+  function onSearchKey(e: KeyboardEvent<HTMLInputElement>) {
+    const { selectionStart, selectionEnd, value: text } = e.currentTarget;
+    const count = chosen.length;
+    const remove = (index: number) => {
+      if (!e.repeat) toggle(chosen[index].kind, chosen[index].name);
+    };
+
+    if (caret === null) {
+      if (!count) return;
+      const atStart = selectionStart === 0 && selectionEnd === 0;
+      if (e.key === 'Delete' && !text) {
+        e.preventDefault();
+        remove(count - 1);
+      } else if (atStart && e.key === 'Backspace') {
+        e.preventDefault();
+        remove(count - 1);
+      } else if (atStart && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'Home')) {
+        e.preventDefault();
+        setFilterCaret(e.key === 'Home' ? 0 : count - 1);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        setFilterCaret(Math.max(0, caret - 1));
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        setFilterCaret(caret + 1 < count ? caret + 1 : null);
+        break;
+      case 'Home':
+        e.preventDefault();
+        setFilterCaret(0);
+        break;
+      case 'End':
+        setFilterCaret(null);
+        break;
+      case 'Backspace':
+        e.preventDefault();
+        if (caret > 0 && !e.repeat) {
+          remove(caret - 1);
+          setFilterCaret(caret - 1);
+        }
+        break;
+      case 'Delete':
+        e.preventDefault();
+        if (!e.repeat) {
+          remove(caret);
+          setFilterCaret(caret + 1 < count ? caret : null);
+        }
+        break;
+    }
+  }
+
   return (
     <div className="artist-picker">
-      {search && (
-        <input
-          type="search"
-          className="song-search"
-          placeholder="Search songs, artists, genres or languages"
-          aria-label="Search songs, artists, genres or languages"
-          value={search.value}
-          onChange={(e) => {
-            search.onChange(e.target.value);
-            if (e.target.value.trim()) setOpen(true);
-          }}
-        />
-      )}
-      {chosen.length > 0 && (
-        <div className="filter-chips" aria-label="Chosen filters">
-          {chosen.map(({ kind, name }) => (
-            <button
-              key={`${kind}:${name}`}
-              className="chip"
-              aria-label={`Remove ${name}`}
-              onClick={() => toggle(kind, name)}
-            >
-              {name}
-              <span aria-hidden> ×</span>
-            </button>
+      {/* One box: the chosen filters, then the search, then the arrow that opens the filters on its right edge. */}
+      <div className="search-box">
+        <div className="search-field">
+          {chosen.map(({ kind, name }, index) => (
+            <Fragment key={`${kind}:${name}`}>
+              {caret === index && <span className="filter-caret" aria-hidden />}
+              <button
+                className="chip"
+                aria-label={`Remove ${name}`}
+                onClick={() => toggle(kind, name)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+                  e.preventDefault();
+                  toggle(kind, name);
+                  searchInput.current?.focus();
+                }}
+              >
+                {name}
+                <span aria-hidden> ×</span>
+              </button>
+            </Fragment>
           ))}
-          <button className="link small" onClick={() => onChange(NO_FILTERS)}>
-            Clear all
-          </button>
+          <input
+            ref={searchInput}
+            type="search"
+            className={caret === null ? 'song-search' : 'song-search caret-away'}
+            placeholder={chosen.length ? undefined : 'Search or filter songs'}
+            aria-label="Search songs, artists, genres or languages"
+            value={search.value}
+            onChange={(e) => {
+              setFilterCaret(null);
+              search.onChange(e.target.value);
+              if (e.target.value.trim()) setOpen(true);
+            }}
+            onKeyDown={onSearchKey}
+            onMouseDown={() => setFilterCaret(null)}
+            onBlur={() => setFilterCaret(null)}
+          />
         </div>
-      )}
-      {facets && kinds.length > 0 && (
-        <button className="artist-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          <span className="muted">Filters</span>
-          <b>({count})</b>
-          <span className="artist-caret" aria-hidden>
-            {open ? '▴' : '▾'}
-          </span>
-        </button>
-      )}
+        {facets && kinds.length > 0 && (
+          <button
+            className="search-toggle"
+            aria-expanded={open}
+            aria-label={`${open ? 'Hide' : 'Show'} filters, ${count}`}
+            title="Filters"
+            onClick={() => setOpen((o) => !o)}
+          >
+            <b>{count}</b>
+            <span className="artist-caret" aria-hidden>
+              {open ? '▴' : '▾'}
+            </span>
+          </button>
+        )}
+      </div>
       {facets && !kinds.length && searched && (
         <p className="muted small">
           {count} match "{searched}".
@@ -201,13 +275,6 @@ export default function Filters({
             );
             if (!available.length && kind !== 'artists') return null;
             const expanded = openKind === kind;
-            const options = available.filter(
-              (o) =>
-                ticked.has(artistKey(o.name)) ||
-                kind !== 'artists' ||
-                !needle ||
-                o.name.toLowerCase().includes(needle),
-            );
             return (
               <section key={kind} className="facet">
                 <button
@@ -223,18 +290,8 @@ export default function Filters({
                 </button>
                 {expanded && (
                   <div className="facet-body">
-                    {kind === 'artists' && !search && (
-                      <input
-                        type="search"
-                        className="song-search"
-                        placeholder={`Search ${all.artists.length} artists`}
-                        aria-label="Search artists"
-                        value={artistQuery}
-                        onChange={(e) => setArtistQuery(e.target.value)}
-                      />
-                    )}
                     <ScrollRow className="filter-tiles" label={LABELS[kind]}>
-                      {options.map((o) => {
+                      {available.map((o) => {
                         const songs = counts.get(artistKey(o.name))?.songs ?? 0;
                         const on = ticked.has(artistKey(o.name));
                         return (
@@ -253,9 +310,7 @@ export default function Filters({
                           </li>
                         );
                       })}
-                      {!options.length && (
-                        <li className="muted small">No artists match{needle && ` "${artistQuery}"`}.</li>
-                      )}
+                      {!available.length && <li className="muted small">No artists match.</li>}
                     </ScrollRow>
                   </div>
                 )}

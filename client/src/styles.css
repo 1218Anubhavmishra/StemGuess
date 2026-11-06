@@ -32,22 +32,36 @@
   /* The blank strip every sub-window leaves above the screen's bottom edge. */
   --bottom-gap: max(5px, env(safe-area-inset-bottom));
   /* The game's app label and the gap under it (phones size the round window with it). */
-  --topbar-height: 84px;
-  /* Every sub-window's background. This purple keeps dark text readable from the top down. */
+  --topbar-height: 77px;
+  /* The space around things: a screen's edge to its window, a window's edge to its content, and so on. */
+  --screen-top: max(11px, env(safe-area-inset-top));
+  --screen-x: 16px;
+  --window-pad: 20px;
+  --window-gap: 12px;
+  --player-x: 12px;
+  /* Every sub-window's background: purple at its edges, gone 30px in from the top and sides, 25px from the bottom. */
   --window-purple: #a78bfa;
   /* Eased, so it melts away with no visible end. */
-  --window: linear-gradient(
-    to bottom,
-    var(--window-purple),
-    color-mix(in srgb, var(--window-purple) 88%, transparent) 10%,
-    color-mix(in srgb, var(--window-purple) 70%, transparent) 25%,
-    color-mix(in srgb, var(--window-purple) 50%, transparent) 40%,
-    color-mix(in srgb, var(--window-purple) 32%, transparent) 55%,
-    color-mix(in srgb, var(--window-purple) 18%, transparent) 70%,
-    color-mix(in srgb, var(--window-purple) 8%, transparent) 83%,
-    color-mix(in srgb, var(--window-purple) 2%, transparent) 93%,
-    transparent
-  );
+  --window-fade: var(--window-purple),
+    color-mix(in srgb, var(--window-purple) 88%, transparent) 3px,
+    color-mix(in srgb, var(--window-purple) 70%, transparent) 7.5px,
+    color-mix(in srgb, var(--window-purple) 50%, transparent) 12px,
+    color-mix(in srgb, var(--window-purple) 32%, transparent) 16.5px,
+    color-mix(in srgb, var(--window-purple) 18%, transparent) 21px,
+    color-mix(in srgb, var(--window-purple) 8%, transparent) 25px,
+    color-mix(in srgb, var(--window-purple) 2%, transparent) 28px,
+    transparent 30px;
+  --window-fade-bottom: var(--window-purple),
+    color-mix(in srgb, var(--window-purple) 88%, transparent) 2.5px,
+    color-mix(in srgb, var(--window-purple) 70%, transparent) 6.25px,
+    color-mix(in srgb, var(--window-purple) 50%, transparent) 10px,
+    color-mix(in srgb, var(--window-purple) 32%, transparent) 13.75px,
+    color-mix(in srgb, var(--window-purple) 18%, transparent) 17.5px,
+    color-mix(in srgb, var(--window-purple) 8%, transparent) 20.75px,
+    color-mix(in srgb, var(--window-purple) 2%, transparent) 23.25px,
+    transparent 25px;
+  --window: linear-gradient(to bottom, var(--window-fade)), linear-gradient(to right, var(--window-fade)),
+    linear-gradient(to left, var(--window-fade)), linear-gradient(to top, var(--window-fade-bottom));
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--page);
@@ -80,6 +94,18 @@
   }
 }
 
+/* Small screens can't spare the same fixed space as large ones. */
+@media (max-width: 480px) {
+  :root {
+    --topbar-height: 69px;
+    --screen-top: max(3px, env(safe-area-inset-top));
+    --screen-x: 6px;
+    --window-pad: 10px;
+    --window-gap: 8px;
+    --player-x: 6px;
+  }
+}
+
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; }
 
@@ -96,7 +122,7 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
   height: 100dvh;
   /* Content floating in starts lower than the blank strip allows; no scrollbar should flash for it. */
   overflow: hidden;
-  padding: max(16px, env(safe-area-inset-top)) 16px var(--bottom-gap);
+  padding: var(--screen-top) var(--screen-x) var(--bottom-gap);
 }
 .center { display: grid; place-items: center; }
 
@@ -108,10 +134,10 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
   background: var(--window);
   border: none;
   border-radius: var(--radius);
-  padding: 20px;
+  padding: var(--window-pad);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--window-gap);
 }
 @media (prefers-color-scheme: dark) {
   /* Lighter than the page's colours, for text over the deep purple. */
@@ -120,7 +146,7 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .narrow { width: min(420px, 100%); }
 
 .logo { font-size: 2.6rem; letter-spacing: -0.03em; }
-.logo-text span { color: var(--accent); }
+.logo span { color: var(--accent); }
 .logo { display: inline-flex; align-items: center; }
 /* Sized with the title's font, so it matches on every screen. */
 .logo-icon { width: 1.4em; height: 1.4em; margin: -0.2em 0.15em -0.2em 0; flex: none; }
@@ -264,7 +290,7 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 /* Final scores are a page of their own, like every section: the game steps aside, leaving the background. */
 .overlay.final-page {
   display: flex; flex-direction: column; align-items: center;
-  padding: max(16px, env(safe-area-inset-top)) 16px var(--bottom-gap);
+  padding: var(--screen-top) var(--screen-x) var(--bottom-gap);
   background: transparent; backdrop-filter: none; overflow: hidden;
 }
 body:has(.final-page) main { visibility: hidden; }
@@ -286,11 +312,13 @@ body:has(.final-page) main { visibility: hidden; }
   max-width: 1100px;
   margin: 0 auto;
 }
-.topbar { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
-.topbar-icon { grid-column: 1; justify-self: start; width: 44px; height: 44px; margin: 0; }
-.topbar-room { grid-column: 2; margin: 0; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text); }
+.topbar { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; }
+.topbar-center { grid-column: 2; display: flex; flex-direction: column; align-items: center; }
+.topbar-room { grid-column: 1; margin: 0; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text); }
 .topbar-room span { color: var(--accent-2); white-space: nowrap; }
+@media (max-width: 480px) { .topbar-room { font-size: 0.85rem; } }
 .topbar .end-game { grid-column: 3; justify-self: end; }
+.topbar .logo, .home-stack .logo { font-size: 2rem; }
 .countdown { margin: 0; text-align: center; font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
 .countdown.urgent { color: var(--danger); }
 .stage, .side { min-height: 0; }
@@ -327,7 +355,8 @@ body:has(.final-page) main { visibility: hidden; }
 /* A phone: the round window alone fills the screen, so a timed answer never needs scrolling to; the Players and
    Guesses windows are below it, with the page scrolling and the app label staying on top. */
 @media (max-width: 760px) {
-  .game { height: auto; min-height: 100dvh; overflow: visible;grid-template-columns: 1fr; grid-template-rows: auto; padding-bottom: 16px; }
+  .game > .topbar { position: sticky; top: 0; }
+  .game { height: auto; min-height: 100dvh; overflow: visible; grid-template-columns: 1fr; grid-template-rows: auto; padding-bottom: 16px; }
   .stage { min-height: calc(100dvh - var(--topbar-height) - var(--bottom-gap)); margin-bottom: calc(var(--bottom-gap) - 16px); }
   .side { grid-column: 1; grid-row: auto; }
   .side > .card.guesses { flex: none; }
@@ -345,7 +374,7 @@ body:has(.final-page) main { visibility: hidden; }
 .home-stack.library > .card.narrow { width: 100%; }
 .song-list { display: flex; flex-direction: column; gap: 8px; }
 .song-search { padding: 8px 12px; font-size: 0.9rem; background: transparent; border-color: var(--box-line); }
-.song-search::placeholder { color: #d3d3d3; opacity: 1; }
+.song-search::placeholder { color: var(--muted); opacity: 1; }
 .song-list ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
 .song-list li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 .song-list li:last-child { border-bottom: none; }
@@ -354,7 +383,7 @@ body:has(.final-page) main { visibility: hidden; }
 .song-name b { font-weight: 600; }
 .play-song { width: 34px; height: 34px; padding: 0; flex: none; border-radius: 50%; background: var(--window-purple); border-color: var(--window-purple); color: #fff; font-size: 0.8rem; }
 .player {
-  display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 14px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 14px var(--player-x);
   border: 1px solid var(--box-line); border-radius: 12px; background: var(--window); text-align: center;
 }
 /* A song's cover, blurred, behind a box (CoverBackdrop): the player, and after the reveal a game's round
@@ -374,11 +403,11 @@ body:has(.final-page) main { visibility: hidden; }
    the bottom of the opening drawer (SongList.tsx), so they come out from behind the edge. */
 .player-reveal {
   align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
-  margin: -14px -12px 4px;
+  margin: -14px calc(-1 * var(--player-x)) 4px;
 }
 .player-controls {
   position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 14px 12px 0;
+  padding: 14px var(--player-x) 0;
 }
 .player-controls > .progress-row { align-self: stretch; }
 /* The song list folds away and back. */
@@ -393,7 +422,7 @@ body:has(.final-page) main { visibility: hidden; }
 @property --fade-to { syntax: '<percentage>'; inherits: false; initial-value: 100%; }
 /* The current song's cover, with the previous and next songs' covers beside it (they're the buttons for those
    songs). Each cover slides to its slot when the song changes; the ones in the far slots wait out of sight. */
-.player-covers { position: relative; align-self: stretch; height: 160px; margin: 0 -12px; }
+.player-covers { position: relative; align-self: stretch; height: 160px; margin: 0 calc(-1 * var(--player-x)); }
 button.player-cover {
   position: absolute; top: 0; left: 50%; width: 160px; height: 160px; padding: 0;
   background: transparent; border: none; border-radius: 12px;
@@ -435,21 +464,27 @@ button.player-cover.away { scale: 0.5; opacity: 0; }
 .player { --way: 1; }
 .player.back { --way: -1; }
 @keyframes cover-in { from { translate: calc(-50% + var(--way) * 176%) 0; opacity: 0; } }
-/* Room is kept for two lines of name and artist, so changing song never moves what's under it. */
-.player-tiles { position: relative; align-self: stretch; margin: 0 -12px; overflow: hidden; }
-.player-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 12px; font-size: 0.95rem; }
+/* The current song's name and artist. */
+.player-tiles { position: relative; align-self: stretch; margin: 0 calc(-1 * var(--player-x)); overflow: hidden; }
+.player-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 var(--player-x); font-size: 0.95rem; }
 /* Changing song: the old tile scrolls out as the new one scrolls in beside it. */
 .player-tile.leaving { position: absolute; inset: 0; animation: tile-out 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
 .player-tile.entering { animation: tile-in 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
 @keyframes tile-out { from { transform: translateX(0); } to { transform: translateX(calc(var(--way) * -100%)); } }
 @keyframes tile-in { from { transform: translateX(calc(var(--way) * 100%)); } to { transform: translateX(0); } }
-.player-tile-text { height: 2.6em; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; }
+/* Close under its cover: 5px above the name (the box's 10px gap, pulled in) and that 10px gap below it. */
+.player-tiles { margin-top: -5px; }
+.player-tile-text { display: flex; flex-direction: column; align-items: center; width: 100%; }
 .player-tile .song-line { -webkit-line-clamp: 2; }
 .player-tile .song-line-artist { color: var(--on-page); }
 .player .player-buttons { justify-content: center; }
 /* The list runs to the box's sides, so its scroll arrows sit on the box's edges. */
-.player-list { margin: 0 -12px; }
-.player-list .song-cards { padding-inline: 12px; }
+.player-list { margin: 0 calc(-1 * var(--player-x)); }
+.player-list .song-cards { align-items: flex-start; padding-inline: var(--player-x); padding-bottom: 0; gap: 6px; }
+/* Each card fits its own name, 5px under the cover and 10px above the card's end. */
+.player-list .song-cards .song-card { flex-basis: 119px; padding: 5px 5px 10px; font-size: 0.78rem; }
+.player-list .song-card-play { gap: 5px; }
+.player-list .song-card-play .cover { width: 108px; height: 108px; }
 /* Shows or hides the song list, in the box's top-right corner. */
 button.list-toggle { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; color: var(--on-page); }
 button.list-toggle[aria-expanded='true'] { color: var(--accent); }
@@ -519,13 +554,28 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 .progress.seek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
 .progress.seek::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: none; }
 .artist-picker { display: flex; flex-direction: column; gap: 6px; }
-.artist-toggle { display: flex; align-items: center; gap: 4px; width: 100%; text-align: left; background: transparent; font-size: 0.9rem; padding: 8px 12px; border: 1px solid var(--box-line); }
-.artist-toggle b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The search and the filters' arrow, sharing one box. */
+.search-box { display: flex; align-items: stretch; min-width: 0; border: 1px solid var(--box-line); border-radius: 10px; }
+.search-box:focus-within { border-color: var(--accent); }
+/* The chosen filters and the typed search flow together, wrapping onto more lines if they need to. */
+.search-field { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.search-field:has(.chip) { padding: 4px 0 4px 6px; }
+.search-field:has(.chip) .song-search { padding-block: 3px; padding-left: 4px; }
+.search-box .song-search { flex: 1 1 80px; min-width: 0; border: none; border-radius: 10px 0 0 10px; }
+.search-field .chip { max-width: 100%; overflow-wrap: anywhere; }
+/* The cursor among the filters, drawn because a real one lives only in the text. It takes up no room. */
+.filter-caret { flex: none; width: 2px; height: 1.2em; margin-inline: -3px; background: var(--text); animation: filter-caret 1s steps(1) infinite; }
+@keyframes filter-caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .filter-caret { animation: none; } }
+.song-search.caret-away { caret-color: transparent; }
+.search-toggle { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: transparent; border: none; border-radius: 0 9px 9px 0; font-size: 0.8rem; font-weight: 400; white-space: nowrap; }
+.search-toggle b { font-weight: 600; color: var(--muted); }
+.search-toggle:hover { background: var(--panel-2); }
 .artist-caret { margin-left: auto; color: var(--muted); font-size: 1.6rem; line-height: 0.8; }
 .artist-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
-/* Open, the Filters button and its panel are one box: same border, no gap, shared edge. */
-.artist-toggle[aria-expanded='true'] { border-radius: 10px 10px 0 0; }
-.artist-toggle[aria-expanded='true'] + .artist-panel {
+/* Open, the search box and the filters' panel are one box: same border, no gap, shared edge. */
+.search-box:has(.search-toggle[aria-expanded='true']) { border-radius: 10px 10px 0 0; }
+.search-box:has(.search-toggle[aria-expanded='true']) + .artist-panel {
   margin-top: -6px; border: 1px solid var(--box-line); border-top: none; border-radius: 0 0 10px 10px;
 }
 .artist-tools { display: flex; gap: 6px; }
@@ -546,7 +596,6 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
   width: 100%; font-size: 0.8rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere;
 }
 .filter-tile-count { font-size: 0.7rem; opacity: 0.75; }
-.filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .chip { padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; background: var(--winner-bg); border-color: var(--accent); color: var(--text); }
 /* min-width: so the sideways rows scroll instead of stretching the window. */
 .facet { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; }
@@ -559,7 +608,7 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 .card:has(> .window-scroll) { padding: 0; overflow: hidden; }
 .window-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .window-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; }
-.window-content { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 20px; }
+.window-content { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--window-gap); padding: var(--window-pad); }
 /* Scrolling without a scrollbar (ScrollHints.tsx): grey lines mark the side(s) with more to scroll to,
    each with a half-circle arrow button whose flat side lies on the edge. */
 .scroll-wrap { position: relative; }
@@ -600,26 +649,25 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
   gap: 4px; margin-top: 0; padding: 0 4px 4px;
   border-radius: 0 0 var(--radius) var(--radius);
 }
-.section-nav button { background: transparent; padding: 9px 6px; font-size: 0.9rem; border-radius: 0 0 10px 10px; color: var(--on-page); }
-/* Hover: a purple box whose square top meets the window above. */
-.section-nav button:not(:disabled):hover { background: var(--window-purple); }
+.section-nav button { background: transparent; padding: 9px 6px; font-size: 0.9rem; border-radius: 0 0 10px 10px; color: var(--on-page); transition: color 0.15s ease, transform 0.15s ease; }
+/* Hover: slightly larger purple text. Scaled, so the buttons around it don't shift. */
+.section-nav button:not(:disabled):hover { color: var(--accent); transform: scale(1.1); }
 .section-nav button.on { color: var(--accent); font-weight: 700; opacity: 1; cursor: default; }
 .card:has(+ .section-nav) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 
 /* ----- Floating header: pinned to the top of every screen, the content scrolls under it ----- */
 .screen.center { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-.topbar {
-  position: sticky; top: 0; z-index: 10;
-  margin-top: calc(-1 * max(16px, env(safe-area-inset-top)));
-  padding-top: max(16px, env(safe-area-inset-top));
+.home-stack > .brand-block, .topbar {
+  position: relative; z-index: 10;
+  margin-top: calc(-1 * var(--screen-top));
+  padding-top: var(--screen-top);
   background: var(--page);
   /* Full-width background without widening the page. */
   box-shadow: 0 0 0 100vmax var(--page);
   clip-path: inset(0 -100vmax);
 }
-.topbar { padding-bottom: 8px; }
-/* Above a window, spanning the screen so the icon sits in its corner. */
-.screen.center > .topbar, .final-page > .topbar { flex: none; align-self: stretch; margin-bottom: 16px; }
+.home-stack > .brand-block { align-self: stretch; padding-bottom: 4px; margin-bottom: 7px; }
+.topbar { padding-bottom: 3px; }
 
 /* ----- Starting screen ----- */
 .splash {
@@ -630,20 +678,17 @@ button.list-toggle[aria-expanded='true'] { color: var(--accent); }
 }
 .splash-header { transform-origin: center; transition: transform var(--move-ms) cubic-bezier(0.65, 0, 0.35, 1); }
 .splash.move { background-color: transparent; pointer-events: none; }
-/* The name fades as the label slides into the corner, leaving just the icon. */
-.logo-text { transition: opacity var(--move-ms) ease; }
-.splash.move .logo-text { opacity: 0; }
 /* While the starting screen shows, the screen underneath is laid out but not seen. */
 body.splashing main { visibility: hidden; }
 /* Then each section's content floats in under the header. */
 @keyframes float-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
-body.entering .home-stack > *,
+body.entering .home-stack > :not(.brand-block),
 body.entering .game > :not(.topbar) { animation: float-in 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
-body.entering .home-stack > :nth-child(2), body.entering .game > :nth-child(3) { animation-delay: 0.08s; }
-body.entering .game > :nth-child(n + 4) { animation-delay: 0.16s; }
+body.entering .home-stack > :nth-child(3), body.entering .game > :nth-child(3) { animation-delay: 0.08s; }
+body.entering .home-stack > :nth-child(n + 4), body.entering .game > :nth-child(n + 4) { animation-delay: 0.16s; }
 /* Changing section: the header stays while the old section fades away, then the new one floats in. */
 @keyframes section-out { to { opacity: 0; transform: translateY(-14px); } }
-body.section-leaving .home-stack > * { animation: section-out 0.32s ease-in both; pointer-events: none; }
+body.section-leaving .home-stack > :not(.brand-block) { animation: section-out 0.32s ease-in both; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   button.player-cover.arriving { animation: none; }
   .player-fold, button.player-cover { transition: none; }

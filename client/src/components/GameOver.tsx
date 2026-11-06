@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { stemPlayer } from '../audio';
 import { request, serverUrl } from '../socket';
 import type { GameSong, Player, RoomState } from '../types';
-import { BrandIcon } from './Brand';
+import Brand from './Brand';
 import Cover from './Cover';
 import CreditLine from './CreditLine';
 import DisconnectedIcon from './DisconnectedIcon';
@@ -48,10 +48,8 @@ export default function GameOver({ room, ranking, songs, isHost, onLeave }: Prop
 
   return (
     <div className="overlay final-page" role="dialog" aria-modal="true" aria-label="Final scores">
-      <header className="topbar">
-        <BrandIcon />
-      </header>
       <div className="home-stack">
+        <Brand />
         <div className="card narrow">
           <WindowBody>
             <h1>Final scores</h1>

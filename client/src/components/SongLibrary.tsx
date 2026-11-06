@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NO_FILTERS, type SongFilters } from '../filters';
 import type { Library } from '../types';
-import { BrandIcon } from './Brand';
+import Brand from './Brand';
 import Filters, { useLibraryFacets } from './Filters';
 import { WindowBody } from './ScrollHints';
 import SongList from './SongList';
@@ -31,10 +31,8 @@ export default function SongLibrary({
 
   return (
     <main className="screen center">
-      <header className="topbar">
-        <BrandIcon />
-      </header>
       <div className="home-stack library">
+        <Brand />
         <div className="card narrow">
           <WindowBody>
             <Filters
