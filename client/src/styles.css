@@ -1,6 +1,7 @@
 :root {
-  /* The page follows the browser's light or dark theme. */
-  color-scheme: light dark;
+  /* The app is always dark: its background is black and blue in every theme, so the dark colours below apply
+     whatever the browser's theme is. The light values here are the base they override. */
+  color-scheme: dark;
   --panel: #ffffff;
   --panel-2: #f1eee6;
   --border: #e4e0d5;
@@ -25,12 +26,22 @@
   /* A revealed answer's fill, under white text. */
   --option-right: #055c47;
   --option-wrong: #d93a5a;
-  /* The moving height map behind everything: a pale base in the lows, orange on the highs. */
-  --bg-base: #f6f2ea;
-  --bg-peak: #faae6a;
+  /* The background in both themes: blue light flowing behind a mosaic of glass facets (HeightMapBackground.tsx).
+     Near-black where there's no light, deep blue as it starts, sky blue on its ribbons, a pale core on the brightest. */
+  --bg-base: #04070b;
+  --bg-water: #0e3354;
+  --bg-peak: #87ceeb;
+  --bg-core: #eaf8ff;
+  /* The paper grain over the background and on the windows: fine noise from an SVG filter, made once and tiled
+     without seams. How strongly it shows, and how it mixes in. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9 0.75' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 -2.2 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  /* On the dark background, grain shows as faint light specks. */
+  --grain-strength: 0.22;
+  --grain-blend: screen;
   --radius: 18px;
   /* The sub-windows' frosted glass: colourless, with a pale sheen, a bright edge and a soft shadow. */
-  --glass: linear-gradient(145deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.2));
+  /* Nearly solid over the dark background, so dark text keeps its contrast. */
+  --glass: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
   --glass-edge: rgba(36, 35, 58, 0.14);
   --glass-shadow: 0 12px 36px rgba(36, 35, 58, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   /* The blank strip every sub-window leaves above the screen's bottom edge. */
@@ -49,7 +60,8 @@
   background: var(--page);
 }
 
-@media (prefers-color-scheme: dark) {
+/* The dark colours, which always apply (see color-scheme above). */
+@media all {
   :root {
     --panel: #2a2833;
     --panel-2: #33313f;
@@ -69,14 +81,14 @@
     --wash: rgba(0, 0, 0, 0.55);
     --option-right: #0e8a6b;
     --option-wrong: #c92f50;
-    --bg-base: #0d1615;
     /* The room code is pale in this theme, so button text is dark. */
     --button: #66e3c1;
     --on-button: #06281f;
-    /* Dark enough that light text stays readable over the orange in the background. */
-    --glass: linear-gradient(145deg, rgba(10, 14, 14, 0.5), rgba(10, 14, 14, 0.42));
-    --glass-edge: rgba(255, 255, 255, 0.16);
-    --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    /* Smoked glass: dark enough that light text stays readable over the brightest light behind it, with a pale
+       top edge and a faint sheen where light catches the pane. */
+    --glass: linear-gradient(160deg, rgba(14, 32, 48, 0.62), rgba(4, 8, 12, 0.7) 45%, rgba(4, 8, 12, 0.74));
+    --glass-edge: rgba(135, 206, 235, 0.22);
+    --glass-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(234, 248, 255, 0.14);
   }
 }
 
@@ -96,6 +108,19 @@ body { margin: 0; min-height: 100vh; }
 /* The page background: a moving height map (HeightMapBackground.tsx), drawn at half size and stretched. */
 .height-map-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--bg-base); }
 .height-map-bg canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Grained paper over the background, at the screen's full sharpness. The windows' glass blurs it away, so each
+   window lays the same grain over its glass too (.card::after), and the whole screen reads as one sheet of paper. */
+.height-map-bg::after,
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  background-size: 220px 220px;
+  opacity: var(--grain-strength);
+  mix-blend-mode: var(--grain-blend);
+  pointer-events: none;
+}
 
 h1, h2, h3 { margin: 0.2em 0 0.4em; }
 h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -115,19 +140,23 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
   --muted: #3f3d58;
   --me: #0a3aa8;
   --accent-2: #055c47;
-  /* Frosted glass over the moving background, blurred enough that its shapes don't pull at the text. */
+  /* Smoked glass over the moving mosaic: lightly blurred, so the facets still show through as a faint texture
+     instead of smearing into blotches. */
   background: var(--glass);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(5px) saturate(1.15);
+  backdrop-filter: blur(5px) saturate(1.15);
   border-radius: var(--radius);
   padding: var(--window-pad);
   display: flex;
   flex-direction: column;
   gap: var(--window-gap);
+  /* For the grain: the glass makes each window its own layer, so the grain sits on the glass, under the content. */
+  position: relative;
 }
-@media (prefers-color-scheme: dark) {
+.card::after { z-index: -1; border-radius: inherit; }
+@media all {
   /* Lighter than the page's colours, for text in a window. */
   .card { --muted: #d0cee0; --me: #a8c8ff; --accent-2: #66e3c1; }
 }
@@ -136,8 +165,10 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .logo { font-size: 2.6rem; letter-spacing: -0.03em; }
 .logo span { color: var(--accent); }
 .logo { display: inline-flex; align-items: center; }
-/* The label sits on the moving background, so a soft halo in the page's colour keeps it readable over orange. */
-.logo { text-shadow: 0 0 10px var(--bg-base), 0 0 3px var(--bg-base); }
+/* What sits straight on the moving background (the app label, the room code, the top bar's buttons) gets a soft halo
+   in the background's darkest colour, so it stays readable over the brightest light behind it. */
+.logo, .topbar { text-shadow: 0 0 10px var(--bg-base), 0 0 3px var(--bg-base); }
+.topbar { --accent-2: #66e3c1; }
 .logo-icon { filter: drop-shadow(0 0 6px var(--bg-base)); }
 /* Sized with the title's font, so it matches on every screen. */
 .logo-icon { width: 1.4em; height: 1.4em; margin: -0.2em 0.15em -0.2em 0; flex: none; }
@@ -309,10 +340,11 @@ body:has(.final-page) main { visibility: hidden; }
 .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .option {
   padding: 9px 10px; border-radius: 10px; font-weight: 600; font-size: calc(0.95 * var(--round-em, 1rem)); line-height: 1.25;
-  /* Filled, so the page's dots stop at the button's edge and never run behind the title. */
-  background: var(--page); color: var(--ink); border: 2px solid var(--box-line);
+  /* Dark glass, filled so the moving background never runs behind the title, with a thin edge of the light's blue. */
+  background: rgba(6, 14, 22, 0.78); color: var(--ink); border: 1px solid rgba(135, 206, 235, 0.3);
   overflow-wrap: anywhere; transition: background 0.3s, border-color 0.3s;
 }
+.option:not(:disabled):hover { border-color: rgba(135, 206, 235, 0.65); background: rgba(14, 32, 48, 0.85); }
 .option:disabled { cursor: default; opacity: 0.6; }
 .option.picked, .option.right, .option.wrong { opacity: 1; }
 .option.picked { background: var(--button); border-color: var(--button); color: var(--on-button); }
