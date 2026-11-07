@@ -25,9 +25,9 @@
   /* A revealed answer's fill, under white text. */
   --option-right: #055c47;
   --option-wrong: #d93a5a;
-  /* The equalizer's dots: medium-bright teal at the base, orange as they rise. */
-  --eq-low: #74cfbb;
-  --eq-high: #faae6a;
+  /* The moving height map behind everything: a pale base in the lows, orange on the highs. */
+  --bg-base: #f6f2ea;
+  --bg-peak: #faae6a;
   --radius: 18px;
   /* The sub-windows' frosted glass: colourless, with a pale sheen, a bright edge and a soft shadow. */
   --glass: linear-gradient(145deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.2));
@@ -69,12 +69,12 @@
     --wash: rgba(0, 0, 0, 0.55);
     --option-right: #0e8a6b;
     --option-wrong: #c92f50;
-    --eq-low: #187e65;
-    --eq-high: #ad5d27;
+    --bg-base: #0d1615;
     /* The room code is pale in this theme, so button text is dark. */
     --button: #66e3c1;
     --on-button: #06281f;
-    --glass: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    /* Dark enough that light text stays readable over the orange in the background. */
+    --glass: linear-gradient(145deg, rgba(10, 14, 14, 0.5), rgba(10, 14, 14, 0.42));
     --glass-edge: rgba(255, 255, 255, 0.16);
     --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   }
@@ -93,9 +93,9 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; }
 
-/* The page background: a plain page, with columns of dots rising from the bottom (EqualizerBackground.tsx). */
-.equalizer-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-.equalizer-bg canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* The page background: a moving height map (HeightMapBackground.tsx), drawn at half size and stretched. */
+.height-map-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: var(--bg-base); }
+.height-map-bg canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 h1, h2, h3 { margin: 0.2em 0 0.4em; }
 h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -115,12 +115,12 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
   --muted: #3f3d58;
   --me: #0a3aa8;
   --accent-2: #055c47;
-  /* Frosted glass over the notes behind it. */
+  /* Frosted glass over the moving background, blurred enough that its shapes don't pull at the text. */
   background: var(--glass);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
   border-radius: var(--radius);
   padding: var(--window-pad);
   display: flex;
@@ -136,6 +136,9 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .logo { font-size: 2.6rem; letter-spacing: -0.03em; }
 .logo span { color: var(--accent); }
 .logo { display: inline-flex; align-items: center; }
+/* The label sits on the moving background, so a soft halo in the page's colour keeps it readable over orange. */
+.logo { text-shadow: 0 0 10px var(--bg-base), 0 0 3px var(--bg-base); }
+.logo-icon { filter: drop-shadow(0 0 6px var(--bg-base)); }
 /* Sized with the title's font, so it matches on every screen. */
 .logo-icon { width: 1.4em; height: 1.4em; margin: -0.2em 0.15em -0.2em 0; flex: none; }
 .muted { color: var(--muted); margin: 0; }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { readPeaks, stemPlayer } from '../audio';
+import { alignLevelsToSpeakers, readPeaks, stemPlayer } from '../audio';
 import type { Credit } from '../types';
 
 /** The YouTube video id in a watch, youtu.be, shorts or embed link. */
@@ -110,7 +110,8 @@ export function RingedCover({ credit, revealed }: { credit?: Credit | null; reve
     const middle = RING_PIXELS / 2;
     let frame = 0;
     const draw = (now: number) => {
-      // Only the song: the menu music shares the analyser while no song is playing.
+      // Held back by the speakers' latency, so the bars move with what you hear.
+      alignLevelsToSpeakers();
       if (stemPlayer.isPlaying() && !still) readPeaks(peaks);
       else peaks.fill(0);
       ctx.clearRect(0, 0, RING_PIXELS, RING_PIXELS);

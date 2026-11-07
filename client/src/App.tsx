@@ -1,12 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { bgMusic, stemPlayer } from './audio';
+import { useEffect, useState } from 'react';
+import { stemPlayer } from './audio';
 import { clearSession, loadSession, request, serverUrl, socket } from './socket';
 import type { GameSong, Phase, Player, RoomState, RoundAnswer } from './types';
 import Home from './components/Home';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
 import GameOver from './components/GameOver';
-const MUSIC_RETURN_MS = 1500;
 
 export default function App() {
   const [connected, setConnected] = useState(socket.connected);
@@ -125,16 +124,6 @@ export default function App() {
       : phase === 'gameOver'
         ? 'gameOver'
         : 'lobby';
-  // The silent music keeps the notes drifting whenever a song isn't playing, including between a game's rounds.
-  const songPlaying = useSyncExternalStore(stemPlayer.subscribe, stemPlayer.isPlaying);
-  const musicAllowed = !songPlaying;
-
-  useEffect(() => {
-    if (!musicAllowed) return bgMusic.setWanted(false);
-    // Waits a moment: changing song stops the old one before the next has loaded.
-    const timer = setTimeout(() => bgMusic.setWanted(true), MUSIC_RETURN_MS);
-    return () => clearTimeout(timer);
-  }, [musicAllowed]);
   if (!room) return <Home connected={connected} />;
 
   const meId = socket.id ?? '';

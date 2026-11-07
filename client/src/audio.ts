@@ -9,7 +9,7 @@ export function audioContext(): AudioContext {
 
 let sharedTap: { input: DelayNode; analyser: AnalyserNode } | undefined;
 
-/** Everything the game plays (menu music and songs) also goes here, for the equalizer background. */
+/** Everything the game plays also goes here, for the equalizer ring around a round's cover. */
 function levelsTap() {
   if (!sharedTap) {
     const ctx = audioContext();
@@ -66,9 +66,7 @@ export function alignLevelsToSpeakers() {
 
 /** Browsers (and Capacitor webviews) only start audio after a user gesture. */
 export function unlockAudio() {
-  void audioContext()
-    .resume()
-    .then(() => bgMusic.sync());
+  void audioContext().resume();
 }
 
 for (const event of ['pointerdown', 'keydown', 'touchstart']) {
@@ -191,63 +189,4 @@ class StemPlayer {
   }
 }
 
-const BG_URL = '/audio/bg-loop.flac';
-const BG_VOLUME = 0.5;
-
-/**
- * Background loop, never sent to the speakers: only the equalizer hears it, so the notes keep drifting in silence.
- * AudioBufferSourceNode.loop is sample-accurate, so there is no gap.
- */
-class BgMusic {
-  private wanted = false;
-  private buffer?: Promise<AudioBuffer>;
-  private current?: Track;
-
-  setWanted(wanted: boolean) {
-    this.wanted = wanted;
-    void this.sync();
-  }
-
-  async sync() {
-    if (!this.wanted) {
-      this.fadeOut();
-      return;
-    }
-    const ctx = audioContext();
-    if (this.current || ctx.state !== 'running') return;
-
-    this.buffer ??= fetch(BG_URL)
-      .then((res) => res.arrayBuffer())
-      .then((data) => ctx.decodeAudioData(data));
-    const buffer = await this.buffer.catch(() => undefined);
-    if (!buffer || this.current || !this.wanted) return;
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(BG_VOLUME, ctx.currentTime + 1);
-    gain.connect(levelsTap().input);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    source.connect(gain);
-    source.start();
-    this.current = { source, gain };
-  }
-
-  private fadeOut() {
-    if (!this.current) return;
-    const { source, gain } = this.current;
-    this.current = undefined;
-    // Off the equalizer straight away: a song starting now has the bars to itself while this fades.
-    gain.disconnect(levelsTap().input);
-    const now = audioContext().currentTime;
-    gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.6);
-    source.stop(now + 0.7);
-    source.onended = () => gain.disconnect();
-  }
-}
-
 export const stemPlayer = new StemPlayer();
-export const bgMusic = new BgMusic();
