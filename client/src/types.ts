@@ -18,6 +18,9 @@ export type RoomState = {
   search: string;
   /** Songs in the library matching the filters and search (null until counted). */
   poolSize: number | null;
+  /** The next game's option songs, drawn in the lobby from those matching the filters. Its rounds play a hidden
+   * pick of totalRounds of them, and every answer option is one of them. */
+  songs: { title: string; artist: string; credit?: Credit | null }[];
   players: Player[];
 };
 

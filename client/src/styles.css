@@ -271,6 +271,11 @@ button.small { padding: 6px 10px; font-size: 0.85rem; }
 button.leave-room { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .leave-room .arrow { font-size: 1.6rem; line-height: 1; }
 .ranking .score { font-weight: 700; }
+/* The lobby's songs for the game: a sideways row of song cards (.song-cards), under a heading with the count. */
+.game-songs { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.game-songs-head { margin: 0; font-weight: 600; }
+.game-songs .song-card { cursor: default; text-align: center; }
+.game-songs .song-card-cover .cover { width: 120px; height: 120px; border-radius: 10px; }
 /* The lobby's box: numbered player seats (empty ones show just the number). */
 .players-box { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--box-line); border-radius: 10px; }
 .player-slots { margin: 0; padding-left: 1.8em; }
@@ -357,7 +362,13 @@ body:has(.final-page) main { visibility: hidden; }
   background: rgba(6, 14, 22, 0.78); color: var(--ink); border: 1px solid rgba(135, 206, 235, 0.3);
   overflow-wrap: anywhere; transition: background 0.3s, border-color 0.3s;
 }
-.option:not(:disabled):hover { border-color: rgba(135, 206, 235, 0.65); background: rgba(14, 32, 48, 0.85); }
+/* Only with a real mouse: phones (iPhone Safari especially) keep :hover on the last tapped spot, so the next
+   round's option there looked picked. */
+@media (hover: hover) and (pointer: fine) {
+  .option:not(:disabled):hover { border-color: rgba(135, 206, 235, 0.65); background: rgba(14, 32, 48, 0.85); }
+}
+.option { -webkit-tap-highlight-color: transparent; }
+.option:focus:not(:focus-visible) { outline: none; }
 .option:disabled { cursor: default; opacity: 0.6; }
 .option.picked, .option.right, .option.wrong { opacity: 1; }
 .option.picked { background: var(--button); border-color: var(--button); color: var(--on-button); }
@@ -529,14 +540,15 @@ body:has(.final-page) main { visibility: hidden; }
 .quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 17px; height: 34px; line-height: 34px; font-size: 0.6rem; }
 .quiet .scroll-hint.left { border-radius: 0 17px 17px 0; }
 .quiet .scroll-hint.right { border-radius: 17px 0 0 17px; }
-/* The filter lists' arrows: thin teal bars, styled like the filled buttons. */
-.artist-panel .quiet .scroll-hint.left, .artist-panel .quiet .scroll-hint.right {
+/* The filter lists' and the lobby song row's arrows: thin teal bars, styled like the filled buttons. */
+.artist-panel .quiet .scroll-hint.left, .artist-panel .quiet .scroll-hint.right,
+.game-songs .quiet .scroll-hint.left, .game-songs .quiet .scroll-hint.right {
   /* The row's full height, so they're easy to hit. */
   top: 0; bottom: 0; transform: none; height: auto; display: grid; place-items: center;
   width: 14px; line-height: 1; border-radius: 5px;
   background: var(--button); color: var(--on-button); font-size: 0.55rem;
 }
-.artist-panel .quiet .scroll-hint:hover { background: color-mix(in srgb, var(--button) 80%, white); }
+.artist-panel .quiet .scroll-hint:hover, .game-songs .quiet .scroll-hint:hover { background: color-mix(in srgb, var(--button) 80%, white); }
 
 /* ----- Floating header: pinned to the top of every screen, the content scrolls under it ----- */
 .screen.center { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }

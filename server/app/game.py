@@ -17,11 +17,13 @@ from .models import GameResult, Song, Stem
 log = logging.getLogger(__name__)
 
 MAX_NAME_LENGTH = 20
-MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 5
+MIN_ROUNDS, MAX_ROUNDS, DEFAULT_ROUNDS = 3, 10, 10
 MIN_PLAYER_LIMIT, MAX_PLAYER_LIMIT, DEFAULT_PLAYER_LIMIT = 2, 10, 2
 # Clients start audio ~0.1 s after round_start arrives, so the server waits slightly longer.
 AUDIO_START_GRACE = 0.3
 OPTION_COUNT = 4
+# Songs listed in the lobby as the game's options; its rounds secretly play total_rounds of them.
+OPTION_LIST_SIZE = 20
 # A correct answer scores MAX_POINTS right at the start, falling to 1 point at the buzzer.
 MAX_POINTS = 10
 
@@ -94,8 +96,12 @@ class Room:
     task: asyncio.Task | None = None
     all_guessed: asyncio.Event = field(default_factory=asyncio.Event)
     next_at: float | None = None  # time.monotonic() when the next round starts after a result
-    # Titles the wrong options are drawn from (the game's whole library, not just its playlist).
+    # Titles the wrong options are drawn from: the option songs listed in the lobby.
     title_pool: list[str] = field(default_factory=list)
+    # The next game's option songs, drawn in the lobby and shown there ({"title", "artist", "credit"}); the playlist
+    # is a hidden pick of total_rounds of them.
+    option_ids: list[int] = field(default_factory=list)
+    songs: list[dict] = field(default_factory=list)
     # Last round_prepare / round_end payloads, replayed to players who rejoin mid-game.
     prepare_payload: dict | None = None
     end_payload: dict | None = None
@@ -130,6 +136,7 @@ class Room:
             **self.filters(),
             "search": self.search,
             "poolSize": self.pool_size,
+            "songs": self.songs,
             "players": [
                 {
                     "id": p.sid,
@@ -335,6 +342,8 @@ class GameManager:
             room.search = search
         if library is not None or chosen or search is not None:
             await self._count_pool(room)
+        elif len(room.playlist) != min(room.total_rounds, len(room.option_ids)):
+            await self._draw_songs(room)
         await self._broadcast_state(room)
         return {"ok": True}
 
@@ -343,13 +352,32 @@ class GameManager:
         await self._count_pool(room)
 
     async def _count_pool(self, room: Room) -> None:
-        room.pool_size = len(
-            await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
-        )
+        """Counts the songs matching the filters and draws the next game's songs from them."""
+        song_ids = await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
+        room.pool_size = len(song_ids)
+        await self._draw_songs(room, song_ids)
+
+    async def _draw_songs(self, room: Room, song_ids: list[int] | None = None) -> None:
+        """Picks the next game's option songs (shown in the lobby) from the matches, and secretly its rounds' songs
+        from those: its full length, or every option when the filters leave fewer."""
+        if song_ids is None:
+            song_ids = await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
+        room.option_ids = random.sample(song_ids, min(max(OPTION_LIST_SIZE, room.total_rounds), len(song_ids)))
+        room.playlist = random.sample(room.option_ids, min(room.total_rounds, len(room.option_ids)))
+        # Listed in their own random order, which says nothing about which of them play.
+        room.songs = await asyncio.to_thread(self._song_names, room.option_ids)
+
+    @staticmethod
+    def _song_names(song_ids: list[int]) -> list[dict]:
+        with SessionLocal() as db:
+            names = {s.id: {"title": s.title, "artist": s.artist, "credit": s.credit}
+                     for s in db.execute(select(Song.id, Song.title, Song.artist, Song.credit)
+                                         .where(Song.id.in_(song_ids)))}
+        return [names[i] for i in song_ids if i in names]
 
     @staticmethod
     def _with_options(rnd: Round, pool: list[str]) -> Round:
-        """Fills in the multiple-choice options: the right title plus up to three others from the library."""
+        """Fills in the multiple-choice options: the right title plus up to three others from the game's songs."""
         seen = {rnd.title.casefold()}
         others = []
         for title in pool:
@@ -423,16 +451,12 @@ class GameManager:
 
         filtered = room.search or any(room.filters().values())
         by_filters = " matching the filters" if filtered else " in the library"
-        song_ids = await asyncio.to_thread(self._playable_song_ids, room.library, room.filters(), room.search)
-        if len(song_ids) < MIN_ROUNDS:
-            return _error(f"Games need at least {MIN_ROUNDS} songs{by_filters} (there are {len(song_ids)}).")
-        room.title_pool = await asyncio.to_thread(
-            self._option_titles, room.library, song_ids, room.filters(), room.search
-        )
-
-        # A game plays its full length, or every song when the filters leave fewer.
-        random.shuffle(song_ids)
-        room.playlist = song_ids[: room.total_rounds]
+        # The rounds play a hidden pick of the option songs shown in the lobby; the options are only their titles.
+        if not room.playlist:
+            await self._draw_songs(room)
+        if len(room.playlist) < MIN_ROUNDS:
+            return _error(f"Games need at least {MIN_ROUNDS} songs{by_filters} (there are {len(room.playlist)}).")
+        room.title_pool = await asyncio.to_thread(self._titles, room.option_ids)
         room.round_number = 0
         room.played = []
         for p in room.players.values():
@@ -458,27 +482,6 @@ class GameManager:
     def _titles(song_ids: list[int]) -> list[str]:
         with SessionLocal() as db:
             return list(db.scalars(select(Song.title).where(Song.id.in_(song_ids))))
-
-    @staticmethod
-    def _option_titles(library: str, song_ids: list[int], filters: Filters | None = None, search: str = "") -> list[str]:
-        """Titles the wrong options are drawn from: the songs matching the game's filters (and search), so the
-        options share the chosen languages, genres and artists. When those have fewer than OPTION_COUNT titles,
-        the pick widens one step at a time, keeping what matters most for telling songs apart: first the search
-        goes, then the artists, then the genres, and the languages only last (then it's the whole library)."""
-        titles = GameManager._titles(song_ids)
-        filters = dict(filters or no_filters())
-        steps = [] if not search else [dict(filters)]
-        for kind in ("artists", "genres", "languages"):
-            if filters.get(kind):
-                filters[kind] = []
-                steps.append(dict(filters))
-        for wider in steps:
-            if len({t.casefold() for t in titles}) >= OPTION_COUNT:
-                break
-            titles = GameManager._titles(GameManager._playable_song_ids(library, wider))
-        if len({t.casefold() for t in titles}) >= OPTION_COUNT:
-            return titles
-        return GameManager._titles(GameManager._playable_song_ids(library))
 
     @staticmethod
     def _load_round(song_id: int) -> Round | None:
@@ -574,6 +577,7 @@ class GameManager:
             room=room.code,
         )
         room.drop_disconnected()
+        await self._draw_songs(room)  # the next game gets new songs
         await self._broadcast_state(room)
 
     @staticmethod

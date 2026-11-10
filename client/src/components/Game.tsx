@@ -55,6 +55,12 @@ export default function Game({
   const result = (phase === 'roundEnd' || phase === 'prepare') && answer;
 
   useEffect(() => setHint(''), [room.round]);
+  // A new round starts with nothing pressed: a phone can keep the last tapped option focused.
+  useEffect(() => {
+    if (document.activeElement instanceof HTMLElement && document.activeElement.classList.contains('option')) {
+      document.activeElement.blur();
+    }
+  }, [roundCount?.round]);
 
   async function pick(option: number) {
     if (!canPick) return;
@@ -135,7 +141,8 @@ export default function Game({
               <div className="options" role="group" aria-label="Answer options">
                 {options.map((title, i) => (
                   <button
-                    key={`${i}-${title}`}
+                    // New buttons each round, so nothing of the last round's tap carries over.
+                    key={`${roundCount?.round ?? 0}-${i}-${title}`}
                     className={optionClass(i)}
                     disabled={!canPick}
                     onClick={() => void pick(i)}
