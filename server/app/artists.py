@@ -9,13 +9,18 @@ import re
 from collections import Counter
 
 SEPARATORS = re.compile(r"\s*(?:,|&|;|/|\+|\bx\b|\bvs\.?(?=\s)|\bft\b\.?|\bfeat\b\.?|\bfeaturing\b)\s*", re.I)
+# One act whose name contains a separator.
+WHOLE_ACTS = re.compile(r"(?<!\w)(AC/DC|HUNTR/X|Bob Marley & The Wailers)(?!\w)", re.I)
 # Credits that aren't a person: "Eminem & friends".
 NOT_ARTISTS = {"friends", "others", "various", "various artists", "unknown", "unknown artist"}
 MAX_CHOSEN = 100
 
 
 def split_artists(text: str) -> list[str]:
-    names = (" ".join(part.split()) for part in SEPARATORS.split(text or ""))
+    # re.split with a group puts the whole acts at the odd positions.
+    pieces = WHOLE_ACTS.split(text or "")
+    parts = [p for i, piece in enumerate(pieces) for p in ([piece] if i % 2 else SEPARATORS.split(piece))]
+    names = (" ".join(part.split()) for part in parts)
     return [n for n in names if n and n.casefold() not in NOT_ARTISTS]
 
 

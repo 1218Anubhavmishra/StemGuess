@@ -50,7 +50,9 @@
   --screen-top: max(11px, env(safe-area-inset-top));
   --screen-x: 16px;
   --window-pad: 20px;
-  --window-gap: 12px;
+  --window-gap: 16px;
+  /* Extra room above a window's first thing and below its last. */
+  --window-pad-y: 30px;
   /* Filled buttons: the room code's colour, with text that reads on it. */
   --button: #055c47;
   --on-button: #fff;
@@ -98,7 +100,8 @@
     --screen-top: max(3px, env(safe-area-inset-top));
     --screen-x: 6px;
     --window-pad: 10px;
-    --window-gap: 8px;
+    --window-gap: 11px;
+    --window-pad-y: 18px;
   }
 }
 
@@ -208,8 +211,18 @@ input:disabled { opacity: 0.5; }
   .create-row { flex-wrap: wrap; }
   .create-row > button { flex: 1 1 100%; }
 }
-.join-row { align-items: center; }
-.join-row .divider { white-space: nowrap; margin-right: 2px; }
+/* The main screen: Create Room, "or", Join Room in one line (stacked on narrow screens). */
+.choice-row { display: flex; align-items: center; gap: 12px; }
+.choice-row > button { flex: 1; white-space: nowrap; }
+.choice-row .divider { flex: none; }
+@media (max-width: 440px) {
+  .choice-row { flex-direction: column; align-items: stretch; gap: 8px; }
+}
+/* Room Settings and Join Room: a title, then their fields. */
+.window-title { margin: 0; text-align: center; font-size: 1.3rem; }
+.join-form { display: flex; flex-direction: column; gap: var(--window-gap); }
+button.back-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.back-button .arrow { font-size: 1.6rem; line-height: 1; }
 button {
   background: var(--panel-2);
   color: var(--text);
@@ -413,7 +426,7 @@ body:has(.final-page) main { visibility: hidden; }
 @media (max-height: 700px) {
   .ringed-cover { width: 76px; height: 76px; }
   .ringed-cover > .cover { width: 50px; height: 50px; }
-  .stage { --window-gap: 5px; --window-pad: 8px; }
+  .stage { --window-gap: 5px; --window-pad: 8px; --window-pad-y: 8px; }
   .option { padding: 5px 8px; line-height: 1.15; }
   .answer h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .answer .credit { margin: 0; }
@@ -480,7 +493,7 @@ body:has(.final-page) main { visibility: hidden; }
 .card:has(> .window-scroll) { padding: 0; overflow: hidden; }
 .window-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .window-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; }
-.window-content { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--window-gap); padding: var(--window-pad); }
+.window-content { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--window-gap); padding: var(--window-pad-y) var(--window-pad); }
 /* Scrolling without a scrollbar (ScrollHints.tsx): grey lines mark the side(s) with more to scroll to,
    each with a half-circle arrow button whose flat side lies on the edge. */
 .scroll-wrap { position: relative; }
@@ -516,6 +529,14 @@ body:has(.final-page) main { visibility: hidden; }
 .quiet .scroll-hint.left, .quiet .scroll-hint.right { width: 17px; height: 34px; line-height: 34px; font-size: 0.6rem; }
 .quiet .scroll-hint.left { border-radius: 0 17px 17px 0; }
 .quiet .scroll-hint.right { border-radius: 17px 0 0 17px; }
+/* The filter lists' arrows: thin teal bars, styled like the filled buttons. */
+.artist-panel .quiet .scroll-hint.left, .artist-panel .quiet .scroll-hint.right {
+  /* The row's full height, so they're easy to hit. */
+  top: 0; bottom: 0; transform: none; height: auto; display: grid; place-items: center;
+  width: 14px; line-height: 1; border-radius: 5px;
+  background: var(--button); color: var(--on-button); font-size: 0.55rem;
+}
+.artist-panel .quiet .scroll-hint:hover { background: color-mix(in srgb, var(--button) 80%, white); }
 
 /* ----- Floating header: pinned to the top of every screen, the content scrolls under it ----- */
 .screen.center { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }

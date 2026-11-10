@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { request, socket } from '../socket';
 import { SONG_LIMITS, type RoomState, type ServerLibrary } from '../types';
-import { FILTER_KINDS, FILTER_LABELS, hasFilters, tidySearch, type SongFilters } from '../filters';
+import { FILTER_KINDS, FILTER_LABELS, hasFilters, type SongFilters } from '../filters';
 import Brand from './Brand';
-import Filters, { SEARCH_DELAY_MS, useLibraryFacets } from './Filters';
 import Invite from './Invite';
 import { PlayerSlots } from './PlayerSlots';
 import { WindowBody } from './ScrollHints';
@@ -24,30 +23,24 @@ export default function Lobby({
     void request('library').then((ack) => ack.ok && setLibraries(ack.libraries ?? null));
   }, []);
 
-  // What the host is typing, per library (changing library clears the room's search).
-  const [typed, setTyped] = useState({ library: room.library, text: room.search });
-  const search = typed.library === room.library ? typed.text : room.search;
-  const facets = useLibraryFacets(room.library, true, isHost ? search : '');
+  // The song filters are chosen on the Room Settings screen, before the room; here everyone sees them.
   const filters: SongFilters = { genres: room.genres, languages: room.languages, artists: room.artists };
-
-  useEffect(() => {
-    if (!isHost || tidySearch(search) === room.search) return;
-    const timer = setTimeout(() => {
-      void request('update_settings', { search }).then((ack) => {
-        if (!ack.ok) setError(ack.error ?? 'Could not update settings');
-      });
-    }, SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [isHost, search, room.search]);
   // Songs (matching the filters) the game can draw from.
   const librarySize = room.poolSize ?? libraries?.[room.library] ?? null;
   const notEnoughSongs = librarySize !== null && librarySize < SONG_LIMITS.min;
-
-  async function update(settings: Partial<SongFilters>) {
-    setError('');
-    const ack = await request('update_settings', settings);
-    if (!ack.ok) setError(ack.error ?? 'Could not update settings');
-  }
+  const chosen = (
+    <>
+      {FILTER_KINDS.map(
+        (kind) =>
+          filters[kind].length > 0 && (
+            <p key={kind} className="muted">
+              {FILTER_LABELS[kind]}: {filters[kind].join(', ')}
+            </p>
+          ),
+      )}
+      {room.search && <p className="muted">Search: "{room.search}"</p>}
+    </>
+  );
 
   async function start() {
     setError('');
@@ -64,14 +57,7 @@ export default function Lobby({
           <WindowBody>
             <Invite code={room.code} />
 
-            {isHost && (
-              <Filters
-                facets={facets}
-                value={filters}
-                onChange={(next) => void update(next)}
-                search={{ value: search, onChange: (text) => setTyped({ library: room.library, text }) }}
-              />
-            )}
+            {chosen}
 
             <div className="players-box">
               <PlayerSlots room={room} meId={socket.id ?? ''} />
@@ -90,18 +76,7 @@ export default function Lobby({
                 )}
               </>
             ) : (
-              <>
-                {FILTER_KINDS.map(
-                  (kind) =>
-                    filters[kind].length > 0 && (
-                      <p key={kind} className="muted">
-                        {FILTER_LABELS[kind]}: {filters[kind].join(', ')}
-                      </p>
-                    ),
-                )}
-                {room.search && <p className="muted">Search: "{room.search}"</p>}
-                <p className="muted">Waiting for the host to start…</p>
-              </>
+              <p className="muted">Waiting for the host to start…</p>
             )}
 
             {error && <p className="error">{error}</p>}

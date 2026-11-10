@@ -81,8 +81,8 @@ function filterKinds(facets: FacetRow[], value: SongFilters) {
 }
 
 /**
- * Choose songs by genre, language and artist, like a shop's search filters: options picked in one list
- * widen the pick, options in different lists narrow it. Each option shows how many songs it would add.
+ * Choose songs by genre, language and artist. Once something is picked, every list (its own too) offers only the
+ * options related to it: those the songs matching the picks also have, each with how many of those songs.
  * The lists fold under their category's button, one open at a time; each button shows how many options it holds.
  */
 export default function Filters({
@@ -121,7 +121,8 @@ export default function Filters({
   // The cursor among the filters: before the filter at this index. Null when it's in the search text.
   const caret = filterCaret !== null && filterCaret < chosen.length ? filterCaret : null;
   const searched = search.value.trim();
-  const matching = (facets ?? []).filter(songFilter(value)).reduce((n, row) => n + row.songs, 0);
+  const related = (facets ?? []).filter(songFilter(value));
+  const matching = related.reduce((n, row) => n + row.songs, 0);
   const count = `${matching} song${matching === 1 ? '' : 's'}`;
 
   function toggle(kind: FilterKind, name: string) {
@@ -255,8 +256,9 @@ export default function Filters({
       {open && facets && kinds.length > 0 && (
         <div className="artist-panel">
           {kinds.map((kind) => {
-            // Counts follow the other lists' ticks, as in a shop's filters; options with no songs are hidden.
-            const counts = countValues((facets ?? []).filter(songFilter(value, kind)), kind);
+            // Only what's related to the choices so far, in every list including the chosen one's own: an option
+            // shows when songs matching all the ticks also have it, with how many. Unrelated options are hidden.
+            const counts = countValues(related, kind);
             const ticked = new Set(value[kind].map(artistKey));
             const available = all[kind].filter(
               (o) => ticked.has(artistKey(o.name)) || (counts.get(artistKey(o.name))?.songs ?? 0) > 0,

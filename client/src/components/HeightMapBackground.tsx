@@ -23,7 +23,7 @@ const RESOLUTION = 1;
 // The most time one frame may move the picture on, so it doesn't leap after the tab was hidden.
 const MAX_STEP = 0.05;
 // How fast the picture's time runs against real time: below 1, everything flows more slowly.
-const PACE = 0.6;
+const PACE = 0.69;
 
 // Writes a number the way the shader language needs it: always with a decimal point.
 const glsl = (value: number) => value.toFixed(6);

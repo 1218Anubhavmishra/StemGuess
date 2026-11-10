@@ -10,7 +10,7 @@ type Axis = 'y' | 'x';
  * `className` and `onScroll` to the scrolling element, and put it with <ScrollArrows> inside an element with
  * `wrapClassName` (which draws the lines).
  */
-export function useScrollHints<T extends HTMLElement>(axis: Axis = 'y') {
+export function useScrollHints<T extends HTMLElement>(axis: Axis = 'y', step = 0.8) {
   const ref = useRef<T>(null);
   const [more, setMore] = useState<More>({ above: false, below: false });
   const check = useCallback(() => {
@@ -42,15 +42,15 @@ export function useScrollHints<T extends HTMLElement>(axis: Axis = 'y') {
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [axis]);
-  /** Scrolls most of the box's height (or width) back (-1) or on (1). */
+  /** Scrolls `step` of the box's height (or width) back (-1) or on (1). */
   const scrollBy = useCallback(
     (direction: 1 | -1) => {
       const el = ref.current;
       if (!el) return;
-      if (axis === 'x') el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: 'smooth' });
-      else el.scrollBy({ top: direction * el.clientHeight * 0.8, behavior: 'smooth' });
+      if (axis === 'x') el.scrollBy({ left: direction * el.clientWidth * step, behavior: 'smooth' });
+      else el.scrollBy({ top: direction * el.clientHeight * step, behavior: 'smooth' });
     },
-    [axis],
+    [axis, step],
   );
   const wrapClassName = `scroll-wrap${axis === 'x' ? ' x' : ''}${more.above ? ' more-above' : ''}${more.below ? ' more-below' : ''}`;
   return { ref, more, axis, className: 'scroll-lines', wrapClassName, onScroll: check, scrollBy };
@@ -128,7 +128,8 @@ export function ScrollRow({
   label?: string;
   children: ReactNode;
 }) {
-  const scroll = useScrollHints<HTMLUListElement>('x');
+  // A filter row's arrows move a shorter way than a window's: 20% less than 0.8 of its width.
+  const scroll = useScrollHints<HTMLUListElement>('x', 0.64);
   return (
     <div className={`${scroll.wrapClassName} quiet`}>
       <ul ref={scroll.ref} className={`${className} ${scroll.className}`} aria-label={label} onScroll={scroll.onScroll}>
