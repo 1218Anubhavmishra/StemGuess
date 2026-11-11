@@ -7,7 +7,7 @@ The target is DATABASE_URL from server/.env (the live database). Only songs whos
 already in the target are skipped, unless their clips changed (e.g. after reseparate_hits): then the
 new clips are uploaded and replace the old ones. Every song goes live with its filter tags (genres,
 with those its languages imply, and languages; see app.filters.tagged_genres), and songs already live
-whose tags differ are re-tagged. Songs hidden locally (Song.hidden) are hidden live too, before any upload.
+whose tags differ are re-tagged, and those whose title, artist or credit differ are renamed. Songs hidden locally (Song.hidden) are hidden live too, before any upload.
 """
 
 import mimetypes
@@ -64,15 +64,19 @@ def main() -> None:
         todo = [s for s in songs
                 if existing.get(s.source_file) != {live_path(st.path) for st in s.stems}]
         publishing = {s.source_file for s in todo}
-        tags = {s.source_file: tags_of(s) for s in songs if s.source_file in existing and s.source_file not in publishing}
-        retagged = 0
+        kept = {s.source_file: s for s in songs if s.source_file in existing and s.source_file not in publishing}
+        retagged = renamed = 0
         with SessionLocal() as live:
-            for old in live.scalars(select(Song).where(Song.source_file.in_(tags))):
-                if (old.genre, old.language) != tags[old.source_file]:
-                    old.genre, old.language = tags[old.source_file]
+            for old in live.scalars(select(Song).where(Song.source_file.in_(kept))):
+                song = kept[old.source_file]
+                if (old.genre, old.language) != tags_of(song):
+                    old.genre, old.language = tags_of(song)
                     retagged += 1
+                if (old.title, old.artist, old.credit) != (song.title, song.artist, song.credit):  # e.g. English titles
+                    old.title, old.artist, old.credit = song.title, song.artist, song.credit
+                    renamed += 1
             live.commit()
-        print(f"{retagged} live songs re-tagged")
+        print(f"{retagged} live songs re-tagged, {renamed} renamed")
         hidden = {s.source_file: s.hidden for s in songs}
         with SessionLocal() as live:
             changed = 0
@@ -101,6 +105,7 @@ def main() -> None:
                                              Key=path.removeprefix(f"{config.R2_PUBLIC_URL}/"))
                     old.stems = stems
                     old.duration = song.duration
+                    old.title, old.artist, old.credit = song.title, song.artist, song.credit
                     old.genre, old.language = tags_of(song)
                 else:
                     genre, language = tags_of(song)

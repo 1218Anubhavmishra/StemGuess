@@ -3,6 +3,7 @@ import { stemPlayer } from '../audio';
 import { request, serverUrl } from '../socket';
 import type { GameSong, Player, RoomState } from '../types';
 import Brand from './Brand';
+import { titleCase } from '../names';
 import Cover from './Cover';
 import CreditLine from './CreditLine';
 import DisconnectedIcon from './DisconnectedIcon';
@@ -61,7 +62,7 @@ export default function GameOver({ room, ranking, songs, isHost, onLeave }: Prop
                 >
                   <span className="place">{i + 1}</span>
                   <span className="name">
-                    {p.name}
+                    {titleCase(p.name)}
                     {!p.connected && <DisconnectedIcon />}
                   </span>
                   <span className="score">

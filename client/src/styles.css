@@ -276,11 +276,32 @@ button.leave-room { display: inline-flex; align-items: center; justify-content: 
 .game-songs-head { margin: 0; font-weight: 600; }
 .game-songs .song-card { cursor: default; text-align: center; }
 .game-songs .song-card-cover .cover { width: 120px; height: 120px; border-radius: 10px; }
+/* Smaller labels under the lobby's song covers. */
+.game-songs .song-card-title { font-size: 0.75rem; }
+.game-songs .song-card-artist { font-size: 0.68rem; }
 /* The lobby's box: numbered player seats (empty ones show just the number). */
 .players-box { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--box-line); border-radius: 10px; }
-.player-slots { margin: 0; padding-left: 1.8em; }
-.player-slots li { min-height: 1.75em; padding: 2px 0; font-weight: 600; }
-.player-slots li::marker { color: var(--muted); font-weight: 400; }
+/* The seats as a table without inner lines, filled row by row. PlayerSlots.tsx sets how many columns, from the names
+   and the room there is; each column is as wide as its longest name, shrinking with "…" only when one alone is too wide. */
+.player-slots-wrap { position: relative; min-width: 0; overflow: hidden; }
+.player-slots {
+  margin: 0; padding: 0; list-style: none; counter-reset: seat;
+  display: grid; justify-content: start; row-gap: 4px;
+}
+/* The out-of-sight copy that's measured: every seat at its natural width. */
+.player-slots-measure {
+  position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none;
+  display: flex; flex-wrap: nowrap; width: max-content;
+}
+.player-slots-measure li { width: max-content; }
+/* Each seat: its number, the name (cut short with "…" if it must be), then the host tag, always whole. */
+.player-slots li {
+  counter-increment: seat; display: flex; align-items: center; min-width: 0;
+  min-height: 1.75em; padding: 2px 0; font-weight: 600; white-space: nowrap;
+}
+.player-slots li::before { content: counter(seat) '.'; flex: none; margin-right: 0.4em; color: var(--muted); font-weight: 400; }
+.player-slots .player-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.player-slots .tag { flex: none; }
 .player-slots li.me { color: var(--me); }
 .round-winners { margin: 4px 0 0; font-size: calc(0.9 * var(--round-em, 1rem)); font-weight: 600; color: var(--accent-2); }
 .round-winners.none, .wrong-guess { color: var(--danger); }
@@ -548,6 +569,8 @@ body:has(.final-page) main { visibility: hidden; }
   width: 14px; line-height: 1; border-radius: 5px;
   background: var(--button); color: var(--on-button); font-size: 0.55rem;
 }
+/* The lobby's song row: only as tall as the covers, beside them. */
+.game-songs .quiet .scroll-hint.left, .game-songs .quiet .scroll-hint.right { top: 10px; bottom: auto; height: 120px; }
 .artist-panel .quiet .scroll-hint:hover, .game-songs .quiet .scroll-hint:hover { background: color-mix(in srgb, var(--button) 80%, white); }
 
 /* ----- Floating header: pinned to the top of every screen, the content scrolls under it ----- */
