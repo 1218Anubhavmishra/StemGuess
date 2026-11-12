@@ -70,7 +70,7 @@ when they have none, so titles can be shortened in `hits.csv`: run
 `import_hits` again locally and `import_hits --sync-only` against the live database to rename them
 without re-importing. Rounds play each song's first 15 s with everything in it (vocals included):
 `python -m scripts.full_mix_hits` re-cuts every hits clip that way from its audio file, and
-`python -m scripts.songs_folder` keeps only the songs whose audio is in `D:/songs` (plus a few chosen
+`python -m scripts.songs_folder` keeps only the songs whose audio is in `D:/music` (plus a few chosen
 artists) in the game. Publish with `publish_cc sqlite:///D:/projects/stem-guess/server/stemguess.db`
 (it copies the `hits:` songs to the live database and uploads their clips to R2). `python -m scripts.backup_hits [folder]`
 copies every hits song's stems and a `songs.json` index to a backup folder (default `D:/projects/stem-guess/env/StemGuess backup/hits`).

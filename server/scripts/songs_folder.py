@@ -23,7 +23,7 @@ from app.models import Song
 from scripts.import_hits import HITS, read_hits, site_of, source_of, video_id
 from scripts.full_mix_hits import DONE
 
-SONGS_DIR = Path("D:/songs")
+SONGS_DIR = Path("D:/music")
 # Artists whose songs are played wherever their audio is (theirs is in D:/music), matched at the start of
 # the artist ("Rustage ft. McGwire" counts).
 EXTRA_ARTISTS = ("billie eilish", "rustage")

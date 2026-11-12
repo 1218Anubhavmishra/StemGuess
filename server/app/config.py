@@ -29,7 +29,9 @@ CORS_ORIGINS = _csv("CORS_ORIGINS", "http://localhost:5173,https://localhost,cap
 MUSIC_AI_API_KEY = os.getenv("MUSIC_AI_API_KEY", "")
 MUSIC_AI_WORKFLOW = os.getenv("MUSIC_AI_WORKFLOW", "")
 MUSIC_AI_BASE_URL = os.getenv("MUSIC_AI_BASE_URL", "https://api.music.ai/v1").rstrip("/")
-CLIP_SECONDS = int(os.getenv("CLIP_SECONDS", "15"))
+# A round lasts ROUND_SECONDS (30) and clients loop the clip until it ends, so clips run a second longer than a round:
+# the clip never restarts mid-round, even with the round's start-up grace.
+CLIP_SECONDS = int(os.getenv("CLIP_SECONDS", "31"))
 
 # Cloudflare R2 (only needed by scripts/upload_r2.py, never shipped to clients)
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "")
