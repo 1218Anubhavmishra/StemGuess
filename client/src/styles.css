@@ -12,11 +12,11 @@
   --box-line: #4d4d4d;
   --text: #24233a;
   --muted: #6e6c86;
-  --accent: #6a4bff;
+  --accent: #2456d6;
   --me: #1f6feb;
   --accent-2: #0e9a77;
   --danger: #d93a5a;
-  --winner-bg: #e8e1ff;
+  --winner-bg: #dbe6ff;
   --page: Canvas;
   --on-page: #3a3955;
   /* Black in the light theme, white in the dark one. */
@@ -48,7 +48,7 @@
   --bottom-gap: max(5px, env(safe-area-inset-bottom));
   /* The space around things: a screen's edge to its window, a window's edge to its content, and so on. */
   --screen-top: max(11px, env(safe-area-inset-top));
-  --screen-x: 16px;
+  --screen-x: 30px;
   --window-pad: 20px;
   --window-gap: 16px;
   /* Extra room above a window's first thing and below its last. */
@@ -73,11 +73,12 @@
     --box-line: #8a8894;
     --text: #ecebf4;
     --muted: #aeacc0;
-    --accent: #a58fff;
+    --accent: #ecebf4;
     --me: #7fb0ff;
     --accent-2: #3fd0a8;
     --danger: #ff6b86;
-    --winner-bg: #3a2f6b;
+    --winner-bg: #ecebf4;
+    --on-winner: #24233a;
     --on-page: #d5d3e4;
     --ink: #fff;
     --wash: rgba(0, 0, 0, 0.55);
@@ -88,7 +89,7 @@
     --on-button: #06281f;
     /* Smoked glass: dark enough that light text stays readable over the brightest light behind it, with a pale
        top edge and a faint sheen where light catches the pane. */
-    --glass: linear-gradient(160deg, rgba(14, 32, 48, 0.62), rgba(4, 8, 12, 0.7) 45%, rgba(4, 8, 12, 0.74));
+    --glass: rgba(4, 8, 12, 0.45);
     --glass-edge: rgba(135, 206, 235, 0.22);
     --glass-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(234, 248, 255, 0.14);
   }
@@ -98,7 +99,7 @@
 @media (max-width: 480px) {
   :root {
     --screen-top: max(3px, env(safe-area-inset-top));
-    --screen-x: 6px;
+    --screen-x: 30px;
     --window-pad: 10px;
     --window-gap: 11px;
     --window-pad-y: 18px;
@@ -170,7 +171,7 @@ h3 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-
 .logo { display: inline-flex; align-items: center; }
 /* What sits straight on the moving background (the app label, the room code, the top bar's buttons) gets a soft halo
    in the background's darkest colour, so it stays readable over the brightest light behind it. */
-.logo, .topbar { text-shadow: 0 0 10px var(--bg-base), 0 0 3px var(--bg-base); }
+.logo, .topbar { text-shadow: 0 0 6px var(--bg-base), 0 0 2px var(--bg-base); }
 .topbar { --accent-2: #66e3c1; }
 .logo-icon { filter: drop-shadow(0 0 6px var(--bg-base)); }
 /* Sized with the title's font, so it matches on every screen. */
@@ -212,11 +213,11 @@ input:disabled { opacity: 0.5; }
   .create-row > button { flex: 1 1 100%; }
 }
 /* The main screen: Create Room, "or", Join Room in one line (stacked on narrow screens). */
-.choice-row { display: flex; align-items: center; gap: 12px; }
+.choice-row { display: flex; align-items: center; gap: 24px; }
 .choice-row > button { flex: 1; white-space: nowrap; }
 .choice-row .divider { flex: none; }
 @media (max-width: 440px) {
-  .choice-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .choice-row { flex-direction: column; align-items: stretch; gap: 18px; }
 }
 /* Room Settings and Join Room: a title, then their fields. */
 .window-title { margin: 0; text-align: center; font-size: 1.3rem; }
@@ -333,7 +334,7 @@ body:has(.final-page) main { visibility: hidden; }
 .answers { list-style: none; margin: 0; padding: 0; }
 .answers li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 .answers li:last-child { border-bottom: none; }
-.answers li.playing { background: var(--winner-bg); border-radius: 8px; }
+.answers li.playing { background: var(--winner-bg); color: var(--on-winner); --muted: #4a4860; border-radius: 8px; }
 .answers .place { width: 18px; flex: none; color: var(--muted); }
 .answers .credit { margin: 2px 0 0; }
 .answers .credit a { color: inherit; }
@@ -420,10 +421,11 @@ body:has(.final-page) main { visibility: hidden; }
 /* The final scores' songs: a sideways row of cover cards. */
 .song-cards { list-style: none; margin: 0; display: flex; gap: 12px; max-height: none; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 6px; }
 .song-cards .song-card { flex: 0 0 132px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: none; border-radius: 12px; font-size: 0.85rem; }
-.song-cards .song-card.playing { background: var(--winner-bg); }
+.song-cards .song-card.playing { background: var(--winner-bg); color: var(--on-winner); --muted: #4a4860; }
+.song-cards .song-card.playing .song-card-play:not(:disabled):hover .song-card-title { color: inherit; }
 .song-card-play {
   display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 0;
-  background: transparent; border: none; font: inherit; font-weight: 400; text-align: center;
+  background: transparent; border: none; font: inherit; color: inherit; font-weight: 400; text-align: center;
 }
 .song-card-play .cover { width: 120px; height: 120px; border-radius: 10px; }
 .song-card-play:not(:disabled):hover .song-card-title { color: var(--accent); }
@@ -513,7 +515,7 @@ body:has(.final-page) main { visibility: hidden; }
   width: 100%; font-size: 0.8rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere;
 }
 .filter-tile-count { font-size: 0.7rem; opacity: 0.75; }
-.chip { padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; background: var(--winner-bg); border-color: var(--accent); color: var(--text); }
+.chip { padding: 3px 10px; border-radius: 99px; font-size: 0.8rem; background: var(--winner-bg); border-color: var(--accent); color: var(--on-winner); }
 /* min-width: so the sideways rows scroll instead of stretching the window. */
 .facet { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; }
 /* A category's label: the button that opens its list, closing whichever was open. */
@@ -582,6 +584,47 @@ body:has(.final-page) main { visibility: hidden; }
 }
 .home-stack > .brand-block { align-self: stretch; padding-bottom: 4px; margin-bottom: 7px; }
 .topbar { padding-bottom: 3px; }
+
+/* ----- One glass window per screen: hung from the top edge of the screen (square top corners), the header inside
+   it, 30px of background either side, and only as tall as its content (game rounds keep a fixed height, so the
+   answer buttons stay put between guessing and the reveal). Height changes ease rather than jump. ----- */
+.screen.center, .overlay.final-page { padding-top: 0; }
+.home-stack, .screen.game {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(5px) saturate(1.15);
+  backdrop-filter: blur(5px) saturate(1.15);
+  padding: calc(var(--screen-top) + 8px) var(--window-pad) calc(2 * var(--window-pad));
+  --window-gap: 22px;
+  overflow: hidden;
+  interpolate-size: allow-keywords;
+  transition: height 0.4s ease, min-height 0.4s ease;
+}
+.home-stack { flex: 0 1 auto; height: auto; max-height: 100%; align-items: stretch; }
+.home-stack > .brand-block { margin: 0 0 16px; padding: 0; }
+.screen.game {
+  height: auto;
+  min-height: min(710px, calc(100dvh - 70px));
+  max-height: 100dvh;
+  width: min(760px, calc(100% - 2 * var(--screen-x)));
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.screen.game .topbar { margin-top: 0; padding-top: 0; }
+/* The windows inside are now part of the one pane of glass. */
+.home-stack > .card, .screen.game .stage {
+  background: none; border: none; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  border-radius: 12px;
+}
+.home-stack > .card { flex: 0 1 auto; padding: 0; }
+.home-stack > .card::after, .screen.game .stage::after { display: none; }
+.screen.game .stage { padding: 14px 0 4px; }
+/* A round: the question centred above the answers, which sit at the bottom of the window. */
+.screen.game .round-body { gap: clamp(14px, 2.4vh, 22px); }
+.screen.game .options { gap: 9px; margin-top: 6px; margin-bottom: 10px; }
 
 /* ----- Starting screen ----- */
 .splash {

@@ -10,9 +10,9 @@ const DETAIL = 3.6;
 // way. Every facet acts as a small lens (LENS), tilted by up to TILT units, and splits the light's colours slightly
 // (SPLIT), so light seems to diffract everywhere through the glass. Neighbouring facets blend over BLEND of a facet's
 // width, so the glass reads as fine texture rather than tiles, and their edges catch a little light (EDGE_GLOW).
-const FACETS = 16;
+const FACETS = 28;
 const LENS = -1.2;
-const TILT = 0.07;
+const TILT = 0.05;
 const SPLIT = 0.18;
 const BLEND = 0.32;
 const EDGE_GLOW = 0.07;
@@ -23,7 +23,7 @@ const RESOLUTION = 1;
 // The most time one frame may move the picture on, so it doesn't leap after the tab was hidden.
 const MAX_STEP = 0.05;
 // How fast the picture's time runs against real time: below 1, everything flows more slowly.
-const PACE = 0.69;
+const PACE = 1.0;
 
 // Writes a number the way the shader language needs it: always with a decimal point.
 const glsl = (value: number) => value.toFixed(6);
